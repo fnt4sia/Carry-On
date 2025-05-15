@@ -25,6 +25,6 @@ public class StageManager : MonoBehaviour
     {
         secondAudioSource.PlayOneShot(buttonClickSound);
         yield return new WaitForSeconds(0.2f);
-        SceneManager.LoadScene(level + 1);
+        SceneManager.LoadScene(level + 2);
     }
 }

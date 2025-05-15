@@ -7,6 +7,15 @@ public class Gate : MonoBehaviour
 {
     [SerializeField] private GameManager gameManager;
     [SerializeField] private int gateNumber;
+    [SerializeField] private Transform gateSign;
+    [SerializeField] private Transform canvasWorld;
+    [SerializeField] private GameObject gateSignPrefab;
+
+    private void Start()
+    {
+        GameObject gateSignObject = Instantiate(gateSignPrefab, canvasWorld);
+        gateSignObject.transform.position = gateSign.position;
+    }
 
     private void OnTriggerEnter(Collider other)
     {
