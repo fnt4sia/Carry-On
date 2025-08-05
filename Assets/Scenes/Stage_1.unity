@@ -642,6 +642,21 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 2407338256953565605, guid: 3f930b6bfb6e3f945ab6cc3b351fb2af,
+        type: 3}
+      propertyPath: dashForce
+      value: 16
+      objectReference: {fileID: 0}
+    - target: {fileID: 2407338256953565605, guid: 3f930b6bfb6e3f945ab6cc3b351fb2af,
+        type: 3}
+      propertyPath: dashCooldown
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 2407338256953565605, guid: 3f930b6bfb6e3f945ab6cc3b351fb2af,
+        type: 3}
+      propertyPath: dashDuration
+      value: 0.1
+      objectReference: {fileID: 0}
     - target: {fileID: 5972699597415214265, guid: 3f930b6bfb6e3f945ab6cc3b351fb2af,
         type: 3}
       propertyPath: m_Name
@@ -2658,6 +2673,21 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Name
       value: Ramp Agent Body
+      objectReference: {fileID: 0}
+    - target: {fileID: 3741244236071087584, guid: 20fa8d5aedd6b3f4fbcd23ee02bc04bb,
+        type: 3}
+      propertyPath: dashForce
+      value: 16
+      objectReference: {fileID: 0}
+    - target: {fileID: 3741244236071087584, guid: 20fa8d5aedd6b3f4fbcd23ee02bc04bb,
+        type: 3}
+      propertyPath: dashCooldown
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 3741244236071087584, guid: 20fa8d5aedd6b3f4fbcd23ee02bc04bb,
+        type: 3}
+      propertyPath: dashDuration
+      value: 0.1
       objectReference: {fileID: 0}
     - target: {fileID: 7433423811048824543, guid: 20fa8d5aedd6b3f4fbcd23ee02bc04bb,
         type: 3}

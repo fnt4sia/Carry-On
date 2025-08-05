@@ -20,6 +20,14 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] Vector3 bubbleOffsetRange;
     [SerializeField] Animator animator;
 
+    [Header("Dash")]
+    [SerializeField] private float dashForce;
+    [SerializeField] private float dashDuration;
+    [SerializeField] private float dashCooldown;
+    private bool isDashing = false;
+    private float dashTimer = 0f;
+    private float lastDashTime = -10f;
+
     private Transform cameraTransform;
     private float horizontalInput;
     private float verticalInput;
@@ -38,22 +46,33 @@ public class PlayerMovement : MonoBehaviour
         horizontalInput = Input.GetAxisRaw("Horizontal_p" + playerId.ToString());
         verticalInput = Input.GetAxisRaw("Vertical_p" + playerId.ToString());
 
+        bool dashInput = false;
         if (playerId == 1)
-            shiftInput = Input.GetKey(KeyCode.Joystick1Button5) || Input.GetKey(KeyCode.LeftShift);
+            dashInput = Input.GetKeyDown(KeyCode.Joystick1Button5) || Input.GetKeyDown(KeyCode.LeftShift);
         else if (playerId == 2)
-            shiftInput = Input.GetKey(KeyCode.Joystick2Button5) || Input.GetKey(KeyCode.RightShift);
+            dashInput = Input.GetKeyDown(KeyCode.Joystick2Button5) || Input.GetKeyDown(KeyCode.RightShift);
 
-        Vector3 forward = cameraTransform.forward;
-        Vector3 right = cameraTransform.right;
+        // Dash logic
+        if (dashInput && !isDashing && Time.time >= lastDashTime + dashCooldown)
+        {
+            StartCoroutine(DashCoroutine());
+            return; // Don't process movement this frame
+        }
 
-        forward.y = 0f;
-        right.y = 0f;
-        forward.Normalize();
-        right.Normalize();
+        // Only process normal movement if not dashing
+        if (!isDashing)
+        {
+            Vector3 forward = cameraTransform.forward;
+            Vector3 right = cameraTransform.right;
 
-        movementDirection = (horizontalInput * right + verticalInput * forward).normalized;
-        isMoving = movementDirection.sqrMagnitude > 0.1f;
+            forward.y = 0f;
+            right.y = 0f;
+            forward.Normalize();
+            right.Normalize();
 
+            movementDirection = (horizontalInput * right + verticalInput * forward).normalized;
+            isMoving = movementDirection.sqrMagnitude > 0.1f;
+        }
     }
 
     void FixedUpdate()
@@ -99,6 +118,27 @@ public class PlayerMovement : MonoBehaviour
 
             yield return new WaitForSeconds(bubbleSpawnInterval);
         }
+    }
+
+    private IEnumerator DashCoroutine()
+    {
+        isDashing = true;
+        lastDashTime = Time.time;
+
+        Vector3 dashDir = transform.forward;
+        dashDir.Normalize();
+
+        //animator.SetTrigger("Dash");
+
+        dashTimer = 0f;
+        while (dashTimer < dashDuration)
+        {
+            playerRb.velocity = dashDir * dashForce;
+            dashTimer += Time.deltaTime;
+            yield return null;
+        }
+
+        isDashing = false;
     }
 
     IEnumerator AnimateBubble(GameObject bubble)
