@@ -26,7 +26,13 @@ public class PlayerGrab : MonoBehaviour
 
     private Collider[] grabHits;
     private Collider[] outlineGrabHits;
-    private Outline lastOutlined = null; 
+    private Outline lastOutlined = null;
+     
+    [SerializeField] private GameObject Arrow;
+    [SerializeField] private float ArrowMinScale = 1.5f;
+    [SerializeField] private float ArrowMaxScale = 3f;
+    [SerializeField] private float ArrowMinZPos = 2f;
+    [SerializeField] private float ArrowMaxZPos = 4f;
 
     private void Start()
     {
@@ -54,10 +60,16 @@ public class PlayerGrab : MonoBehaviour
         {
             isGrabInputHeld = true;
             grabInputHoldTime = 0f;
+            Arrow.SetActive(true);
+            float arrowScale = Mathf.Lerp(ArrowMinScale, ArrowMaxScale, grabInputHoldTime / throwMaxHoldTime);
+            Arrow.transform.localScale = new Vector3(arrowScale, arrowScale, arrowScale);
+            float arrowZPos = Mathf.Lerp(ArrowMinZPos, ArrowMaxZPos, grabInputHoldTime / throwMaxHoldTime);
+            Arrow.transform.localPosition = new Vector3(0, 0, arrowZPos);
         }
 
         if (grabUp && objectRigidbody != null && isGrabInputHeld)
         {
+            Arrow.SetActive(false);
             if (grabInputHoldTime >= throwMinHoldTime)
             {
                 float clampedHoldTime = Mathf.Clamp(grabInputHoldTime, throwMinHoldTime, throwMaxHoldTime);
