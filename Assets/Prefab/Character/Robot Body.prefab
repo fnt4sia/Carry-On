@@ -707,6 +707,7 @@ MonoBehaviour:
   ArrowMaxScale: 3
   ArrowMinZPos: 2
   ArrowMaxZPos: 4
+  ArrowHeight: 3
 --- !u!114 &2407338256953565605
 MonoBehaviour:
   m_ObjectHideFlags: 0

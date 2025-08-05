@@ -184,6 +184,7 @@ MonoBehaviour:
   ArrowMaxScale: 3
   ArrowMinZPos: 2
   ArrowMaxZPos: 4
+  ArrowHeight: 3
 --- !u!114 &3741244236071087584
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -695,7 +696,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &6685084673074560046
 Transform:
   m_ObjectHideFlags: 0
