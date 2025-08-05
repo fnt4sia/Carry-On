@@ -703,10 +703,10 @@ MonoBehaviour:
   throwMinUpForce: 200
   throwMaxUpForce: 700
   Arrow: {fileID: 1788238060395728292}
-  ArrowMinScale: 1.5
-  ArrowMaxScale: 3
-  ArrowMinZPos: 2
-  ArrowMaxZPos: 4
+  ArrowMinScale: 0.6
+  ArrowMaxScale: 2
+  ArrowMinZPos: 2.5
+  ArrowMaxZPos: 4.3
 --- !u!114 &2407338256953565605
 MonoBehaviour:
   m_ObjectHideFlags: 0
