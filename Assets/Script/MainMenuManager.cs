@@ -38,5 +38,6 @@ public class MainMenuManager : MonoBehaviour
     public void OnClickExit()
     {
         secondAudioSource.PlayOneShot(buttonClickSound);
+        Application.Quit();
     }
 }

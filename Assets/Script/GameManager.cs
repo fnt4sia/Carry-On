@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class GameManager : MonoBehaviour
@@ -58,6 +59,7 @@ public class GameManager : MonoBehaviour
     private float gameTimer;
     private float randomSpeed;
     private bool gameStarted;
+    private bool isPaused;
     private int gameScore;
     private int player1Score;
     private int player2Score;
@@ -68,15 +70,33 @@ public class GameManager : MonoBehaviour
     {
         scoreText.text = gameScore.ToString();
         gameTimer = initialGameTime + 1.5f;
-        Time.timeScale = 0;
         StartCoroutine(StartGameCountdown());
         StartCoroutine(SpawnAirplane());
     }
 
     void Update()
     {
+        if(isPaused)
+        {
+            if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                isPaused = false;
+                Time.timeScale = 1;
+                backgroundDimObject.SetActive(false);
+            }
+
+            return;
+        }
+
         if (gameStarted)
         {
+            if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                isPaused = true;
+                Time.timeScale = 0;
+                backgroundDimObject.SetActive(true);
+                return;
+            }
 
             gameTimer -= Time.deltaTime;
             if (gameTimer <= 0)
@@ -123,6 +143,8 @@ public class GameManager : MonoBehaviour
     {
         backgroundDimObject.SetActive(true);
 
+        Time.timeScale = 0;
+
         float countdown = 3f;
         while (countdown > -1)
         {
@@ -146,7 +168,7 @@ public class GameManager : MonoBehaviour
         yield return StartCoroutine(MoveTimerToCorner());
 
         firstAudioSource.loop = true;
-        firstAudioSource.volume = 0.35f;
+        firstAudioSource.volume = 0.2f;
         firstAudioSource.PlayOneShot(mainMusic);
     }
 
@@ -332,6 +354,11 @@ public class GameManager : MonoBehaviour
         }
 
         Destroy(airplane);
+    }
+
+    public void BackToLobby()
+    {
+        SceneManager.LoadScene(1);
     }
 
 }

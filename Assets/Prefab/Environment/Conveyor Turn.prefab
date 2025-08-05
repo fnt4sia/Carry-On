@@ -11,8 +11,8 @@ GameObject:
   - component: {fileID: 143566195820076535}
   - component: {fileID: 5286858176284866967}
   - component: {fileID: 7403394730205839053}
-  - component: {fileID: 2163743770904444565}
   - component: {fileID: 3818986674091742428}
+  - component: {fileID: 3252211695848994696}
   m_Layer: 0
   m_Name: Conveyor Turn
   m_TagString: Untagged
@@ -87,27 +87,6 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &2163743770904444565
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5911987144536067449}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 2.0000002, y: 2, z: 2.0000002}
-  m_Center: {x: 0, y: 1, z: 0}
 --- !u!54 &3818986674091742428
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -135,6 +114,28 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
+--- !u!64 &3252211695848994696
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5911987144536067449}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 1
+  m_CookingOptions: 30
+  m_Mesh: {fileID: -8928919386582752887, guid: 23101a8565dbcd14e8100dbd80e00ca8, type: 3}
 --- !u!1 &9008489814217622391
 GameObject:
   m_ObjectHideFlags: 0

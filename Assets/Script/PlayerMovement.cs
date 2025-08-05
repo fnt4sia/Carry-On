@@ -18,6 +18,7 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] GameObject bubblePrefab; 
     [SerializeField] float bubbleSpawnInterval;
     [SerializeField] Vector3 bubbleOffsetRange;
+    [SerializeField] Animator animator;
 
     private Transform cameraTransform;
     private float horizontalInput;
@@ -52,6 +53,7 @@ public class PlayerMovement : MonoBehaviour
 
         movementDirection = (horizontalInput * right + verticalInput * forward).normalized;
         isMoving = movementDirection.sqrMagnitude > 0.1f;
+
     }
 
     void FixedUpdate()
@@ -65,6 +67,7 @@ public class PlayerMovement : MonoBehaviour
 
         if (movementDirection.sqrMagnitude > 0.1f && !shiftInput)
         {
+            animator.SetBool("isMoving", true);
             Vector3 flatDir = new Vector3(movementDirection.x, 0, movementDirection.z).normalized;
             if (flatDir.sqrMagnitude > 0.01f)
             {
@@ -74,7 +77,7 @@ public class PlayerMovement : MonoBehaviour
                     : Quaternion.Slerp(playerRb.rotation, targetRotation, rotationSpeedNormal * Time.fixedDeltaTime);
                 playerRb.MoveRotation(smoothedRotation);
             }
-        }
+        }else animator.SetBool("isMoving", false);
     }
 
     IEnumerator SpawnBubblesCoroutine()

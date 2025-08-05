@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.Rendering.UI;
 
@@ -13,8 +14,15 @@ public class Gate : MonoBehaviour
 
     private void Start()
     {
-        GameObject gateSignObject = Instantiate(gateSignPrefab, canvasWorld);
-        gateSignObject.transform.position = gateSign.position;
+        if (gateNumber != 0)
+        {
+            GameObject gateSignObject = Instantiate(gateSignPrefab, canvasWorld);
+            gateSignObject.transform.position = gateSign.position;
+            gateSignObject.transform.rotation = gateSign.rotation;
+            gateSignObject.transform.localScale = new Vector3(0.025f, 0.025f, 0.025f);
+            TextMeshProUGUI textMesh = gateSignObject.GetComponentInChildren<TextMeshProUGUI>();
+            textMesh.text = gateNumber.ToString();
+        }
     }
 
     private void OnTriggerEnter(Collider other)

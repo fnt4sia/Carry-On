@@ -12,6 +12,7 @@ public class StageManager : MonoBehaviour
     [SerializeField] private AudioClip backgroundMusic;
     private void Start()
     {
+        Time.timeScale = 1;
         firstAudioSource.PlayOneShot(backgroundMusic);
         firstAudioSource.loop = true;
     }
@@ -23,8 +24,10 @@ public class StageManager : MonoBehaviour
 
     private IEnumerator DelayLoadScene(int level)
     {
+        Debug.Log("abc");
         secondAudioSource.PlayOneShot(buttonClickSound);
         yield return new WaitForSeconds(0.2f);
+        Debug.Log("def");
         SceneManager.LoadScene(level + 2);
     }
 }

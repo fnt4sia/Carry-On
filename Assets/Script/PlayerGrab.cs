@@ -2,13 +2,22 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class PlayerGrab : MonoBehaviour
+public class PlayerGrab : MonoBehaviour 
 {
     [SerializeField] private Transform grabPoint;
     [SerializeField] private Transform grabAnchor;
     [SerializeField] private float grabRadius;
     [SerializeField] private LayerMask grabbableLayer;
     [SerializeField] private PlayerMovement playerMovement;
+    [SerializeField] private float throwMinHoldTime = 0.25f;
+    [SerializeField] private float throwMaxHoldTime = 2f;
+    [SerializeField] private float throwMinForce = 8f;
+    [SerializeField] private float throwMaxForce = 22f;
+    [SerializeField] private float throwMinUpForce = 3f;
+    [SerializeField] private float throwMaxUpForce = 8f;
+
+    private bool isGrabInputHeld;
+    private float grabInputHoldTime;
 
     private ConfigurableJoint configurableJoint;
     private Luggage luggageHeld;
@@ -16,6 +25,8 @@ public class PlayerGrab : MonoBehaviour
     private int playerId;
 
     private Collider[] grabHits;
+    private Collider[] outlineGrabHits;
+    private Outline lastOutlined = null; 
 
     private void Start()
     {
@@ -24,39 +35,106 @@ public class PlayerGrab : MonoBehaviour
 
     void Update()
     {
+        bool grabDown = false;
+        bool grabUp = false;
 
-        if(playerMovement.playerId == 1)
+        if (playerMovement.playerId == 1)
         {
-            if (Input.GetKeyDown(KeyCode.Joystick1Button2) || Input.GetKeyDown(KeyCode.E))
-            {
-                if (objectRigidbody == null) TryGrab();
-                else Drop();
-            }
-        } else if (playerMovement.playerId == 2)
-        {
-            if (Input.GetKeyDown(KeyCode.Joystick2Button2) || Input.GetKeyDown(KeyCode.RightControl) )
-            {
-                if (objectRigidbody == null) TryGrab();
-                else Drop();
-            }
+            grabDown = Input.GetKeyDown(KeyCode.Joystick1Button2) || Input.GetKeyDown(KeyCode.E);
+            grabUp = Input.GetKeyUp(KeyCode.Joystick1Button2) || Input.GetKeyUp(KeyCode.E);
         }
-     }
-
-    void OnDrawGizmos()
-    {
-        Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(grabPoint.position, grabRadius);
-
-        if (grabPoint != null && objectRigidbody != null)
+        else if (playerMovement.playerId == 2)
         {
-            Gizmos.color = Color.red;
-            Gizmos.DrawLine(grabPoint.position, objectRigidbody.position);
-            Gizmos.DrawSphere(grabPoint.position, 0.05f);
-            Gizmos.DrawSphere(objectRigidbody.position, 0.05f);
+            grabDown = Input.GetKeyDown(KeyCode.Joystick2Button2) || Input.GetKeyDown(KeyCode.RightControl);
+            grabUp = Input.GetKeyUp(KeyCode.Joystick2Button2) || Input.GetKeyUp(KeyCode.RightControl);
+        }
+
+        // Button Down: start timer if holding luggage
+        if (grabDown && objectRigidbody != null)
+        {
+            isGrabInputHeld = true;
+            grabInputHoldTime = 0f;
+        }
+
+        if (grabUp && objectRigidbody != null && isGrabInputHeld)
+        {
+            if (grabInputHoldTime >= throwMinHoldTime)
+            {
+                float clampedHoldTime = Mathf.Clamp(grabInputHoldTime, throwMinHoldTime, throwMaxHoldTime);
+                float t = (clampedHoldTime - throwMinHoldTime) / (throwMaxHoldTime - throwMinHoldTime); // 0..1
+
+                float forwardForce = Mathf.Lerp(throwMinForce, throwMaxForce, t);
+                float upForce = Mathf.Lerp(throwMinUpForce, throwMaxUpForce, t);
+
+                Throw(forwardForce, upForce);
+            }
+            else
+            {
+                Drop();
+            }
+            isGrabInputHeld = false;
+        }
+
+        // If not grabbing luggage, old grab/drop logic
+        if (grabDown && objectRigidbody == null)
+        {
+            TryGrab();
+        }
+
+        // Update timer if holding
+        if (isGrabInputHeld)
+        {
+            grabInputHoldTime += Time.deltaTime;
+        }
+
+        CheckOutline();
+    }
+
+    private void CheckOutline()
+    {
+        if (luggageHeld != null)
+        {
+            if (lastOutlined != null)
+            {
+                lastOutlined.enabled = false;
+                lastOutlined = null;
+            }
+
+            return;
+            
+        }
+
+        outlineGrabHits = Physics.OverlapSphere(grabPoint.position, grabRadius, grabbableLayer);
+
+        if (outlineGrabHits.Length > 0)
+        {
+            Outline current = outlineGrabHits[0].GetComponentInParent<Outline>();
+            Luggage luggage = outlineGrabHits[0].GetComponentInParent<Luggage>();
+
+            if (luggage.GetIsGrabbed())
+            {
+                return;
+            }
+
+            if (lastOutlined != null && lastOutlined != current)
+            {
+                lastOutlined.enabled = false;
+            }
+
+            current.enabled = true;
+            lastOutlined = current;
+        }
+        else
+        {
+            if (lastOutlined != null)
+            {
+                lastOutlined.enabled = false;
+                lastOutlined = null;
+            }
         }
     }
 
-    void TryGrab()
+    private void TryGrab()
     {
 
         grabHits = Physics.OverlapSphere(grabPoint.position, grabRadius, grabbableLayer);
@@ -68,10 +146,33 @@ public class PlayerGrab : MonoBehaviour
             {
                 luggageHeld = objectRigidbody.GetComponent<Luggage>();
                 luggageHeld.SetPlayerGrabber(this);
+
+                luggageHeld.SetGrabbed(true);
+
                 objectRigidbody.mass = 7.5f;
                 playerMovement.isGrabbing = true;
                 LightLuggageGrab();
             }
+        }
+    }
+
+    private void Throw(float forwardForce, float upForce)
+    {
+        if (configurableJoint != null && objectRigidbody != null)
+        {
+            objectRigidbody.mass = 125f;
+            luggageHeld.SetGrabbed(false);
+            luggageHeld = null;
+
+            Destroy(configurableJoint);
+            configurableJoint = null;
+
+            // Direction = forward + up
+            Vector3 throwDir = grabPoint.forward.normalized * forwardForce + Vector3.up * upForce;
+            objectRigidbody.AddForce(throwDir, ForceMode.Impulse);
+
+            objectRigidbody = null;
+            playerMovement.isGrabbing = false;
         }
     }
 
@@ -107,11 +208,11 @@ public class PlayerGrab : MonoBehaviour
         configurableJoint.connectedAnchor = localGrabPoint;
         configurableJoint.anchor = grabAnchor.localPosition;
 
-        configurableJoint.breakForce = 1750f;
-        configurableJoint.breakTorque = 1750f;
+        configurableJoint.breakForce = 2800f;
+        configurableJoint.breakTorque = 2800f;
 
         configurableJoint.massScale = 1f;
-        configurableJoint.connectedMassScale = 1f;
+        configurableJoint.connectedMassScale = 1.5f;
 
         configurableJoint.projectionMode = JointProjectionMode.PositionAndRotation;
         configurableJoint.projectionDistance = 0.1f;
@@ -122,6 +223,7 @@ public class PlayerGrab : MonoBehaviour
         if (configurableJoint != null)
         {
             objectRigidbody.mass = 125f;
+            luggageHeld.SetGrabbed(false);
             luggageHeld = null;
             Destroy(configurableJoint);
             configurableJoint = null;
