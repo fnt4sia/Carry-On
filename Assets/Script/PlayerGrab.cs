@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class PlayerGrab : MonoBehaviour 
@@ -76,11 +77,15 @@ public class PlayerGrab : MonoBehaviour
 
         if (grabUp && objectRigidbody != null && isGrabInputHeld)
         {
+            Debug.Log(grabInputHoldTime);
             Arrow.SetActive(false);
             if (grabInputHoldTime >= throwMinHoldTime)
             {
+
                 float clampedHoldTime = Mathf.Clamp(grabInputHoldTime, throwMinHoldTime, throwMaxHoldTime);
                 float t = (clampedHoldTime - throwMinHoldTime) / (throwMaxHoldTime - throwMinHoldTime); // 0..1
+
+                Debug.Log(clampedHoldTime);
 
                 float forwardForce = Mathf.Lerp(throwMinForce, throwMaxForce, t);
                 float upForce = Mathf.Lerp(throwMinUpForce, throwMaxUpForce, t);
@@ -243,6 +248,9 @@ public class PlayerGrab : MonoBehaviour
     {
         if (Arrow != null)
             Arrow.SetActive(false);
+
+        grabInputHoldTime = 0f;
+        isGrabInputHeld = false;
 
         if (configurableJoint != null)
         {
