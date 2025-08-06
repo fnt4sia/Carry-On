@@ -33,6 +33,7 @@ public class PlayerGrab : MonoBehaviour
     [SerializeField] private float ArrowMaxScale = 3f;
     [SerializeField] private float ArrowMinZPos = 2f;
     [SerializeField] private float ArrowMaxZPos = 4f;
+    [SerializeField] private float ArrowHeight = 2.0f; // Adjust as needed
 
     private void Start()
     {
@@ -55,17 +56,22 @@ public class PlayerGrab : MonoBehaviour
             grabUp = Input.GetKeyUp(KeyCode.Joystick2Button2) || Input.GetKeyUp(KeyCode.RightControl);
         }
 
-        // Button Down: start timer if holding luggage
         if (grabDown && objectRigidbody != null)
         {
             isGrabInputHeld = true;
             grabInputHoldTime = 0f;
             Arrow.SetActive(true);
-            float arrowScale = Mathf.Lerp(ArrowMinScale, ArrowMaxScale, grabInputHoldTime / throwMaxHoldTime);
-            Arrow.transform.localScale = new Vector3(arrowScale, arrowScale, arrowScale);
-            float arrowZPos = Mathf.Lerp(ArrowMinZPos, ArrowMaxZPos, grabInputHoldTime / throwMaxHoldTime);
-            Arrow.transform.localPosition = new Vector3(0, 0, arrowZPos);
         }
+
+        if (isGrabInputHeld && objectRigidbody != null)
+        {
+            float t = Mathf.Clamp01(grabInputHoldTime / throwMaxHoldTime);
+            float arrowScale = Mathf.Lerp(ArrowMinScale, ArrowMaxScale, t);
+            Arrow.transform.localScale = new Vector3(arrowScale, arrowScale, arrowScale);
+            float arrowZPos = Mathf.Lerp(ArrowMinZPos, ArrowMaxZPos, t);
+            Arrow.transform.localPosition = new Vector3(0, ArrowHeight, arrowZPos);
+        }
+
 
         if (grabUp && objectRigidbody != null && isGrabInputHeld)
         {
@@ -232,6 +238,9 @@ public class PlayerGrab : MonoBehaviour
     }
     public void Drop()
     {
+        if (Arrow != null)
+            Arrow.SetActive(false);
+
         if (configurableJoint != null)
         {
             objectRigidbody.mass = 125f;

@@ -697,16 +697,17 @@ MonoBehaviour:
     m_Bits: 64
   playerMovement: {fileID: 2407338256953565605}
   throwMinHoldTime: 0.25
-  throwMaxHoldTime: 2
+  throwMaxHoldTime: 1.5
   throwMinForce: 1250
   throwMaxForce: 2500
   throwMinUpForce: 200
   throwMaxUpForce: 700
   Arrow: {fileID: 1788238060395728292}
-  ArrowMinScale: 0.6
-  ArrowMaxScale: 2
-  ArrowMinZPos: 2.5
-  ArrowMaxZPos: 4.3
+  ArrowMinScale: 1.5
+  ArrowMaxScale: 3
+  ArrowMinZPos: 2
+  ArrowMaxZPos: 4
+  ArrowHeight: 3
 --- !u!114 &2407338256953565605
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -732,6 +733,9 @@ MonoBehaviour:
   bubbleSpawnInterval: 0.04
   bubbleOffsetRange: {x: 0.2, y: 0.1, z: 0.2}
   animator: {fileID: 4693991722633848191}
+  dashForce: 11
+  dashDuration: 0.2
+  dashCooldown: 2
 --- !u!136 &4651730690948939118
 CapsuleCollider:
   m_ObjectHideFlags: 0

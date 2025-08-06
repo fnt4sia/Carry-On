@@ -17,6 +17,8 @@ public class Luggage : MonoBehaviour
     private Transform cameraTransform;
     public int gateNumber;
 
+    public bool IsDelivered { get; set; }
+
     private void Start()
     {
         outline.enabled = false;
