@@ -14,6 +14,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] private AudioSource secondAudioSource;
     [SerializeField] private AudioClip mainMusic;
     [SerializeField] private AudioClip scoreSound;
+    [SerializeField] private AudioClip wrongSound;
     [SerializeField] private AudioClip stampSound;
     [SerializeField] private AudioClip starSound;
     [SerializeField] private AudioClip startSound;
@@ -156,8 +157,8 @@ public class GameManager : MonoBehaviour
     {
         gameScore += score;
         scoreText.text = gameScore.ToString();
-
-        secondAudioSource.PlayOneShot(scoreSound);
+        if (score > 0) secondAudioSource.PlayOneShot(scoreSound);
+        else secondAudioSource.PlayOneShot(wrongSound);
     }
 
     public void AddPlayer1Score(int score)

@@ -15,6 +15,7 @@ public class PlayerGrab : MonoBehaviour
     [SerializeField] private float throwMaxForce = 22f;
     [SerializeField] private float throwMinUpForce = 3f;
     [SerializeField] private float throwMaxUpForce = 8f;
+    [SerializeField] private Animator animator;
 
     private bool isGrabInputHeld;
     private float grabInputHoldTime;
@@ -154,7 +155,6 @@ public class PlayerGrab : MonoBehaviour
 
     private void TryGrab()
     {
-
         grabHits = Physics.OverlapSphere(grabPoint.position, grabRadius, grabbableLayer);
 
         if (grabHits.Length > 0)
@@ -162,6 +162,7 @@ public class PlayerGrab : MonoBehaviour
             objectRigidbody = grabHits[0].attachedRigidbody;
             if (objectRigidbody != null)
             {
+                animator.SetBool("isGrabbing", true);   
                 luggageHeld = objectRigidbody.GetComponent<Luggage>();
                 luggageHeld.SetPlayerGrabber(this);
 
@@ -191,6 +192,8 @@ public class PlayerGrab : MonoBehaviour
 
             objectRigidbody = null;
             playerMovement.isGrabbing = false;
+
+            animator.SetBool("isGrabbing", false);
         }
     }
 
@@ -250,6 +253,7 @@ public class PlayerGrab : MonoBehaviour
             configurableJoint = null;
             objectRigidbody = null;
             playerMovement.isGrabbing = false;
+            animator.SetBool("isGrabbing", false);
         }
     }
 

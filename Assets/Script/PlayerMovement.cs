@@ -19,6 +19,8 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] float bubbleSpawnInterval;
     [SerializeField] Vector3 bubbleOffsetRange;
     [SerializeField] Animator animator;
+    [SerializeField] AudioSource audioSource;
+    [SerializeField] AudioClip dashClip;
 
     [Header("Dash")]
     [SerializeField] private float dashForce;
@@ -128,7 +130,8 @@ public class PlayerMovement : MonoBehaviour
         Vector3 dashDir = transform.forward;
         dashDir.Normalize();
 
-        //animator.SetTrigger("Dash");
+        animator.SetBool("isDashing", true);
+        audioSource.PlayOneShot(dashClip);
 
         dashTimer = 0f;
         while (dashTimer < dashDuration)
@@ -138,6 +141,7 @@ public class PlayerMovement : MonoBehaviour
             yield return null;
         }
 
+        animator.SetBool("isDashing", false);
         isDashing = false;
     }
 

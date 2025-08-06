@@ -1041,6 +1041,7 @@ MonoBehaviour:
   secondAudioSource: {fileID: 3076541863520068087}
   mainMusic: {fileID: 8300000, guid: 1768896981d7e1c47a9a6a068b825c83, type: 3}
   scoreSound: {fileID: 8300000, guid: dd35dc5fbeb23a840aa1625cd3964f42, type: 3}
+  wrongSound: {fileID: 8300000, guid: 69e88705c80431c41b14d3e6f2620939, type: 3}
   stampSound: {fileID: 8300000, guid: 1b89a750f318ab244974bad80093aa17, type: 3}
   starSound: {fileID: 8300000, guid: 1fa10d85f9263ee41a75aa84c46f6a8c, type: 3}
   startSound: {fileID: 8300000, guid: bb76e100d50d01b48827a6518c4c8d3c, type: 3}

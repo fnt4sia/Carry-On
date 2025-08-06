@@ -7427,6 +7427,12 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: d1eb070aa15dbae43b60edc569c8f1a5, type: 3}
+--- !u!224 &2046357352 stripped
+RectTransform:
+  m_CorrespondingSourceObject: {fileID: 2094794753563960575, guid: d1eb070aa15dbae43b60edc569c8f1a5,
+    type: 3}
+  m_PrefabInstance: {fileID: 2046357351}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &2050458311
 GameObject:
   m_ObjectHideFlags: 0
@@ -8998,10 +9004,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6c97e053cc9b05545b722cd72ccaec7d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  gameManager: {fileID: 0}
   gateNumber: 2
   gateSign: {fileID: 8574065370498445024}
-  canvasWorld: {fileID: 0}
+  canvasWorld: {fileID: 2046357352}
   gateSignPrefab: {fileID: 4950054792203219271, guid: d20da9a63f2220f43b0a4f7df1e867bc,
     type: 3}
 --- !u!33 &717722802819930394
@@ -9834,10 +9839,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6c97e053cc9b05545b722cd72ccaec7d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  gameManager: {fileID: 0}
   gateNumber: 1
   gateSign: {fileID: 2076265426}
-  canvasWorld: {fileID: 0}
+  canvasWorld: {fileID: 2046357352}
   gateSignPrefab: {fileID: 4950054792203219271, guid: d20da9a63f2220f43b0a4f7df1e867bc,
     type: 3}
 --- !u!33 &1505920225276205459
