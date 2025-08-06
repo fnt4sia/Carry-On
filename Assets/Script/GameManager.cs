@@ -2,11 +2,14 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class GameManager : MonoBehaviour
 {
+    public static GameManager Instance;
+
     [SerializeField] private AudioSource firstAudioSource;
     [SerializeField] private AudioSource secondAudioSource;
     [SerializeField] private AudioClip mainMusic;
@@ -24,6 +27,7 @@ public class GameManager : MonoBehaviour
 
     [Space(20f)]
 
+    [SerializeField] private GameObject pausePanel;
     [SerializeField] private GameObject backgroundDimObject;
     [SerializeField] private GameObject gameTimerObject;
     [SerializeField] private GameObject gameOverObject;
@@ -56,6 +60,9 @@ public class GameManager : MonoBehaviour
     [SerializeField] private float initialGameTime;
     [SerializeField] private List<int> scoreRequired;
 
+    [Space(20f)]
+    [SerializeField] private Button resumeButton;
+
     private float gameTimer;
     private float randomSpeed;
     private bool gameStarted;
@@ -65,6 +72,13 @@ public class GameManager : MonoBehaviour
     private int player2Score;
     private GameObject airplaneObject;
 
+    private void Awake()
+    {
+        if (Instance == null)
+        {
+            Instance = this;
+        } 
+    }
 
     void Start()
     {
@@ -78,11 +92,12 @@ public class GameManager : MonoBehaviour
     {
         if(isPaused)
         {
-            if (Input.GetKeyDown(KeyCode.Escape))
+            if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.JoystickButton7))
             {
                 isPaused = false;
                 Time.timeScale = 1;
                 backgroundDimObject.SetActive(false);
+                pausePanel.SetActive(false);
             }
 
             return;
@@ -90,11 +105,14 @@ public class GameManager : MonoBehaviour
 
         if (gameStarted)
         {
-            if (Input.GetKeyDown(KeyCode.Escape))
+            if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.JoystickButton7))
             {
                 isPaused = true;
                 Time.timeScale = 0;
                 backgroundDimObject.SetActive(true);
+                pausePanel.SetActive(true);
+
+                EventSystem.current.SetSelectedGameObject(resumeButton.gameObject);
                 return;
             }
 
@@ -119,6 +137,19 @@ public class GameManager : MonoBehaviour
                 gameTimerText.color = Color.red;
             }
         }
+    }
+
+    public void ExitGame()
+    {
+        SceneManager.LoadScene(0);
+    }
+
+    public void ResumeGame()
+    {
+        isPaused = false;
+        Time.timeScale = 1;
+        backgroundDimObject.SetActive(false);
+        pausePanel.SetActive(false);
     }
 
     public void AddScore(int score)
@@ -169,7 +200,8 @@ public class GameManager : MonoBehaviour
 
         firstAudioSource.loop = true;
         firstAudioSource.volume = 0.2f;
-        firstAudioSource.PlayOneShot(mainMusic);
+        firstAudioSource.clip = mainMusic; 
+        firstAudioSource.Play();
     }
 
     private IEnumerator EndGame()
@@ -227,7 +259,9 @@ public class GameManager : MonoBehaviour
 
         yield return new WaitForSecondsRealtime(0.02f);
         approvedStampObject.SetActive(true);
-        nextStageObject.SetActive(true);    
+        nextStageObject.SetActive(true);
+
+        EventSystem.current.SetSelectedGameObject(nextStageObject.gameObject);
     }
 
     private IEnumerator MoveTimerToCorner()
@@ -358,7 +392,7 @@ public class GameManager : MonoBehaviour
 
     public void BackToLobby()
     {
-        SceneManager.LoadScene(1);
+        SceneManager.LoadScene(0);
     }
 
 }

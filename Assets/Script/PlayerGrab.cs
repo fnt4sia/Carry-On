@@ -238,6 +238,9 @@ public class PlayerGrab : MonoBehaviour
     }
     public void Drop()
     {
+        if (Arrow != null)
+            Arrow.SetActive(false);
+
         if (configurableJoint != null)
         {
             objectRigidbody.mass = 125f;
