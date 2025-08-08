@@ -29,7 +29,8 @@ public class MainMenuManager : MonoBehaviour
 
     private void Start()
     {
-        firstAudioSource.PlayOneShot(mainMenuMusic);
+        firstAudioSource.clip = mainMenuMusic;
+        firstAudioSource.Play();
         firstAudioSource.loop = true;
     }
 

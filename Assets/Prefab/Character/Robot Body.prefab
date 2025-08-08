@@ -702,14 +702,14 @@ MonoBehaviour:
   throwMinForce: 1250
   throwMaxForce: 2500
   throwMinUpForce: 200
-  throwMaxUpForce: 700
+  throwMaxUpForce: 800
   animator: {fileID: 4693991722633848191}
   Arrow: {fileID: 1788238060395728292}
   ArrowMinScale: 1.5
   ArrowMaxScale: 3
   ArrowMinZPos: 2
   ArrowMaxZPos: 4
-  ArrowHeight: 3
+  ArrowHeight: 2
 --- !u!114 &2407338256953565605
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -725,7 +725,7 @@ MonoBehaviour:
   playerId: 2
   isGrabbing: 0
   playerRb: {fileID: 6877032606701788372}
-  movementSpeedNormal: 6
+  movementSpeedNormal: 7
   movementSpeedShift: 4
   rotationSpeedNormal: 5
   rotationSpeedGrab: 2.5
@@ -737,9 +737,9 @@ MonoBehaviour:
   animator: {fileID: 4693991722633848191}
   audioSource: {fileID: 5488043012018013799}
   dashClip: {fileID: 8300000, guid: 6a622f1c7d2c2b54387151b5e1c6815b, type: 3}
-  dashForce: 11
+  dashForce: 13
   dashDuration: 0.2
-  dashCooldown: 1.2
+  dashCooldown: 1
 --- !u!136 &4651730690948939118
 CapsuleCollider:
   m_ObjectHideFlags: 0

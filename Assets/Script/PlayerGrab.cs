@@ -234,8 +234,7 @@ public class PlayerGrab : MonoBehaviour
         configurableJoint.connectedAnchor = localGrabPoint;
         configurableJoint.anchor = grabAnchor.localPosition;
 
-        configurableJoint.breakForce = 2800f;
-        configurableJoint.breakTorque = 2800f;
+        StartCoroutine(DelayBreakForce());
 
         configurableJoint.massScale = 1f;
         configurableJoint.connectedMassScale = 1.5f;
@@ -244,6 +243,20 @@ public class PlayerGrab : MonoBehaviour
         configurableJoint.projectionDistance = 0.1f;
         configurableJoint.projectionAngle = 5f;
     }
+
+    private IEnumerator DelayBreakForce()
+    {
+        configurableJoint.breakForce = 10000f;
+        configurableJoint.breakTorque = 10000f;
+        yield return new WaitForSeconds(0.5f);
+        if (configurableJoint != null)
+        {
+            configurableJoint.breakForce = 2800f;
+            configurableJoint.breakTorque = 2800f;
+        }
+      
+    }
+
     public void Drop()
     {
         if (Arrow != null)
