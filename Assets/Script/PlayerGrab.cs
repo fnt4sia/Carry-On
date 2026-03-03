@@ -1,9 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
-public class PlayerGrab : MonoBehaviour 
+public class PlayerGrab : MonoBehaviour
 {
     [SerializeField] private Transform grabPoint;
     [SerializeField] private Transform grabAnchor;
@@ -18,74 +18,67 @@ public class PlayerGrab : MonoBehaviour
     [SerializeField] private float throwMaxUpForce = 8f;
     [SerializeField] private Animator animator;
 
+    [Header("Arrow")]
+    [SerializeField] private GameObject Arrow;
+    [SerializeField] private float ArrowMinScale = 1.5f;
+    [SerializeField] private float ArrowMaxScale = 3f;
+    [SerializeField] private float ArrowMinZPos = 2f;
+    [SerializeField] private float ArrowMaxZPos = 4f;
+    [SerializeField] private float ArrowHeight = 2.0f;
+
+    private PlayerInput playerInput;
+    private InputAction grabAction;
+
     private bool isGrabInputHeld;
     private float grabInputHoldTime;
 
     private ConfigurableJoint configurableJoint;
     private Luggage luggageHeld;
     private Rigidbody objectRigidbody;
-    private int playerId;
 
     private Collider[] grabHits;
     private Collider[] outlineGrabHits;
     private Outline lastOutlined = null;
-     
-    [SerializeField] private GameObject Arrow;
-    [SerializeField] private float ArrowMinScale = 1.5f;
-    [SerializeField] private float ArrowMaxScale = 3f;
-    [SerializeField] private float ArrowMinZPos = 2f;
-    [SerializeField] private float ArrowMaxZPos = 4f;
-    [SerializeField] private float ArrowHeight = 2.0f; // Adjust as needed
 
-    private void Start()
+    private void Awake()
     {
-        playerId = playerMovement.playerId;
+        playerInput = GetComponent<PlayerInput>();
+        grabAction = playerInput.actions["Grab"];
     }
 
     void Update()
     {
-        bool grabDown = false;
-        bool grabUp = false;
+        bool grabDown = grabAction.WasPressedThisFrame();
+        bool grabUp = grabAction.WasReleasedThisFrame();
 
-        if (playerMovement.playerId == 1)
-        {
-            grabDown = Input.GetKeyDown(KeyCode.Joystick1Button2) || Input.GetKeyDown(KeyCode.E);
-            grabUp = Input.GetKeyUp(KeyCode.Joystick1Button2) || Input.GetKeyUp(KeyCode.E);
-        }
-        else if (playerMovement.playerId == 2)
-        {
-            grabDown = Input.GetKeyDown(KeyCode.Joystick2Button2) || Input.GetKeyDown(KeyCode.RightControl);
-            grabUp = Input.GetKeyUp(KeyCode.Joystick2Button2) || Input.GetKeyUp(KeyCode.RightControl);
-        }
-
+        // START HOLD
         if (grabDown && objectRigidbody != null)
         {
             isGrabInputHeld = true;
             grabInputHoldTime = 0f;
-            Arrow.SetActive(true);
+            if (Arrow) Arrow.SetActive(true);
         }
 
+        // UPDATE HOLD VISUAL
         if (isGrabInputHeld && objectRigidbody != null)
         {
             float t = Mathf.Clamp01(grabInputHoldTime / throwMaxHoldTime);
             float arrowScale = Mathf.Lerp(ArrowMinScale, ArrowMaxScale, t);
             Arrow.transform.localScale = new Vector3(arrowScale, arrowScale, arrowScale);
+
             float arrowZPos = Mathf.Lerp(ArrowMinZPos, ArrowMaxZPos, t);
             Arrow.transform.localPosition = new Vector3(0, ArrowHeight, arrowZPos);
         }
 
-
+        // RELEASE
         if (grabUp && objectRigidbody != null && isGrabInputHeld)
         {
-            Debug.Log(grabInputHoldTime);
-            Arrow.SetActive(false);
+            if (Arrow) Arrow.SetActive(false);
+
             if (grabInputHoldTime >= throwMinHoldTime)
             {
-
                 float clampedHoldTime = Mathf.Clamp(grabInputHoldTime, throwMinHoldTime, throwMaxHoldTime);
-                float t = (clampedHoldTime - throwMinHoldTime) / (throwMaxHoldTime - throwMinHoldTime); // 0..1
-
-                Debug.Log(clampedHoldTime);
+                float t = (clampedHoldTime - throwMinHoldTime) / (throwMaxHoldTime - throwMinHoldTime);
 
                 float forwardForce = Mathf.Lerp(throwMinForce, throwMaxForce, t);
                 float upForce = Mathf.Lerp(throwMinUpForce, throwMaxUpForce, t);
@@ -96,16 +89,16 @@ public class PlayerGrab : MonoBehaviour
             {
                 Drop();
             }
+
             isGrabInputHeld = false;
         }
 
-        // If not grabbing luggage, old grab/drop logic
+        // TRY GRAB
         if (grabDown && objectRigidbody == null)
         {
             TryGrab();
         }
 
-        // Update timer if holding
         if (isGrabInputHeld)
         {
             grabInputHoldTime += Time.deltaTime;
@@ -123,9 +116,7 @@ public class PlayerGrab : MonoBehaviour
                 lastOutlined.enabled = false;
                 lastOutlined = null;
             }
-
             return;
-            
         }
 
         outlineGrabHits = Physics.OverlapSphere(grabPoint.position, grabRadius, grabbableLayer);
@@ -135,26 +126,18 @@ public class PlayerGrab : MonoBehaviour
             Outline current = outlineGrabHits[0].GetComponentInParent<Outline>();
             Luggage luggage = outlineGrabHits[0].GetComponentInParent<Luggage>();
 
-            if (luggage.GetIsGrabbed())
-            {
-                return;
-            }
+            if (luggage.GetIsGrabbed()) return;
 
             if (lastOutlined != null && lastOutlined != current)
-            {
                 lastOutlined.enabled = false;
-            }
 
             current.enabled = true;
             lastOutlined = current;
         }
-        else
+        else if (lastOutlined != null)
         {
-            if (lastOutlined != null)
-            {
-                lastOutlined.enabled = false;
-                lastOutlined = null;
-            }
+            lastOutlined.enabled = false;
+            lastOutlined = null;
         }
     }
 
@@ -167,14 +150,15 @@ public class PlayerGrab : MonoBehaviour
             objectRigidbody = grabHits[0].attachedRigidbody;
             if (objectRigidbody != null)
             {
-                animator.SetBool("isGrabbing", true);   
+                animator.SetBool("isGrabbing", true);
+
                 luggageHeld = objectRigidbody.GetComponent<Luggage>();
                 luggageHeld.SetPlayerGrabber(this);
-
                 luggageHeld.SetGrabbed(true);
 
                 objectRigidbody.mass = 7.5f;
                 playerMovement.isGrabbing = true;
+
                 LightLuggageGrab();
             }
         }
@@ -191,13 +175,11 @@ public class PlayerGrab : MonoBehaviour
             Destroy(configurableJoint);
             configurableJoint = null;
 
-            // Direction = forward + up
             Vector3 throwDir = grabPoint.forward.normalized * forwardForce + Vector3.up * upForce;
             objectRigidbody.AddForce(throwDir, ForceMode.Impulse);
 
             objectRigidbody = null;
             playerMovement.isGrabbing = false;
-
             animator.SetBool("isGrabbing", false);
         }
     }
@@ -207,60 +189,52 @@ public class PlayerGrab : MonoBehaviour
         configurableJoint = grabPoint.gameObject.AddComponent<ConfigurableJoint>();
         configurableJoint.connectedBody = objectRigidbody;
 
-        JointDrive drive = new()
+        configurableJoint.autoConfigureConnectedAnchor = false;
+
+        Vector3 worldGrabPoint = grabHits[0].ClosestPoint(grabAnchor.position);
+        Vector3 localGrabPoint = objectRigidbody.transform.InverseTransformPoint(worldGrabPoint);
+
+        configurableJoint.connectedAnchor = localGrabPoint;
+        configurableJoint.anchor = grabAnchor.localPosition;
+
+        JointDrive drive = new JointDrive
         {
-            positionSpring = 1750f,
-            positionDamper = 75f,
-            maximumForce = 5000f,
+            positionSpring = 1800f,
+            positionDamper = 220f,
+            maximumForce = 3200f
         };
 
         configurableJoint.xDrive = drive;
         configurableJoint.yDrive = drive;
         configurableJoint.zDrive = drive;
 
-        configurableJoint.angularXMotion = ConfigurableJointMotion.Limited;
-        configurableJoint.angularYMotion = ConfigurableJointMotion.Limited;
-        configurableJoint.angularZMotion = ConfigurableJointMotion.Limited;
-
-        configurableJoint.lowAngularXLimit = new SoftJointLimit { limit = -1f };
-        configurableJoint.highAngularXLimit = new SoftJointLimit { limit = 15f };
-        configurableJoint.angularYLimit = new SoftJointLimit { limit = 15f };
-        configurableJoint.angularZLimit = new SoftJointLimit { limit = 15f };    
-
-        Vector3 worldGrabPoint = grabHits[0].ClosestPoint(grabAnchor.position);
-        Vector3 localGrabPoint = objectRigidbody.transform.InverseTransformPoint(worldGrabPoint);
-
-        configurableJoint.autoConfigureConnectedAnchor = false;
-        configurableJoint.connectedAnchor = localGrabPoint;
-        configurableJoint.anchor = grabAnchor.localPosition;
-
-        StartCoroutine(DelayBreakForce());
+        configurableJoint.targetPosition = Vector3.zero;
+        configurableJoint.angularXMotion = ConfigurableJointMotion.Free;
+        configurableJoint.angularYMotion = ConfigurableJointMotion.Free;
+        configurableJoint.angularZMotion = ConfigurableJointMotion.Free;
 
         configurableJoint.massScale = 1f;
-        configurableJoint.connectedMassScale = 1.5f;
+        configurableJoint.connectedMassScale = 1.2f;
 
         configurableJoint.projectionMode = JointProjectionMode.PositionAndRotation;
-        configurableJoint.projectionDistance = 0.1f;
-        configurableJoint.projectionAngle = 5f;
+        configurableJoint.projectionDistance = 0.08f;
+        configurableJoint.projectionAngle = 4f;
+
+        StartCoroutine(DelayBreakForce());
     }
 
     private IEnumerator DelayBreakForce()
     {
-        configurableJoint.breakForce = 10000f;
-        configurableJoint.breakTorque = 10000f;
+        configurableJoint.breakForce = 8000f;
         yield return new WaitForSeconds(0.5f);
+
         if (configurableJoint != null)
-        {
-            configurableJoint.breakForce = 2800f;
-            configurableJoint.breakTorque = 2800f;
-        }
-      
+            configurableJoint.breakForce = 2500f;
     }
 
     public void Drop()
     {
-        if (Arrow != null)
-            Arrow.SetActive(false);
+        if (Arrow) Arrow.SetActive(false);
 
         grabInputHoldTime = 0f;
         isGrabInputHeld = false;
@@ -270,16 +244,18 @@ public class PlayerGrab : MonoBehaviour
             objectRigidbody.mass = 125f;
             luggageHeld.SetGrabbed(false);
             luggageHeld = null;
+
             Destroy(configurableJoint);
             configurableJoint = null;
             objectRigidbody = null;
             playerMovement.isGrabbing = false;
+
             animator.SetBool("isGrabbing", false);
         }
     }
 
-    public int GetPlayerId()
+    public int GetPlayerIndex()
     {
-        return playerId;
+        return GetComponent<PlayerInput>().playerIndex;
     }
 }

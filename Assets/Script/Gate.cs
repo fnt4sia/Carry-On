@@ -29,20 +29,24 @@ public class Gate : MonoBehaviour
         if (other.CompareTag("Luggage"))
         {
             Luggage luggage = other.GetComponentInParent<Luggage>();
-            if (luggage == null || luggage.IsDelivered) return; // Already processed
+            if (luggage == null || luggage.IsDelivered) return;
 
             luggage.IsDelivered = true;
+
+            int playerIndex = luggage.GetPlayerGrabber().GetPlayerIndex();
 
             if (luggage.gateNumber == gateNumber)
             {
                 GameManager.Instance.AddScore(10);
-                if (luggage.GetPlayerGrabber().GetPlayerId() == 1) GameManager.Instance.AddPlayer1Score(10);
+
+                if (playerIndex == 0) GameManager.Instance.AddPlayer1Score(10);
                 else GameManager.Instance.AddPlayer2Score(10);
             }
             else
             {
                 GameManager.Instance.AddScore(-10);
-                if (luggage.GetPlayerGrabber().GetPlayerId() == 1) GameManager.Instance.AddPlayer1Score(-10);
+
+                if (playerIndex == 0) GameManager.Instance.AddPlayer1Score(-10);
                 else GameManager.Instance.AddPlayer2Score(-10);
             }
 

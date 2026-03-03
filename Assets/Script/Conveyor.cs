@@ -26,7 +26,7 @@ public class Conveyor : MonoBehaviour
         if (other.CompareTag("Luggage"))
         {
             Rigidbody luggageRb = other.GetComponentInParent<Rigidbody>();
-            if (luggageRb.velocity.magnitude < moveSpeedMax)
+            if (luggageRb.linearVelocity.magnitude < moveSpeedMax)
             {
                 luggageRb.AddForce(moveDirection * moveSpeed, ForceMode.Acceleration);
             }

@@ -91,53 +91,53 @@ public class GameManager : MonoBehaviour
 
     void Update()
     {
-        if(isPaused)
-        {
-            if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.JoystickButton7))
-            {
-                isPaused = false;
-                Time.timeScale = 1;
-                backgroundDimObject.SetActive(false);
-                pausePanel.SetActive(false);
-            }
+        //if(isPaused)
+        //{
+        //    if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.JoystickButton7))
+        //    {
+        //        isPaused = false;
+        //        Time.timeScale = 1;
+        //        backgroundDimObject.SetActive(false);
+        //        pausePanel.SetActive(false);
+        //    }
 
-            return;
-        }
+        //    return;
+        //}
 
-        if (gameStarted)
-        {
-            if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.JoystickButton7))
-            {
-                isPaused = true;
-                Time.timeScale = 0;
-                backgroundDimObject.SetActive(true);
-                pausePanel.SetActive(true);
+        //if (gameStarted)
+        //{
+        //    if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.JoystickButton7))
+        //    {
+        //        isPaused = true;
+        //        Time.timeScale = 0;
+        //        backgroundDimObject.SetActive(true);
+        //        pausePanel.SetActive(true);
 
-                EventSystem.current.SetSelectedGameObject(resumeButton.gameObject);
-                return;
-            }
+        //        EventSystem.current.SetSelectedGameObject(resumeButton.gameObject);
+        //        return;
+        //    }
 
-            gameTimer -= Time.deltaTime;
-            if (gameTimer <= 0)
-            {
-                gameTimer = 0;
-                gameStarted = false;
+        //    gameTimer -= Time.deltaTime;
+        //    if (gameTimer <= 0)
+        //    {
+        //        gameTimer = 0;
+        //        gameStarted = false;
 
-                firstAudioSource.Stop();
+        //        firstAudioSource.Stop();
 
-                StartCoroutine(EndGame());
+        //        StartCoroutine(EndGame());
  
-            }
+        //    }
 
-            int minutes = Mathf.FloorToInt(gameTimer / 60f);
-            int seconds = Mathf.FloorToInt(gameTimer % 60f);
-            gameTimerText.text = string.Format("{0:00} : {1:00}", minutes, seconds);
+        //    int minutes = Mathf.FloorToInt(gameTimer / 60f);
+        //    int seconds = Mathf.FloorToInt(gameTimer % 60f);
+        //    gameTimerText.text = string.Format("{0:00} : {1:00}", minutes, seconds);
 
-            if (gameTimer <= 30f)
-            {
-                gameTimerText.color = Color.red;
-            }
-        }
+        //    if (gameTimer <= 30f)
+        //    {
+        //        gameTimerText.color = Color.red;
+        //    }
+        //}
     }
 
     public void ExitGame()
