@@ -6,8 +6,11 @@ public class BreakJointHandler : MonoBehaviour
 {
 
     [SerializeField] private PlayerGrab playerGrab;
+    
+
     void OnJointBreak(float breakForce)
     {
         playerGrab.Drop();
     }
+
 }

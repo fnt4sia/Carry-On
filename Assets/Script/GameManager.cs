@@ -10,16 +10,6 @@ public class GameManager : MonoBehaviour
 {
     public static GameManager Instance;
 
-    [SerializeField] private AudioSource firstAudioSource;
-    [SerializeField] private AudioSource secondAudioSource;
-    [SerializeField] private AudioClip mainMusic;
-    [SerializeField] private AudioClip scoreSound;
-    [SerializeField] private AudioClip wrongSound;
-    [SerializeField] private AudioClip stampSound;
-    [SerializeField] private AudioClip starSound;
-    [SerializeField] private AudioClip startSound;
-    [SerializeField] private AudioClip timesUpSound;
-
     [Space(20f)]
 
     [SerializeField] private GameObject airplanePrefab;
@@ -157,8 +147,8 @@ public class GameManager : MonoBehaviour
     {
         gameScore += score;
         scoreText.text = gameScore.ToString();
-        if (score > 0) secondAudioSource.PlayOneShot(scoreSound);
-        else secondAudioSource.PlayOneShot(wrongSound);
+        // if (score > 0) secondAudioSource.PlayOneShot(scoreSound);
+        // else secondAudioSource.PlayOneShot(wrongSound);
     }
 
     public void AddPlayer1Score(int score)
@@ -195,19 +185,11 @@ public class GameManager : MonoBehaviour
         RectTransform rectTransform = scoreObject.GetComponent<RectTransform>();
         rectTransform.position = new(150f, 80f, 0f);
 
-        secondAudioSource.PlayOneShot(startSound);
-
         yield return StartCoroutine(MoveTimerToCorner());
-
-        firstAudioSource.loop = true;
-        firstAudioSource.volume = 0.2f;
-        firstAudioSource.clip = mainMusic; 
-        firstAudioSource.Play();
     }
 
     private IEnumerator EndGame()
     {
-        secondAudioSource.PlayOneShot(timesUpSound);
         Time.timeScale = 0;
 
         gameTimerObject.SetActive(false);
@@ -230,8 +212,6 @@ public class GameManager : MonoBehaviour
 
         if (gameScore >= scoreRequired[0])
         {
-            secondAudioSource.pitch = 1f;
-            secondAudioSource.PlayOneShot(starSound);
             yield return new WaitForSecondsRealtime(0.325f);
             firstStar.color = Color.white;
             yield return new WaitForSecondsRealtime(0.5f);
@@ -239,8 +219,6 @@ public class GameManager : MonoBehaviour
 
         if (gameScore >= scoreRequired[1])
         {
-            secondAudioSource.pitch = 1.5f;
-            secondAudioSource.PlayOneShot(starSound);
             yield return new WaitForSecondsRealtime(0.325f);
             secondStar.color = Color.white;
             yield return new WaitForSecondsRealtime(0.5f);
@@ -248,15 +226,12 @@ public class GameManager : MonoBehaviour
 
         if (gameScore >= scoreRequired[2])
         {
-            secondAudioSource.pitch = 2f;
-            secondAudioSource.PlayOneShot(starSound);
             yield return new WaitForSecondsRealtime(0.325f);
             thirdStar.color = Color.white;
             yield return new WaitForSecondsRealtime(0.5f);
         }
 
         yield return new WaitForSecondsRealtime(0.5f);
-        secondAudioSource.PlayOneShot(stampSound);
 
         yield return new WaitForSecondsRealtime(0.02f);
         approvedStampObject.SetActive(true);

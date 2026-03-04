@@ -16,8 +16,6 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float bubbleSpawnInterval;
     [SerializeField] private Vector3 bubbleOffsetRange;
     [SerializeField] private Animator animator;
-    [SerializeField] private AudioSource audioSource;
-    [SerializeField] private AudioClip dashClip;
 
     [Header("Dash")]
     [SerializeField] private float dashForce;
@@ -36,6 +34,8 @@ public class PlayerMovement : MonoBehaviour
     private Vector3 movementDirection;
     private bool isMoving;
 
+    private bool isPlaying;
+
     private void Awake()
     {
         playerInput = GetComponent<PlayerInput>();
@@ -51,6 +51,8 @@ public class PlayerMovement : MonoBehaviour
 
     void Update()
     {
+        if(!isPlaying) return;
+
         moveInput = moveAction.ReadValue<Vector2>();
 
         bool dashPressed = dashAction.WasPressedThisFrame();
@@ -107,7 +109,6 @@ public class PlayerMovement : MonoBehaviour
         Vector3 dashDir = transform.forward.normalized;
 
         animator.SetBool("isDashing", true);
-        audioSource.PlayOneShot(dashClip);
 
         float timer = 0f;
         while (timer < dashDuration)

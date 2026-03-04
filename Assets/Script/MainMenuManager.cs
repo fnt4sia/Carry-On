@@ -9,11 +9,6 @@ using UnityEngine.UI;
 
 public class MainMenuManager : MonoBehaviour
 {
-    [Header("Audio")]
-    [SerializeField] private AudioClip buttonClickSound;
-    [SerializeField] private AudioClip mainMenuMusic;
-    [SerializeField] private AudioSource firstAudioSource;
-    [SerializeField] private AudioSource secondAudioSource;
 
     [Header("Buttons")]
     [SerializeField] private Button defaultButton;
@@ -26,54 +21,34 @@ public class MainMenuManager : MonoBehaviour
     private readonly List<PlayerInput> joinedPlayers = new();
     private bool uiModeLocked = false;
 
-    private InputDevice firstDevice;
+    private PlayerInputManager manager;
 
     private void Start()
     {
-        firstAudioSource.clip = mainMenuMusic;
-        firstAudioSource.loop = true;
-        firstAudioSource.Play();
+        manager = FindFirstObjectByType<PlayerInputManager>();
 
-        if (DeviceManager.Instance != null &&
-            DeviceManager.Instance.assignedDevices.Count > 0)
+        if (manager != null)
+            manager.onPlayerJoined += HandlePlayerJoined;
+
+        var existingPlayers = FindObjectsByType<PlayerInput>(FindObjectsSortMode.None);
+
+        foreach (var player in existingPlayers)
         {
-            firstDevice = DeviceManager.Instance.assignedDevices[0];
-            PlayerInput player = PlayerInput.Instantiate(playerPrefab, pairWithDevice: firstDevice);
-            OnPlayerJoined(player);
+            HandlePlayerJoined(player);
         }
     }
 
-    void Update()
+    private void HandlePlayerJoined(PlayerInput player)
     {
-        if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame)
-            Debug.Log("SPACE DETECTED");
-
-        foreach (var g in Gamepad.all)
-        {
-            if (g.buttonSouth.wasPressedThisFrame)
-                Debug.Log("GAMEPAD SOUTH DETECTED");
-        }
-    }
-
-    public void OnPlayerJoined(PlayerInput player)
-    {
-        Debug.Log("kepanggil disini bnang");
-        foreach (var p in joinedPlayers)
-        {
-            if (p.devices.Count > 0 && player.devices.Count > 0 &&
-                p.devices[0] == player.devices[0])
-            {
-                Destroy(player.gameObject);
-                return;
-            }
-        }
+        if (joinedPlayers.Contains(player))
+            return;
 
         joinedPlayers.Add(player);
 
         GameObject ui = Instantiate(playerUIPrefab, playerPanel);
 
         TMP_Text text = ui.GetComponentInChildren<TMP_Text>();
-        text.text = $"Player {joinedPlayers.Count}";
+        text.text = $"Player {player.playerIndex + 1}";
 
         if (!uiModeLocked)
         {
@@ -84,55 +59,30 @@ public class MainMenuManager : MonoBehaviour
 
     private void SetUIMode(PlayerInput player)
     {
-        var device = player.devices[0];
-
-        if (device is Gamepad)
+        if (player.devices[0] is Gamepad)
         {
-            EnableGamepadUI();
+            Cursor.visible = false;
         }
-        else if (device is Keyboard)
+        else
         {
-            EnableKeyboardUI();
+            Cursor.visible = true;
         }
-    }
-
-    private void EnableKeyboardUI()
-    {
-        Cursor.visible = true;
-        Cursor.lockState = CursorLockMode.None;
-
-        EventSystem.current.sendNavigationEvents = false;
-    }
-
-    private void EnableGamepadUI()
-    {
-        Cursor.visible = false;
-        Cursor.lockState = CursorLockMode.Locked;
-
-        EventSystem.current.sendNavigationEvents = true;
-        EventSystem.current.SetSelectedGameObject(defaultButton.gameObject);
     }
 
     public void OnClickStart()
     {
-        secondAudioSource.PlayOneShot(buttonClickSound);
     }
 
     public void OnBackmenu()
     {
-        secondAudioSource.PlayOneShot(buttonClickSound);
-
-        if (firstDevice is Gamepad) EventSystem.current.SetSelectedGameObject(defaultButton.gameObject);
     }
 
     public void OnClickOptions()
     {
-        secondAudioSource.PlayOneShot(buttonClickSound);
     }
 
     public void OnClickExit()
     {
-        secondAudioSource.PlayOneShot(buttonClickSound);
         Application.Quit();
     }
 
