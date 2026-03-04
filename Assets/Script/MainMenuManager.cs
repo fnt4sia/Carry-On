@@ -14,9 +14,11 @@ public class MainMenuManager : MonoBehaviour
     [SerializeField] private Button defaultButton;
 
     [Header("Player UI")]
-    [SerializeField] private GameObject playerPrefab;
     [SerializeField] private Transform playerPanel;  
     [SerializeField] private GameObject playerUIPrefab;
+    [SerializeField] private Transform spawnCenter;
+    [SerializeField] private float spacing = 2f;
+    [SerializeField] private Camera lobbyCamera;
 
     private readonly List<PlayerInput> joinedPlayers = new();
     private bool uiModeLocked = false;
@@ -55,6 +57,8 @@ public class MainMenuManager : MonoBehaviour
             SetUIMode(player);
             uiModeLocked = true;
         }
+
+        AddPlayer(player);        
     }
 
     private void SetUIMode(PlayerInput player)
@@ -66,6 +70,30 @@ public class MainMenuManager : MonoBehaviour
         else
         {
             Cursor.visible = true;
+        }
+    }
+
+    public void AddPlayer(PlayerInput player)
+    {
+        joinedPlayers.Add(player);
+        UpdatePositions();
+    }
+
+    private void UpdatePositions()
+    {
+        int count = joinedPlayers.Count;
+
+        for (int i = 0; i < count; i++)
+        {
+            float offset = (i - (count - 1) / 2f) * spacing;
+
+            Vector3 pos = spawnCenter.position + new Vector3(offset, 0, 0);
+            joinedPlayers[i].transform.position = pos;
+
+            Vector3 lookDir = lobbyCamera.transform.position - joinedPlayers[i].transform.position;
+            lookDir.y = 0;
+
+            joinedPlayers[i].transform.rotation = Quaternion.LookRotation(-lookDir);
         }
     }
 
