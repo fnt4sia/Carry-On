@@ -1,7 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
-using System.Collections.Generic;
 
 public class BootManager : MonoBehaviour
 {
@@ -12,6 +11,17 @@ public class BootManager : MonoBehaviour
     {
         manager = GetComponent<PlayerInputManager>();
         manager.onPlayerJoined += OnPlayerJoined;
+    }
+
+    void Update()
+    {
+        if (Gamepad.current != null)
+        {
+            Debug.Log(Gamepad.current.leftStick.ReadValue());
+        }else
+        {
+            Debug.Log("gada bang");
+        }
     }
 
     private void OnPlayerJoined(PlayerInput player)

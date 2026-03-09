@@ -42,6 +42,8 @@ public class MainMenuManager : MonoBehaviour
 
     private void HandlePlayerJoined(PlayerInput player)
     {
+        // player.gameObject.name = 
+
         if (joinedPlayers.Contains(player))
             return;
 
@@ -59,18 +61,8 @@ public class MainMenuManager : MonoBehaviour
         }
 
         AddPlayer(player);        
-    }
 
-    private void SetUIMode(PlayerInput player)
-    {
-        if (player.devices[0] is Gamepad)
-        {
-            Cursor.visible = false;
-        }
-        else
-        {
-            Cursor.visible = true;
-        }
+        DontDestroyOnLoad(player.gameObject);
     }
 
     public void AddPlayer(PlayerInput player)
@@ -93,12 +85,27 @@ public class MainMenuManager : MonoBehaviour
             Vector3 lookDir = lobbyCamera.transform.position - joinedPlayers[i].transform.position;
             lookDir.y = 0;
 
-            joinedPlayers[i].transform.rotation = Quaternion.LookRotation(-lookDir);
+            joinedPlayers[i].transform.rotation = Quaternion.LookRotation(lookDir);
+            joinedPlayers[i].transform.localScale = Vector3.one * 0.325f;
         }
     }
 
+    private void SetUIMode(PlayerInput player)
+    {
+        if (player.devices[0] is Gamepad)
+        {
+            Cursor.visible = false;
+        }
+        else
+        {
+            Cursor.visible = true;
+        }
+    }
+
+
     public void OnClickStart()
     {
+        SceneManager.LoadScene("ChooseStage");
     }
 
     public void OnBackmenu()
