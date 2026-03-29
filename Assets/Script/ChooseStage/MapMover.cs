@@ -1,13 +1,26 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
+using System.Collections.Generic;
 
 public class MapMover : MonoBehaviour
 {
     public float moveSpeed = 10f;
+    public float rotationSpeed = 150f;
     public float detectRadius = 2f;
 
     private LevelNode currentNode;
+    private List<GameObject> hiddenPlayers = new List<GameObject>();
+
+    void Start()
+    {
+        PlayerInput[] players = FindObjectsByType<PlayerInput>(FindObjectsSortMode.None);
+        foreach (var p in players)
+        {
+            p.gameObject.SetActive(false);
+            hiddenPlayers.Add(p.gameObject);
+        }
+    }
 
     void Update()
     {
@@ -18,16 +31,25 @@ public class MapMover : MonoBehaviour
 
     void MovePlane()
     {
-        Vector2 input = Vector2.zero;
+        float forwardInput = 0f;
+        float turnInput = 0f;
 
-        if (Keyboard.current.wKey.isPressed) input.y += 1;
-        if (Keyboard.current.sKey.isPressed) input.y -= 1;
-        if (Keyboard.current.aKey.isPressed) input.x -= 1;
-        if (Keyboard.current.dKey.isPressed) input.x += 1;
+        // Only allow moving forward
+        if (Keyboard.current.wKey.isPressed) forwardInput = 1f;
 
-        Vector3 move = new Vector3(input.x, 0, input.y);
+        // A and D for steering
+        if (Keyboard.current.aKey.isPressed) turnInput = -1f;
+        if (Keyboard.current.dKey.isPressed) turnInput = 1f;
 
-        transform.position += move * moveSpeed * Time.deltaTime;
+        // Only allow steering if we are actually moving forward
+        if (forwardInput > 0.1f)
+        {
+            // Safely rotate only the Y axis
+            float newAngle = transform.eulerAngles.y + (turnInput * rotationSpeed * Time.deltaTime);
+            transform.eulerAngles = new Vector3(transform.eulerAngles.x, newAngle, transform.eulerAngles.z);
+        }
+
+        transform.position += transform.forward * forwardInput * moveSpeed * Time.deltaTime;
     }
 
     void DetectNode()
@@ -54,6 +76,10 @@ public class MapMover : MonoBehaviour
 
         if (Keyboard.current.enterKey.wasPressedThisFrame)
         {
+            foreach (var p in hiddenPlayers)
+            {
+                if (p != null) p.SetActive(true);
+            }
             SceneManager.LoadScene(currentNode.levelIndex);
         }
     }

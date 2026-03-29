@@ -1,0 +1,16 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46a7a0b3583f742aaac3866c77fd7464, type: 3}
+  m_Name: Luggage
+  m_EditorClassIdentifier: Assembly-CSharp::LuggageData
+  luggageType: 0
+  prefab: {fileID: 4513759083496081845, guid: 79e01fc4b81aa384b8df97d3b77a0e0d, type: 3}

@@ -51,7 +51,6 @@ public class PlayerGrab : MonoBehaviour
         bool grabDown = grabAction.WasPressedThisFrame();
         bool grabUp = grabAction.WasReleasedThisFrame();
 
-        // START HOLD
         if (grabDown && objectRigidbody != null)
         {
             isGrabInputHeld = true;
@@ -59,7 +58,6 @@ public class PlayerGrab : MonoBehaviour
             if (Arrow) Arrow.SetActive(true);
         }
 
-        // UPDATE HOLD VISUAL
         if (isGrabInputHeld && objectRigidbody != null)
         {
             float t = Mathf.Clamp01(grabInputHoldTime / throwMaxHoldTime);
@@ -70,7 +68,6 @@ public class PlayerGrab : MonoBehaviour
             Arrow.transform.localPosition = new Vector3(0, ArrowHeight, arrowZPos);
         }
 
-        // RELEASE
         if (grabUp && objectRigidbody != null && isGrabInputHeld)
         {
             if (Arrow) Arrow.SetActive(false);
@@ -93,7 +90,6 @@ public class PlayerGrab : MonoBehaviour
             isGrabInputHeld = false;
         }
 
-        // TRY GRAB
         if (grabDown && objectRigidbody == null)
         {
             TryGrab();
@@ -126,7 +122,7 @@ public class PlayerGrab : MonoBehaviour
             Outline current = outlineGrabHits[0].GetComponentInParent<Outline>();
             Luggage luggage = outlineGrabHits[0].GetComponentInParent<Luggage>();
 
-            if (luggage.GetIsGrabbed()) return;
+            if (luggage.GetGrabberCount() >= Mathf.Max(1, luggage.grabPoints.Length)) return;
 
             if (lastOutlined != null && lastOutlined != current)
                 lastOutlined.enabled = false;
@@ -153,10 +149,8 @@ public class PlayerGrab : MonoBehaviour
                 animator.SetBool("isGrabbing", true);
 
                 luggageHeld = objectRigidbody.GetComponent<Luggage>();
-                luggageHeld.SetPlayerGrabber(this);
-                luggageHeld.SetGrabbed(true);
+                luggageHeld.AddGrabber(this);
 
-                objectRigidbody.mass = 7.5f;
                 playerMovement.isGrabbing = true;
 
                 LightLuggageGrab();
@@ -168,9 +162,11 @@ public class PlayerGrab : MonoBehaviour
     {
         if (configurableJoint != null && objectRigidbody != null)
         {
-            objectRigidbody.mass = 125f;
-            luggageHeld.SetGrabbed(false);
-            luggageHeld = null;
+            if (luggageHeld != null)
+            {
+                luggageHeld.RemoveGrabber(this);
+                luggageHeld = null;
+            }
 
             Destroy(configurableJoint);
             configurableJoint = null;
@@ -186,50 +182,79 @@ public class PlayerGrab : MonoBehaviour
 
     private void LightLuggageGrab()
     {
+        Transform closestPoint = luggageHeld.GetClosestGrabPoint(grabAnchor.position);
+        Vector3 localGrabPoint = objectRigidbody.transform.InverseTransformPoint(closestPoint.position);
+
         configurableJoint = grabPoint.gameObject.AddComponent<ConfigurableJoint>();
+
+        JointBreakHandler breakHandler = grabPoint.gameObject.GetComponent<JointBreakHandler>();
+        if (breakHandler == null)
+        {
+            breakHandler = grabPoint.gameObject.AddComponent<JointBreakHandler>();
+        }
+        breakHandler.playerGrab = this;
+
         configurableJoint.connectedBody = objectRigidbody;
 
+        configurableJoint.xMotion = ConfigurableJointMotion.Limited;
+        configurableJoint.yMotion = ConfigurableJointMotion.Limited;
+        configurableJoint.zMotion = ConfigurableJointMotion.Limited;
+        SoftJointLimit linearLimit = new SoftJointLimit { limit = 0.75f };
+        configurableJoint.linearLimit = linearLimit;
+
         configurableJoint.autoConfigureConnectedAnchor = false;
-
-        Vector3 worldGrabPoint = grabHits[0].ClosestPoint(grabAnchor.position);
-        Vector3 localGrabPoint = objectRigidbody.transform.InverseTransformPoint(worldGrabPoint);
-
-        configurableJoint.connectedAnchor = localGrabPoint;
+        configurableJoint.connectedAnchor = localGrabPoint; 
+        
         configurableJoint.anchor = grabAnchor.localPosition;
 
         JointDrive drive = new JointDrive
         {
-            positionSpring = 1800f,
-            positionDamper = 220f,
-            maximumForce = 3200f
+            positionSpring = 7500f, 
+            positionDamper = 250f,  
+            maximumForce = 10000f    
         };
 
         configurableJoint.xDrive = drive;
         configurableJoint.yDrive = drive;
         configurableJoint.zDrive = drive;
 
-        configurableJoint.targetPosition = Vector3.zero;
+        JointDrive angularDrive = new JointDrive
+        {
+            positionSpring = 1000f,       
+            positionDamper = 100f,     
+            maximumForce = 2000f
+        };
+
+        configurableJoint.angularXDrive = angularDrive;
+        configurableJoint.angularYZDrive = angularDrive;
+
+        configurableJoint.targetRotation = grabAnchor.localRotation;
+
         configurableJoint.angularXMotion = ConfigurableJointMotion.Free;
         configurableJoint.angularYMotion = ConfigurableJointMotion.Free;
         configurableJoint.angularZMotion = ConfigurableJointMotion.Free;
 
         configurableJoint.massScale = 1f;
-        configurableJoint.connectedMassScale = 1.2f;
+        configurableJoint.connectedMassScale = 1.5f;
 
         configurableJoint.projectionMode = JointProjectionMode.PositionAndRotation;
-        configurableJoint.projectionDistance = 0.08f;
-        configurableJoint.projectionAngle = 4f;
+        configurableJoint.projectionDistance = 0.05f; 
+        configurableJoint.projectionAngle = 5f; 
 
         StartCoroutine(DelayBreakForce());
     }
 
     private IEnumerator DelayBreakForce()
     {
-        configurableJoint.breakForce = 8000f;
+        configurableJoint.breakForce = Mathf.Infinity; 
+        configurableJoint.breakTorque = Mathf.Infinity;
         yield return new WaitForSeconds(0.5f);
 
         if (configurableJoint != null)
-            configurableJoint.breakForce = 2500f;
+        {
+            configurableJoint.breakForce = 6500f; 
+            configurableJoint.breakTorque = 3500f;
+        }
     }
 
     public void Drop()
@@ -241,9 +266,11 @@ public class PlayerGrab : MonoBehaviour
 
         if (configurableJoint != null)
         {
-            objectRigidbody.mass = 125f;
-            luggageHeld.SetGrabbed(false);
-            luggageHeld = null;
+            if (luggageHeld != null)
+            {
+                luggageHeld.RemoveGrabber(this);
+                luggageHeld = null;
+            }
 
             Destroy(configurableJoint);
             configurableJoint = null;
@@ -257,5 +284,10 @@ public class PlayerGrab : MonoBehaviour
     public int GetPlayerIndex()
     {
         return GetComponent<PlayerInput>().playerIndex;
+    }
+
+    public Luggage GetHeldLuggage()
+    {
+        return luggageHeld;
     }
 }

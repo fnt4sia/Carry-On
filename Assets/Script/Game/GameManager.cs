@@ -81,53 +81,7 @@ public class GameManager : MonoBehaviour
 
     void Update()
     {
-        //if(isPaused)
-        //{
-        //    if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.JoystickButton7))
-        //    {
-        //        isPaused = false;
-        //        Time.timeScale = 1;
-        //        backgroundDimObject.SetActive(false);
-        //        pausePanel.SetActive(false);
-        //    }
-
-        //    return;
-        //}
-
-        //if (gameStarted)
-        //{
-        //    if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.JoystickButton7))
-        //    {
-        //        isPaused = true;
-        //        Time.timeScale = 0;
-        //        backgroundDimObject.SetActive(true);
-        //        pausePanel.SetActive(true);
-
-        //        EventSystem.current.SetSelectedGameObject(resumeButton.gameObject);
-        //        return;
-        //    }
-
-        //    gameTimer -= Time.deltaTime;
-        //    if (gameTimer <= 0)
-        //    {
-        //        gameTimer = 0;
-        //        gameStarted = false;
-
-        //        firstAudioSource.Stop();
-
-        //        StartCoroutine(EndGame());
- 
-        //    }
-
-        //    int minutes = Mathf.FloorToInt(gameTimer / 60f);
-        //    int seconds = Mathf.FloorToInt(gameTimer % 60f);
-        //    gameTimerText.text = string.Format("{0:00} : {1:00}", minutes, seconds);
-
-        //    if (gameTimer <= 30f)
-        //    {
-        //        gameTimerText.color = Color.red;
-        //    }
-        //}
+        // Removed unused commented update logic
     }
 
     public void ExitGame()

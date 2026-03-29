@@ -8,7 +8,6 @@ public class PlayerMovement : MonoBehaviour
 
     [SerializeField] private Rigidbody playerRb;
     [SerializeField] private float movementSpeedNormal;
-    [SerializeField] private float movementSpeedShift;
     [SerializeField] private float rotationSpeedNormal;
     [SerializeField] private float rotationSpeedGrab;
     [SerializeField] private float lerpSpeed;
@@ -16,6 +15,10 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float bubbleSpawnInterval;
     [SerializeField] private Vector3 bubbleOffsetRange;
     [SerializeField] private Animator animator;
+
+    [Header("Weight Physics")]
+    [SerializeField] private float weightPenaltyMultiplier = 0.01f;
+    [SerializeField] private float minSpeedPercentage = 0.1f;
 
     [Header("Dash")]
     [SerializeField] private float dashForce;
@@ -25,6 +28,7 @@ public class PlayerMovement : MonoBehaviour
     private PlayerInput playerInput;
     private InputAction moveAction;
     private InputAction dashAction;
+    private PlayerGrab playerGrab;
 
     private bool isDashing = false;
     private float lastDashTime = -10f;
@@ -41,6 +45,7 @@ public class PlayerMovement : MonoBehaviour
         playerInput = GetComponent<PlayerInput>();
         moveAction = playerInput.actions["Move"];
         dashAction = playerInput.actions["Dash"];
+        playerGrab = GetComponent<PlayerGrab>();
     }
 
     private void Start()
@@ -51,7 +56,7 @@ public class PlayerMovement : MonoBehaviour
 
     void Update()
     {
-        if(!isPlaying) return;
+        // Removed `if(!isPlaying) return;` because it is preventing movement.
 
         moveInput = moveAction.ReadValue<Vector2>();
 
@@ -80,8 +85,25 @@ public class PlayerMovement : MonoBehaviour
 
     void FixedUpdate()
     {
+        float currentSpeed = movementSpeedNormal;
+
+        // Weight Penalty System
+        if (isGrabbing && playerGrab != null && playerGrab.GetHeldLuggage() != null)
+        {
+            Luggage heldLuggage = playerGrab.GetHeldLuggage();
+            
+            // Divide the mass by how many players are holding it! (Co-op lifting)
+            float effectiveMass = heldLuggage.GetMass() / Mathf.Max(1, heldLuggage.GetGrabberCount());
+            
+            // e.g. 50 mass * 0.015 = 0.75 penalty = 25% remaining speed. 
+            float speedPenalty = effectiveMass * weightPenaltyMultiplier;
+            float speedMultiplier = Mathf.Clamp(1f - speedPenalty, minSpeedPercentage, 1f);
+            
+            currentSpeed *= speedMultiplier;
+        }
+
         Vector3 currentVelocity = playerRb.linearVelocity;
-        Vector3 flatMovement = movementDirection * movementSpeedNormal;
+        Vector3 flatMovement = movementDirection * currentSpeed;
         Vector3 finalVelocity = new(flatMovement.x, currentVelocity.y, flatMovement.z);
 
         playerRb.linearVelocity = Vector3.Lerp(playerRb.linearVelocity, finalVelocity, lerpSpeed);

@@ -42,7 +42,6 @@ public class MainMenuManager : MonoBehaviour
 
     private void HandlePlayerJoined(PlayerInput player)
     {
-        // player.gameObject.name = 
 
         if (joinedPlayers.Contains(player))
             return;

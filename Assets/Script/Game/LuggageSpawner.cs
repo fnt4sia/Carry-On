@@ -4,11 +4,8 @@ using UnityEngine;
 
 public class LuggageSpawner : MonoBehaviour
 {
-    [SerializeField] private List<GameObject> luggagePrefab;
+    [SerializeField] private List<LuggageData> luggageDataList;
     [SerializeField] private float spawnInterval;
-    [SerializeField] private List<float> massList;
-    [SerializeField] private List<Vector3> scaleList;
-    [SerializeField] private int gateNumber;
 
     private int randomIndex;
     private float randomRotationY;
@@ -23,30 +20,23 @@ public class LuggageSpawner : MonoBehaviour
 
     private IEnumerator SpawnLuggage()
     {
-        randomIndex = Random.Range(0, luggagePrefab.Count);
+        if (luggageDataList == null || luggageDataList.Count == 0) yield return null;
 
+        int randomIndexData = Random.Range(0, luggageDataList.Count);
+        LuggageData selectedData = luggageDataList[randomIndexData];
+        
         spawnPosition = new Vector3(transform.position.x, transform.position.y, transform.position.z);
         spawnRotation = Quaternion.Euler(0, 0, 90);
 
-        GameObject newLuggage = Instantiate(luggagePrefab[randomIndex], spawnPosition, spawnRotation);
+        if (selectedData.prefab != null)
+        {
+            GameObject newLuggage = Instantiate(selectedData.prefab, spawnPosition, spawnRotation);
+            
+            Luggage luggage = newLuggage.GetComponent<Luggage>();
+            luggage.luggageType = selectedData.luggageType;
+        }
 
-        Transform cubeTransform = newLuggage.transform.Find("Cube");
-        MeshRenderer cubeRenderer = cubeTransform.GetComponent<MeshRenderer>();
-        cubeRenderer.material.color = new Color(Random.value, Random.value, Random.value);
-
-        randomIndex = Random.Range(0, massList.Count);
-
-        Rigidbody luggageRigidbody = newLuggage.GetComponent<Rigidbody>();
-        luggageRigidbody.mass = massList[randomIndex];
-
-        Transform luggageTransform = newLuggage.transform;
-        luggageTransform.localScale = scaleList[randomIndex];
-
-        Luggage luggage = newLuggage.GetComponent<Luggage>();
-        if (gateNumber == 1) luggage.gateNumber = 0;
-        else luggage.gateNumber = Random.Range(1, gateNumber + 1);
-
-        yield return new WaitForSeconds(5f);
+        yield return new WaitForSeconds(spawnInterval);
         StartCoroutine(SpawnLuggage());
     }
 }
