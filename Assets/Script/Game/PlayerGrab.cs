@@ -146,6 +146,9 @@ public class PlayerGrab : MonoBehaviour
             objectRigidbody = grabHits[0].attachedRigidbody;
             if (objectRigidbody != null)
             {
+                // Ensure the object isn't frozen mathematically by a conveyor so the joint works
+                objectRigidbody.isKinematic = false;
+
                 animator.SetBool("isGrabbing", true);
 
                 luggageHeld = objectRigidbody.GetComponent<Luggage>();

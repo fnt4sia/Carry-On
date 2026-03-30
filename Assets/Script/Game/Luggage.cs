@@ -18,6 +18,8 @@ public class Luggage : MonoBehaviour
     private PlayerGrab lastGrabber;
 
     public bool IsDelivered { get; set; }
+    public Conveyor ActiveConveyor { get; set; }
+    [HideInInspector] public Vector3 kinematicVelocity;
 
     private void Start()
     {
@@ -26,13 +28,17 @@ public class Luggage : MonoBehaviour
 
     public void DestroyLuggage()    
     {
+        DropAllGrabbers();
+        Destroy(gameObject);
+    }
+
+    public void DropAllGrabbers()
+    {
         List<PlayerGrab> currentGrabbers = new List<PlayerGrab>(grabbers);
         foreach (var p in currentGrabbers)
         {
             if (p != null) p.Drop(); 
         }
-
-        Destroy(gameObject);
     }
 
     public void AddGrabber(PlayerGrab playerGrab)

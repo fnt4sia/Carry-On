@@ -1,40 +1,29 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-[RequireComponent(typeof(Collider))]
 public class PressurePlate : MonoBehaviour
 {
     [Header("Connected Gateways")]
-    [Tooltip("Drag the gateways you want this plate to control into this list.")]
-    public List<Gateway> connectedGateways = new List<Gateway>();
+    [SerializeField] private List<Gateway> connectedGateways = new List<Gateway>();
 
     [Header("Settings")]
-    [Tooltip("True: Stepping on the plate toggles the gate state (stays open after you leave). False: Gate opens while you stand on it, closes when you leave.")]
-    public bool isToggleMode = true;
-
-    [Tooltip("Can players trigger this plate?")]
-    public bool canPlayerTrigger = true;
-
-    [Tooltip("Can luggage trigger this plate?")]
-    public bool canLuggageTrigger = true;
+    [SerializeField] private bool isToggleMode = true;
+    [SerializeField] private bool canPlayerTrigger = true;
+    [SerializeField] private bool canLuggageTrigger = true;
 
     [Header("Visuals")]
-    [Tooltip("Animator to show plate being pushed down. Requires a boolean 'IsPressed'.")]
-    public Animator plateAnimator;
+    [SerializeField] private Renderer plateRenderer;
+    [SerializeField] private Color defaultColor = Color.red;
+    [SerializeField] private Color pressedColor = Color.green;
 
     private int objectsOnPlate = 0;
 
     private void Start()
     {
-        if (plateAnimator == null) plateAnimator = GetComponent<Animator>();
-
-        // Make sure the collider is set to Trigger so things don't bounce off it 
-        // entirely, they just pass freely over it.
-        Collider col = GetComponent<Collider>();
-        if (col != null && !col.isTrigger)
+        if (plateRenderer == null) plateRenderer = GetComponentInChildren<Renderer>();
+        if (plateRenderer != null)
         {
-            Debug.LogWarning($"[PressurePlate] {gameObject.name}'s Collider was not a Trigger. Setting it to IsTrigger=true.");
-            col.isTrigger = true;
+            plateRenderer.material.color = defaultColor;
         }
     }
 
@@ -44,7 +33,6 @@ public class PressurePlate : MonoBehaviour
         {
             objectsOnPlate++;
 
-            // If it goes from 0 to 1, someone just stepped on it
             if (objectsOnPlate == 1)
             {
                 OnPlatePressed();
@@ -58,10 +46,8 @@ public class PressurePlate : MonoBehaviour
         {
             objectsOnPlate--;
             
-            // Safeguard against physics glitches letting it dip below zero somehow
             if (objectsOnPlate < 0) objectsOnPlate = 0;
 
-            // If it returns exactly to 0, everyone got off
             if (objectsOnPlate == 0)
             {
                 OnPlateReleased();
@@ -78,41 +64,32 @@ public class PressurePlate : MonoBehaviour
 
     private void OnPlatePressed()
     {
-        if (plateAnimator != null)
+        if (plateRenderer != null)
         {
-            plateAnimator.SetBool("IsPressed", true);
+            plateRenderer.material.color = pressedColor;
         }
 
         foreach (Gateway gateway in connectedGateways)
         {
             if (gateway == null) continue;
 
-            if (isToggleMode)
-            {
-                gateway.Toggle(); 
-            }
-            else
-            {
-                gateway.Open();  
-            }
+            gateway.Toggle();
         }
     }
 
     private void OnPlateReleased()
     {
-        if (plateAnimator != null)
+        if (plateRenderer != null)
         {
-            plateAnimator.SetBool("IsPressed", false);
+            plateRenderer.material.color = defaultColor;
         }
 
-        // If it's a hold-plate, leaving it should close it.
-        // If it's a toggle mode, leaving does absolutely nothing.
         if (!isToggleMode)
         {
             foreach (Gateway gateway in connectedGateways)
             {
                 if (gateway == null) continue;
-                gateway.Close();
+                gateway.Toggle();
             }
         }
     }
