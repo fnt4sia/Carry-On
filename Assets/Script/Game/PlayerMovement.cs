@@ -8,17 +8,12 @@ public class PlayerMovement : MonoBehaviour
 
     [SerializeField] private Rigidbody playerRb;
     [SerializeField] private float movementSpeedNormal;
-    [SerializeField] private float rotationSpeedNormal;
-    [SerializeField] private float rotationSpeedGrab;
+    [SerializeField] private float rotationSpeed;
     [SerializeField] private float lerpSpeed;
     [SerializeField] private GameObject bubblePrefab;
     [SerializeField] private float bubbleSpawnInterval;
     [SerializeField] private Vector3 bubbleOffsetRange;
     [SerializeField] private Animator animator;
-
-    [Header("Weight Physics")]
-    [SerializeField] private float weightPenaltyMultiplier = 0.01f;
-    [SerializeField] private float minSpeedPercentage = 0.1f;
 
     [Header("Dash")]
     [SerializeField] private float dashForce;
@@ -87,19 +82,19 @@ public class PlayerMovement : MonoBehaviour
     {
         float currentSpeed = movementSpeedNormal;
 
-        // Weight Penalty System
         if (isGrabbing && playerGrab != null && playerGrab.GetHeldLuggage() != null)
         {
             Luggage heldLuggage = playerGrab.GetHeldLuggage();
+            int grabbers = Mathf.Max(1, heldLuggage.GetGrabberCount());
             
-            // Divide the mass by how many players are holding it! (Co-op lifting)
-            float effectiveMass = heldLuggage.GetMass() / Mathf.Max(1, heldLuggage.GetGrabberCount());
-            
-            // e.g. 50 mass * 0.015 = 0.75 penalty = 25% remaining speed. 
-            float speedPenalty = effectiveMass * weightPenaltyMultiplier;
-            float speedMultiplier = Mathf.Clamp(1f - speedPenalty, minSpeedPercentage, 1f);
-            
-            currentSpeed *= speedMultiplier;
+            if (heldLuggage.weightClass == WeightClass.Heavy)
+            {
+                currentSpeed *= (grabbers > 1) ? 0.6f : 0.3f;
+            }
+            else if (heldLuggage.weightClass == WeightClass.Medium)
+            {
+                currentSpeed *= (grabbers > 1) ? 1.0f : 0.5f;
+            }
         }
 
         Vector3 currentVelocity = playerRb.linearVelocity;
@@ -114,11 +109,30 @@ public class PlayerMovement : MonoBehaviour
             Vector3 flatDir = new Vector3(movementDirection.x, 0, movementDirection.z).normalized;
 
             Quaternion targetRotation = Quaternion.LookRotation(flatDir);
-            Quaternion smoothedRotation = isGrabbing
-                ? Quaternion.Slerp(playerRb.rotation, targetRotation, rotationSpeedGrab * Time.fixedDeltaTime)
-                : Quaternion.Slerp(playerRb.rotation, targetRotation, rotationSpeedNormal * Time.fixedDeltaTime);
+            
+            float rSpeed = rotationSpeed;
 
-            playerRb.MoveRotation(smoothedRotation);
+            if (isGrabbing && playerGrab != null && playerGrab.GetHeldLuggage() != null)
+            {
+                Luggage heldLuggage = playerGrab.GetHeldLuggage();
+                int grabbers = Mathf.Max(1, heldLuggage.GetGrabberCount());
+
+                if (heldLuggage.weightClass == WeightClass.Heavy)
+                {
+                    rSpeed = (grabbers > 1) ? (rotationSpeed * 0.6f) : 0f;
+                }
+                else if (heldLuggage.weightClass == WeightClass.Medium)
+                {
+                    rSpeed = (grabbers > 1) ? rotationSpeed : (rotationSpeed * 0.5f);
+                }
+            }
+
+            Quaternion smoothedRotation = Quaternion.Slerp(playerRb.rotation, targetRotation, rSpeed * Time.fixedDeltaTime);
+
+            if (!isGrabbing || rSpeed > 0f)
+            {
+                playerRb.MoveRotation(smoothedRotation);
+            }
         }
         else animator.SetBool("isMoving", false);
     }

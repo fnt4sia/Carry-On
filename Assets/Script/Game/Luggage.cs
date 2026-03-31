@@ -13,6 +13,7 @@ public class Luggage : MonoBehaviour
     public Vector3 grabCalculationOffset;
     
     public LuggageType luggageType;
+    public WeightClass weightClass;
 
     private List<PlayerGrab> grabbers = new List<PlayerGrab>();
     private PlayerGrab lastGrabber;

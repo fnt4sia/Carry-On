@@ -61,6 +61,7 @@ public class LuggageSpawner : MonoBehaviour
             if (luggage != null)
             {
                 luggage.luggageType = lType;
+                luggage.weightClass = selectedData.weightClass;
             }
         }
 

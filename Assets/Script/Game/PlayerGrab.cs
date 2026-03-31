@@ -40,6 +40,10 @@ public class PlayerGrab : MonoBehaviour
     private Collider[] outlineGrabHits;
     private Outline lastOutlined = null;
 
+    public bool isDragging;
+    private Vector3 originalCenterOfMass;
+    private bool hasShiftedCoM;
+
     private void Awake()
     {
         playerInput = GetComponent<PlayerInput>();
@@ -156,7 +160,16 @@ public class PlayerGrab : MonoBehaviour
 
                 playerMovement.isGrabbing = true;
 
-                LightLuggageGrab();
+                if (luggageHeld.weightClass == WeightClass.Heavy && luggageHeld.GetGrabberCount() == 1)
+                {
+                    isDragging = true;
+                    DragLuggageGrab();
+                }
+                else
+                {
+                    isDragging = false;
+                    LightLuggageGrab();
+                }
             }
         }
     }
@@ -167,12 +180,31 @@ public class PlayerGrab : MonoBehaviour
         {
             if (luggageHeld != null)
             {
+                if (luggageHeld.weightClass == WeightClass.Heavy && luggageHeld.GetGrabberCount() == 1)
+                {
+                    Drop();
+                    return;
+                }
+
+                if (luggageHeld.weightClass == WeightClass.Medium && luggageHeld.GetGrabberCount() == 1)
+                {
+                    forwardForce *= 0.5f;
+                    upForce *= 0.5f;
+                }
+
                 luggageHeld.RemoveGrabber(this);
                 luggageHeld = null;
             }
 
+            if (hasShiftedCoM)
+            {
+                objectRigidbody.centerOfMass = originalCenterOfMass;
+                hasShiftedCoM = false;
+            }
+
             Destroy(configurableJoint);
             configurableJoint = null;
+            isDragging = false;
 
             Vector3 throwDir = grabPoint.forward.normalized * forwardForce + Vector3.up * upForce;
             objectRigidbody.AddForce(throwDir, ForceMode.Impulse);
@@ -187,6 +219,15 @@ public class PlayerGrab : MonoBehaviour
     {
         Transform closestPoint = luggageHeld.GetClosestGrabPoint(grabAnchor.position);
         Vector3 localGrabPoint = objectRigidbody.transform.InverseTransformPoint(closestPoint.position);
+
+        if (luggageHeld.weightClass != WeightClass.Heavy)
+        {
+            if (!hasShiftedCoM) {
+                originalCenterOfMass = objectRigidbody.centerOfMass;
+            }
+            objectRigidbody.centerOfMass = localGrabPoint;
+            hasShiftedCoM = true;
+        }
 
         configurableJoint = grabPoint.gameObject.AddComponent<ConfigurableJoint>();
 
@@ -247,6 +288,51 @@ public class PlayerGrab : MonoBehaviour
         StartCoroutine(DelayBreakForce());
     }
 
+    private void DragLuggageGrab()
+    {
+        Transform closestPoint = luggageHeld.GetClosestGrabPoint(grabAnchor.position);
+        Vector3 localGrabPoint = objectRigidbody.transform.InverseTransformPoint(closestPoint.position);
+
+        configurableJoint = grabPoint.gameObject.AddComponent<ConfigurableJoint>();
+
+        JointBreakHandler breakHandler = grabPoint.gameObject.GetComponent<JointBreakHandler>();
+        if (breakHandler == null)
+            breakHandler = grabPoint.gameObject.AddComponent<JointBreakHandler>();
+        breakHandler.playerGrab = this;
+
+        configurableJoint.connectedBody = objectRigidbody;
+
+        configurableJoint.xMotion = ConfigurableJointMotion.Limited;
+        configurableJoint.yMotion = ConfigurableJointMotion.Free; // Free Y ensures object stays on floor
+        configurableJoint.zMotion = ConfigurableJointMotion.Limited;
+        SoftJointLimit linearLimit = new SoftJointLimit { limit = 0.75f };
+        configurableJoint.linearLimit = linearLimit;
+
+        configurableJoint.autoConfigureConnectedAnchor = false;
+        configurableJoint.connectedAnchor = localGrabPoint; 
+        
+        configurableJoint.anchor = grabAnchor.localPosition;
+
+        JointDrive drive = new JointDrive
+        {
+            positionSpring = 7500f, 
+            positionDamper = 250f,  
+            maximumForce = 10000f    
+        };
+
+        configurableJoint.xDrive = drive;
+        configurableJoint.zDrive = drive;
+
+        configurableJoint.angularXMotion = ConfigurableJointMotion.Free;
+        configurableJoint.angularYMotion = ConfigurableJointMotion.Free;
+        configurableJoint.angularZMotion = ConfigurableJointMotion.Free;
+
+        configurableJoint.massScale = 1f;
+        configurableJoint.connectedMassScale = 1.5f;
+
+        StartCoroutine(DelayBreakForce());
+    }
+
     private IEnumerator DelayBreakForce()
     {
         configurableJoint.breakForce = Mathf.Infinity; 
@@ -266,6 +352,13 @@ public class PlayerGrab : MonoBehaviour
 
         grabInputHoldTime = 0f;
         isGrabInputHeld = false;
+        isDragging = false;
+
+        if (objectRigidbody != null && hasShiftedCoM)
+        {
+            objectRigidbody.centerOfMass = originalCenterOfMass;
+            hasShiftedCoM = false;
+        }
 
         if (configurableJoint != null)
         {

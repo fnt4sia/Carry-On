@@ -8,10 +8,17 @@ public enum LuggageType
     GunBoxes,
 }
 
+public enum WeightClass
+{
+    Light,
+    Medium,
+    Heavy
+}
 
 [CreateAssetMenu(fileName = "New Luggage Data", menuName = "Carry On/Luggage Data")]
 public class LuggageData : ScriptableObject
 {
     public LuggageType luggageType;
+    public WeightClass weightClass;
     public GameObject prefab;
 }
