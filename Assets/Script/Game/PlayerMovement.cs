@@ -20,6 +20,8 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float dashDuration;
     [SerializeField] private float dashCooldown;
 
+    [SerializeField] private int playerIndex;
+
     private PlayerInput playerInput;
     private InputAction moveAction;
     private InputAction dashAction;
@@ -53,9 +55,37 @@ public class PlayerMovement : MonoBehaviour
     {
         // Removed `if(!isPlaying) return;` because it is preventing movement.
 
-        moveInput = moveAction.ReadValue<Vector2>();
+        // --- HARDCODED INPUT FOR VALIDATION ---
+        // moveInput = moveAction.ReadValue<Vector2>();
+        // bool dashPressed = dashAction.WasPressedThisFrame();
 
-        bool dashPressed = dashAction.WasPressedThisFrame();
+        moveInput = Vector2.zero;
+        bool dashPressed = false;
+
+        if (Keyboard.current != null)
+        {
+            if (playerIndex == 0) // Player 1
+            {
+                float h = 0; float v = 0;
+                if (Keyboard.current.wKey.isPressed) v += 1;
+                if (Keyboard.current.sKey.isPressed) v -= 1;
+                if (Keyboard.current.dKey.isPressed) h += 1;
+                if (Keyboard.current.aKey.isPressed) h -= 1;
+                moveInput = new Vector2(h, v).normalized;
+                dashPressed = Keyboard.current.leftShiftKey.wasPressedThisFrame;
+            }
+            else // Player 2
+            {
+                float h = 0; float v = 0;
+                if (Keyboard.current.upArrowKey.isPressed) v += 1;
+                if (Keyboard.current.downArrowKey.isPressed) v -= 1;
+                if (Keyboard.current.rightArrowKey.isPressed) h += 1;
+                if (Keyboard.current.leftArrowKey.isPressed) h -= 1;
+                moveInput = new Vector2(h, v).normalized;
+                dashPressed = Keyboard.current.enterKey.wasPressedThisFrame;
+            }
+        }
+        // --------------------------------------
 
         if (dashPressed && !isDashing && Time.time >= lastDashTime + dashCooldown)
         {
@@ -81,19 +111,30 @@ public class PlayerMovement : MonoBehaviour
     void FixedUpdate()
     {
         float currentSpeed = movementSpeedNormal;
+        bool canRotateNormally = true;
+        Luggage heldLuggage = null;
 
-        if (isGrabbing && playerGrab != null && playerGrab.GetHeldLuggage() != null)
+        if (isGrabbing && playerGrab != null)
         {
-            Luggage heldLuggage = playerGrab.GetHeldLuggage();
-            int grabbers = Mathf.Max(1, heldLuggage.GetGrabberCount());
-            
-            if (heldLuggage.weightClass == WeightClass.Heavy)
+            heldLuggage = playerGrab.GetHeldLuggage();
+            if (heldLuggage != null)
             {
-                currentSpeed *= (grabbers > 1) ? 0.6f : 0.3f;
-            }
-            else if (heldLuggage.weightClass == WeightClass.Medium)
-            {
-                currentSpeed *= (grabbers > 1) ? 1.0f : 0.5f;
+                int grabbers = Mathf.Max(1, heldLuggage.GetGrabberCount());
+                
+                if (heldLuggage.weightClass == WeightClass.Heavy)
+                {
+                    currentSpeed *= (grabbers > 1) ? 0.6f : 0.3f;
+                    canRotateNormally = false;
+                }
+                else if (heldLuggage.weightClass == WeightClass.Medium)
+                {
+                    currentSpeed *= (grabbers > 1) ? 1.0f : 0.5f;
+                    if (grabbers > 1) canRotateNormally = false;
+                }
+                else if (heldLuggage.weightClass == WeightClass.Light)
+                {
+                    if (grabbers > 1) canRotateNormally = false;
+                }
             }
         }
 
@@ -103,38 +144,40 @@ public class PlayerMovement : MonoBehaviour
 
         playerRb.linearVelocity = Vector3.Lerp(playerRb.linearVelocity, finalVelocity, lerpSpeed);
 
-        if (movementDirection.sqrMagnitude > 0.1f)
-        {
-            animator.SetBool("isMoving", true);
-            Vector3 flatDir = new Vector3(movementDirection.x, 0, movementDirection.z).normalized;
+        bool isTryingToMove = movementDirection.sqrMagnitude > 0.1f;
+        animator.SetBool("isMoving", isTryingToMove);
 
+        if (heldLuggage != null && !canRotateNormally)
+        {
+            // Face the object unconditionally when we can't rotate normally
+            Vector3 dirToLuggage = heldLuggage.transform.position - transform.position;
+            dirToLuggage.y = 0;
+            if (dirToLuggage.sqrMagnitude > 0.001f)
+            {
+                Quaternion targetRotation = Quaternion.LookRotation(dirToLuggage.normalized);
+                Quaternion smoothedRotation = Quaternion.Slerp(playerRb.rotation, targetRotation, rotationSpeed * Time.fixedDeltaTime);
+                playerRb.MoveRotation(smoothedRotation);
+            }
+        }
+        else if (isTryingToMove)
+        {
+            // Normal rotation based on movement direction
+            Vector3 flatDir = new Vector3(movementDirection.x, 0, movementDirection.z).normalized;
             Quaternion targetRotation = Quaternion.LookRotation(flatDir);
             
             float rSpeed = rotationSpeed;
 
-            if (isGrabbing && playerGrab != null && playerGrab.GetHeldLuggage() != null)
+            if (isGrabbing && heldLuggage != null)
             {
-                Luggage heldLuggage = playerGrab.GetHeldLuggage();
-                int grabbers = Mathf.Max(1, heldLuggage.GetGrabberCount());
-
-                if (heldLuggage.weightClass == WeightClass.Heavy)
+                if (heldLuggage.weightClass == WeightClass.Medium)
                 {
-                    rSpeed = (grabbers > 1) ? (rotationSpeed * 0.6f) : 0f;
-                }
-                else if (heldLuggage.weightClass == WeightClass.Medium)
-                {
-                    rSpeed = (grabbers > 1) ? rotationSpeed : (rotationSpeed * 0.5f);
+                    rSpeed *= 0.5f;
                 }
             }
 
             Quaternion smoothedRotation = Quaternion.Slerp(playerRb.rotation, targetRotation, rSpeed * Time.fixedDeltaTime);
-
-            if (!isGrabbing || rSpeed > 0f)
-            {
-                playerRb.MoveRotation(smoothedRotation);
-            }
+            playerRb.MoveRotation(smoothedRotation);
         }
-        else animator.SetBool("isMoving", false);
     }
 
     private IEnumerator DashCoroutine()

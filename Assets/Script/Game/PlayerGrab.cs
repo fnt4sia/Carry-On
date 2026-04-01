@@ -26,6 +26,8 @@ public class PlayerGrab : MonoBehaviour
     [SerializeField] private float ArrowMaxZPos = 4f;
     [SerializeField] private float ArrowHeight = 2.0f;
 
+    [SerializeField] private int playerIndex;
+
     private PlayerInput playerInput;
     private InputAction grabAction;
 
@@ -52,8 +54,28 @@ public class PlayerGrab : MonoBehaviour
 
     void Update()
     {
-        bool grabDown = grabAction.WasPressedThisFrame();
-        bool grabUp = grabAction.WasReleasedThisFrame();
+        // --- HARDCODED INPUT FOR VALIDATION ---
+        // bool grabDown = grabAction.WasPressedThisFrame();
+        // bool grabUp = grabAction.WasReleasedThisFrame();
+
+        bool grabDown = false;
+        bool grabUp = false;
+
+        if (Keyboard.current != null)
+        {
+            if (playerIndex == 0) // Player 1
+            {
+                grabDown = Keyboard.current.eKey.wasPressedThisFrame;
+                grabUp = Keyboard.current.eKey.wasReleasedThisFrame;
+            }
+            else // Player 2
+            {
+                // Right Shift exists on Mac keyboards and is close to arrow keys
+                grabDown = Keyboard.current.rightShiftKey.wasPressedThisFrame;
+                grabUp = Keyboard.current.rightShiftKey.wasReleasedThisFrame;
+            }
+        }
+        // --------------------------------------
 
         if (grabDown && objectRigidbody != null)
         {
@@ -121,20 +143,30 @@ public class PlayerGrab : MonoBehaviour
 
         outlineGrabHits = Physics.OverlapSphere(grabPoint.position, grabRadius, grabbableLayer);
 
-        if (outlineGrabHits.Length > 0)
+        foreach (var hit in outlineGrabHits)
         {
-            Outline current = outlineGrabHits[0].GetComponentInParent<Outline>();
-            Luggage luggage = outlineGrabHits[0].GetComponentInParent<Luggage>();
+            Outline current = hit.GetComponentInParent<Outline>();
+            Luggage luggage = hit.GetComponentInParent<Luggage>();
 
-            if (luggage.GetGrabberCount() >= Mathf.Max(1, luggage.grabPoints.Length)) return;
+            if (luggage != null)
+            {
+                int maxGrabbers = luggage.weightClass == WeightClass.Heavy ? 2 : 1;
+                if (luggage.grabPoints != null && luggage.grabPoints.Length > maxGrabbers)
+                    maxGrabbers = luggage.grabPoints.Length;
 
-            if (lastOutlined != null && lastOutlined != current)
-                lastOutlined.enabled = false;
+                if (luggage.GetGrabberCount() < maxGrabbers)
+                {
+                    if (lastOutlined != null && lastOutlined != current)
+                        lastOutlined.enabled = false;
 
-            current.enabled = true;
-            lastOutlined = current;
+                    if (current != null) current.enabled = true;
+                    lastOutlined = current;
+                    return; // Found a valid outline, exit
+                }
+            }
         }
-        else if (lastOutlined != null)
+
+        if (lastOutlined != null)
         {
             lastOutlined.enabled = false;
             lastOutlined = null;
@@ -145,31 +177,48 @@ public class PlayerGrab : MonoBehaviour
     {
         grabHits = Physics.OverlapSphere(grabPoint.position, grabRadius, grabbableLayer);
 
-        if (grabHits.Length > 0)
+        foreach (var hit in grabHits)
         {
-            objectRigidbody = grabHits[0].attachedRigidbody;
+            objectRigidbody = hit.attachedRigidbody;
             if (objectRigidbody != null)
             {
-                // Ensure the object isn't frozen mathematically by a conveyor so the joint works
-                objectRigidbody.isKinematic = false;
-
-                animator.SetBool("isGrabbing", true);
-
                 luggageHeld = objectRigidbody.GetComponent<Luggage>();
-                luggageHeld.AddGrabber(this);
 
-                playerMovement.isGrabbing = true;
+                if (luggageHeld != null)
+                {
+                    int maxGrabbers = luggageHeld.weightClass == WeightClass.Heavy ? 2 : 1;
+                    if (luggageHeld.grabPoints != null && luggageHeld.grabPoints.Length > maxGrabbers)
+                        maxGrabbers = luggageHeld.grabPoints.Length;
 
-                if (luggageHeld.weightClass == WeightClass.Heavy && luggageHeld.GetGrabberCount() == 1)
-                {
-                    isDragging = true;
-                    DragLuggageGrab();
+                    if (luggageHeld.GetGrabberCount() < maxGrabbers)
+                    {
+                        // Ensure the object isn't frozen mathematically by a conveyor so the joint works
+                        objectRigidbody.isKinematic = false;
+
+                        animator.SetBool("isGrabbing", true);
+
+                        luggageHeld.AddGrabber(this);
+
+                        playerMovement.isGrabbing = true;
+
+                        if (luggageHeld.weightClass == WeightClass.Heavy)
+                        {
+                            isDragging = true;
+                            DragLuggageGrab();
+                        }
+                        else
+                        {
+                            isDragging = false;
+                            LightLuggageGrab();
+                        }
+
+                        return; // Successfully grabbed, exit the loop
+                    }
                 }
-                else
-                {
-                    isDragging = false;
-                    LightLuggageGrab();
-                }
+                
+                // This object is full or invalid, reset references and try next hit
+                luggageHeld = null;
+                objectRigidbody = null;
             }
         }
     }
@@ -379,7 +428,7 @@ public class PlayerGrab : MonoBehaviour
 
     public int GetPlayerIndex()
     {
-        return GetComponent<PlayerInput>().playerIndex;
+        return playerIndex;
     }
 
     public Luggage GetHeldLuggage()
