@@ -714,7 +714,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 67a06e819f152764f8c460b54df87ddd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  moveDirection: {x: -1, y: 0, z: 0}
+  moveDirection: {x: 1, y: 0, z: 0}
   moveSpeed: 4.75
   turnSmoothness: 6
   isFreezeRotation: 0
@@ -764,8 +764,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 0.4212477}
-  m_Center: {x: 0, y: 0, z: -0.28937617}
+  m_Size: {x: 1, y: 1, z: 0.529129}
+  m_Center: {x: 0, y: 0, z: -0.23543549}
 --- !u!23 &517783401
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -1721,7 +1721,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 67a06e819f152764f8c460b54df87ddd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  moveDirection: {x: -1, y: 0, z: 0}
+  moveDirection: {x: 1, y: 0, z: 0}
   moveSpeed: 4.75
   turnSmoothness: 6
   isFreezeRotation: 0
@@ -5967,7 +5967,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   luggageDataList:
   - {fileID: 11400000, guid: 9ceae669cde104dc9adb9493d62f9a0c, type: 2}
-  spawnInterval: 3
+  spawnInterval: 5
 --- !u!1 &778006520758450836
 GameObject:
   m_ObjectHideFlags: 0
@@ -10136,8 +10136,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 0.35819453}
-  m_Center: {x: 4.186661e-15, y: 0, z: -0.32090285}
+  m_Size: {x: 1, y: 1, z: 0.49561384}
+  m_Center: {x: 2.5389472e-15, y: 0, z: -0.25219318}
 --- !u!4 &6140364728816137774
 Transform:
   m_ObjectHideFlags: 0
