@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 3195205394772070524}
   - component: {fileID: 649331635262771823}
   - component: {fileID: 641317374595876878}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: GateWay
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -28,7 +28,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 69.10847, y: -2.10343, z: 79.33181}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 1, y: 1, z: 5}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 8788584071634926953}
@@ -71,7 +71,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Gateway
   isOpen: 0
   gateAnimator: {fileID: 649331635262771823}
-  physicalCollider: {fileID: 0}
 --- !u!1 &1396849077071948038
 GameObject:
   m_ObjectHideFlags: 0
@@ -84,7 +83,7 @@ GameObject:
   - component: {fileID: 889000207859853551}
   - component: {fileID: 5774891865002180267}
   - component: {fileID: 8837604324895740436}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: Wall (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -197,7 +196,7 @@ GameObject:
   - component: {fileID: 5645412986965963468}
   - component: {fileID: 7619103734612313606}
   - component: {fileID: 4873628106618705571}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: Wall
   m_TagString: Untagged
   m_Icon: {fileID: 0}

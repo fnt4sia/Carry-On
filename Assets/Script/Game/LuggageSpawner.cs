@@ -9,13 +9,10 @@ public class LuggageSpawner : MonoBehaviour
     [SerializeField] private List<LuggageData> luggageDataList;
     [SerializeField] private float spawnInterval;
 
-    private int randomIndex;
-    private float randomRotationY;
-
     private Vector3 spawnPosition;
     private Quaternion spawnRotation;
 
-    private Dictionary<LuggageType, Queue<GameObject>> poolDictionary = new Dictionary<LuggageType, Queue<GameObject>>();
+    private Dictionary<LuggageData, Queue<GameObject>> poolDictionary = new Dictionary<LuggageData, Queue<GameObject>>();
 
     private void Awake()
     {
@@ -36,18 +33,17 @@ public class LuggageSpawner : MonoBehaviour
 
         int randomIndexData = Random.Range(0, luggageDataList.Count);
         LuggageData selectedData = luggageDataList[randomIndexData];
-        
-        spawnPosition = new Vector3(transform.position.x, transform.position.y, transform.position.z);
+
+        spawnPosition = transform.position;
         spawnRotation = Quaternion.Euler(0, 0, 90);
 
         if (selectedData.prefab != null)
         {
-            LuggageType lType = selectedData.luggageType;
             GameObject spawnedLuggage = null;
 
-            if (poolDictionary.ContainsKey(lType) && poolDictionary[lType].Count > 0)
+            if (poolDictionary.ContainsKey(selectedData) && poolDictionary[selectedData].Count > 0)
             {
-                spawnedLuggage = poolDictionary[lType].Dequeue();
+                spawnedLuggage = poolDictionary[selectedData].Dequeue();
                 spawnedLuggage.transform.position = spawnPosition;
                 spawnedLuggage.transform.rotation = spawnRotation;
                 spawnedLuggage.SetActive(true);
@@ -56,12 +52,15 @@ public class LuggageSpawner : MonoBehaviour
             {
                 spawnedLuggage = Instantiate(selectedData.prefab, spawnPosition, spawnRotation);
             }
-            
+
             Luggage luggage = spawnedLuggage.GetComponent<Luggage>();
             if (luggage != null)
             {
-                luggage.luggageType = lType;
-                luggage.weightClass = selectedData.weightClass;
+                luggage.data = selectedData;
+
+                LuggageBehaviorType[] types = { LuggageBehaviorType.Normal, LuggageBehaviorType.Fragile, LuggageBehaviorType.Sticky };
+                luggage.behaviorType = types[Random.Range(0, types.Length)];
+                luggage.ApplyBehaviorVisual();
             }
         }
 
@@ -90,12 +89,18 @@ public class LuggageSpawner : MonoBehaviour
         luggage.ActiveConveyor = null;
         luggage.gameObject.SetActive(false);
 
-        LuggageType lType = luggage.luggageType;
-        if (!Instance.poolDictionary.ContainsKey(lType))
+        LuggageData key = luggage.data;
+        if (key == null)
         {
-            Instance.poolDictionary[lType] = new Queue<GameObject>();
+            Destroy(luggage.gameObject);
+            return;
         }
 
-        Instance.poolDictionary[lType].Enqueue(luggage.gameObject);
+        if (!Instance.poolDictionary.ContainsKey(key))
+        {
+            Instance.poolDictionary[key] = new Queue<GameObject>();
+        }
+
+        Instance.poolDictionary[key].Enqueue(luggage.gameObject);
     }
 }

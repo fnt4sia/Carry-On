@@ -476,7 +476,7 @@ Rigidbody:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4513759083496081845}
   serializedVersion: 5
-  m_Mass: 15
+  m_Mass: 30
   m_LinearDamping: 0
   m_AngularDamping: 0.05
   m_CenterOfMass: {x: 0, y: 0, z: 0}
@@ -516,7 +516,13 @@ MonoBehaviour:
   - {fileID: 7471413952283449396}
   - {fileID: 401926129337208380}
   grabCalculationOffset: {x: 0, y: 0, z: 0}
-  luggageType: 0
+  data: {fileID: 11400000, guid: 9ceae669cde104dc9adb9493d62f9a0c, type: 2}
+  behaviorType: 0
+  fragileBreakThreshold: 300
+  bombTimer: 10
+  explosionRadius: 5
+  explosionForce: 500
+  kinematicVelocity: {x: 0, y: 0, z: 0}
 --- !u!114 &5797929528066916133
 MonoBehaviour:
   m_ObjectHideFlags: 0

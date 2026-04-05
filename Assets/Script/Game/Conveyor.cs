@@ -5,6 +5,7 @@ public class Conveyor : MonoBehaviour
 {
     [Header("Conveyor Settings")]
     [SerializeField] private Vector3 moveDirection = Vector3.forward;
+
     [SerializeField] private float moveSpeed = 2f;
     [Tooltip("How smoothly the luggage steers. Higher = tighter corner, Lower = slides wide.")]
     [SerializeField] private float turnSmoothness = 6f;
@@ -52,8 +53,9 @@ public class Conveyor : MonoBehaviour
             // Ideal velocity
             Vector3 targetVelocity = moveDirection.normalized * moveSpeed;
 
-            // Blend current momentum into the new direction
             luggage.kinematicVelocity = Vector3.Lerp(luggage.kinematicVelocity, targetVelocity, Time.fixedDeltaTime * turnSmoothness);
+            
+
 
             Vector3 movementVector = luggage.kinematicVelocity * Time.fixedDeltaTime;
 
@@ -101,6 +103,8 @@ public class Conveyor : MonoBehaviour
         if (other.CompareTag("Luggage"))
         {
             Rigidbody luggageRb = other.GetComponentInParent<Rigidbody>();
+
+
             if (luggageRb != null)
             {
                 rigidbodiesOnConveyor.Remove(luggageRb);

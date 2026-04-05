@@ -9,6 +9,7 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private Rigidbody playerRb;
     [SerializeField] private float movementSpeedNormal;
     [SerializeField] private float rotationSpeed;
+    [SerializeField] private float grabRotationSpeedMultiplier = 0.6f;
     [SerializeField] private float lerpSpeed;
     [SerializeField] private GameObject bubblePrefab;
     [SerializeField] private float bubbleSpawnInterval;
@@ -22,10 +23,10 @@ public class PlayerMovement : MonoBehaviour
 
     [SerializeField] private int playerIndex;
 
+    private PlayerGrab playerGrab;
     private PlayerInput playerInput;
     private InputAction moveAction;
     private InputAction dashAction;
-    private PlayerGrab playerGrab;
 
     private bool isDashing = false;
     private float lastDashTime = -10f;
@@ -33,7 +34,10 @@ public class PlayerMovement : MonoBehaviour
     private Transform cameraTransform;
     private Vector2 moveInput;
     private Vector3 movementDirection;
+    private Vector3 currentVelocity;
     private bool isMoving;
+
+
 
     private bool isPlaying;
 
@@ -110,73 +114,78 @@ public class PlayerMovement : MonoBehaviour
 
     void FixedUpdate()
     {
-        float currentSpeed = movementSpeedNormal;
-        bool canRotateNormally = true;
-        Luggage heldLuggage = null;
+        if (isDashing) return;
 
+        // Smooth movement
+        Vector3 targetVelocity = movementDirection * movementSpeedNormal;
+        currentVelocity = Vector3.Lerp(currentVelocity, targetVelocity, lerpSpeed);
+
+        Vector3 moveDelta = new Vector3(currentVelocity.x, 0, currentVelocity.z) * Time.fixedDeltaTime;
+
+        // When grabbing, player and luggage move as ONE UNIT
+        // SweepTest the luggage first — if it would hit a wall, constrain BOTH
         if (isGrabbing && playerGrab != null)
         {
-            heldLuggage = playerGrab.GetHeldLuggage();
-            if (heldLuggage != null)
+            Luggage held = playerGrab.GetHeldLuggage();
+            if (held != null)
             {
-                int grabbers = Mathf.Max(1, heldLuggage.GetGrabberCount());
-                
-                if (heldLuggage.weightClass == WeightClass.Heavy)
+                Rigidbody luggageRb = held.GetComponent<Rigidbody>();
+
+                if (luggageRb != null && moveDelta.sqrMagnitude > 0.0001f)
                 {
-                    currentSpeed *= (grabbers > 1) ? 0.6f : 0.3f;
-                    canRotateNormally = false;
+                    // Check if luggage would collide if moved in this direction
+                    RaycastHit hit;
+                    if (luggageRb.SweepTest(moveDelta.normalized, out hit, moveDelta.magnitude + 0.05f))
+                    {
+                        // Wall detected — slide along it instead of stopping completely
+                        Vector3 wallNormal = hit.normal;
+                        wallNormal.y = 0;
+                        wallNormal.Normalize();
+
+                        // Remove the into-wall component from movement
+                        float intoWall = Vector3.Dot(moveDelta, -wallNormal);
+                        if (intoWall > 0)
+                        {
+                            moveDelta += wallNormal * intoWall;
+                        }
+
+                        // Also fix velocity so we don't keep building speed into the wall
+                        float velIntoWall = Vector3.Dot(currentVelocity, -wallNormal);
+                        if (velIntoWall > 0)
+                        {
+                            currentVelocity += wallNormal * velIntoWall;
+                        }
+                    }
                 }
-                else if (heldLuggage.weightClass == WeightClass.Medium)
+
+                // Move BOTH by the same delta — they are one unit
+                transform.position += moveDelta;
+                if (luggageRb != null)
                 {
-                    currentSpeed *= (grabbers > 1) ? 1.0f : 0.5f;
-                    if (grabbers > 1) canRotateNormally = false;
-                }
-                else if (heldLuggage.weightClass == WeightClass.Light)
-                {
-                    if (grabbers > 1) canRotateNormally = false;
+                    luggageRb.MovePosition(luggageRb.position + moveDelta);
                 }
             }
+            else
+            {
+                transform.position += moveDelta;
+            }
         }
-
-        Vector3 currentVelocity = playerRb.linearVelocity;
-        Vector3 flatMovement = movementDirection * currentSpeed;
-        Vector3 finalVelocity = new(flatMovement.x, currentVelocity.y, flatMovement.z);
-
-        playerRb.linearVelocity = Vector3.Lerp(playerRb.linearVelocity, finalVelocity, lerpSpeed);
+        else
+        {
+            transform.position += moveDelta;
+        }
 
         bool isTryingToMove = movementDirection.sqrMagnitude > 0.1f;
         animator.SetBool("isMoving", isTryingToMove);
 
-        if (heldLuggage != null && !canRotateNormally)
+        // Rotation: always face movement direction
+        if (isTryingToMove)
         {
-            // Face the object unconditionally when we can't rotate normally
-            Vector3 dirToLuggage = heldLuggage.transform.position - transform.position;
-            dirToLuggage.y = 0;
-            if (dirToLuggage.sqrMagnitude > 0.001f)
-            {
-                Quaternion targetRotation = Quaternion.LookRotation(dirToLuggage.normalized);
-                Quaternion smoothedRotation = Quaternion.Slerp(playerRb.rotation, targetRotation, rotationSpeed * Time.fixedDeltaTime);
-                playerRb.MoveRotation(smoothedRotation);
-            }
-        }
-        else if (isTryingToMove)
-        {
-            // Normal rotation based on movement direction
             Vector3 flatDir = new Vector3(movementDirection.x, 0, movementDirection.z).normalized;
             Quaternion targetRotation = Quaternion.LookRotation(flatDir);
-            
-            float rSpeed = rotationSpeed;
 
-            if (isGrabbing && heldLuggage != null)
-            {
-                if (heldLuggage.weightClass == WeightClass.Medium)
-                {
-                    rSpeed *= 0.5f;
-                }
-            }
-
-            Quaternion smoothedRotation = Quaternion.Slerp(playerRb.rotation, targetRotation, rSpeed * Time.fixedDeltaTime);
-            playerRb.MoveRotation(smoothedRotation);
+            float currentRotSpeed = isGrabbing ? rotationSpeed * grabRotationSpeedMultiplier : rotationSpeed;
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, currentRotSpeed * Time.fixedDeltaTime);
         }
     }
 
@@ -186,17 +195,17 @@ public class PlayerMovement : MonoBehaviour
         lastDashTime = Time.time;
 
         Vector3 dashDir = transform.forward.normalized;
-
         animator.SetBool("isDashing", true);
 
         float timer = 0f;
         while (timer < dashDuration)
         {
-            playerRb.linearVelocity = dashDir * dashForce;
+            transform.position += dashDir * dashForce * Time.deltaTime;
             timer += Time.deltaTime;
             yield return null;
         }
 
+        currentVelocity = Vector3.zero;
         animator.SetBool("isDashing", false);
         isDashing = false;
     }

@@ -1,24 +1,16 @@
 using UnityEngine;
 
-public enum LuggageType
+public enum LuggageBehaviorType
 {
-    Luggage,
-    CampingBag,
-    IkeaBag,
-    GunBoxes,
-}
-
-public enum WeightClass
-{
-    Light,
-    Medium,
-    Heavy
+    Normal,
+    Sticky,
+    Fragile,
+    Bomb
 }
 
 [CreateAssetMenu(fileName = "New Luggage Data", menuName = "Carry On/Luggage Data")]
 public class LuggageData : ScriptableObject
 {
-    public LuggageType luggageType;
-    public WeightClass weightClass;
+    public LuggageBehaviorType behaviorType;
     public GameObject prefab;
 }

@@ -18,7 +18,7 @@ GameObject:
   - component: {fileID: 6001178260083503141}
   - component: {fileID: 7908924548520150982}
   - component: {fileID: 4162292888691371071}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Ramp Agent Body
   m_TagString: Player
   m_Icon: {fileID: 0}
@@ -144,7 +144,7 @@ Rigidbody:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1229066062301933466}
   serializedVersion: 5
-  m_Mass: 85
+  m_Mass: 30
   m_LinearDamping: 0
   m_AngularDamping: 0.05
   m_CenterOfMass: {x: 0, y: 0, z: 0}
@@ -181,13 +181,16 @@ MonoBehaviour:
   grabbableLayer:
     serializedVersion: 2
     m_Bits: 64
+  grabBlockLayer:
+    serializedVersion: 2
+    m_Bits: 512
   playerMovement: {fileID: 3741244236071087584}
   throwMinHoldTime: 0.25
   throwMaxHoldTime: 1.5
-  throwMinForce: 150
-  throwMaxForce: 400
+  throwMinForce: 200
+  throwMaxForce: 800
   throwMinUpForce: 100
-  throwMaxUpForce: 200
+  throwMaxUpForce: 400
   animator: {fileID: 6001178260083503141}
   Arrow: {fileID: 4076100637945455777}
   ArrowMinScale: 1.5
@@ -195,7 +198,11 @@ MonoBehaviour:
   ArrowMinZPos: 2
   ArrowMaxZPos: 4
   ArrowHeight: 2
-  isDragging: 0
+  bridgeWidth: 2
+  bridgeHeight: 2
+  bridgeYOffset: 1
+  bridgeExtraZ: 1
+  playerIndex: 0
 --- !u!114 &3741244236071087584
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -212,6 +219,7 @@ MonoBehaviour:
   playerRb: {fileID: 7950293537792215194}
   movementSpeedNormal: 10
   rotationSpeed: 4
+  grabRotationSpeedMultiplier: 0.5
   lerpSpeed: 0.15
   bubblePrefab: {fileID: 7994873443017988739, guid: 12ea29dfda7a5f441b78f2abce54e68f,
     type: 3}
@@ -221,6 +229,7 @@ MonoBehaviour:
   dashForce: 13
   dashDuration: 0.2
   dashCooldown: 1
+  playerIndex: 0
 --- !u!95 &6001178260083503141
 Animator:
   serializedVersion: 7
@@ -229,7 +238,7 @@ Animator:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1229066062301933466}
-  m_Enabled: 1
+  m_Enabled: 0
   m_Avatar: {fileID: 0}
   m_Controller: {fileID: 9100000, guid: 2a833230ee78b0048874724f855b08be, type: 2}
   m_CullingMode: 0
@@ -382,7 +391,7 @@ GameObject:
   - component: {fileID: 6288048812979009240}
   - component: {fileID: 4319745766347068159}
   - component: {fileID: 8758389170693914004}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Cube
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -472,7 +481,7 @@ GameObject:
   - component: {fileID: 6514427832390556076}
   - component: {fileID: 372475552943667462}
   - component: {fileID: 6455637549856631106}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: mouth
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -562,7 +571,7 @@ GameObject:
   - component: {fileID: 7690846949533548516}
   - component: {fileID: 2029407787093970989}
   - component: {fileID: 9199568075055994530}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: arm 2.001
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -652,7 +661,7 @@ GameObject:
   - component: {fileID: 6984498308374015348}
   - component: {fileID: 1791482911665337502}
   - component: {fileID: 7349164005639876863}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: headset earpiece
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -756,7 +765,7 @@ Transform:
   m_GameObject: {fileID: 3357209113485950036}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 1, z: 1.5}
+  m_LocalPosition: {x: 0, y: 1, z: 0.15}
   m_LocalScale: {x: 2, y: 2, z: 2}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -773,7 +782,7 @@ GameObject:
   - component: {fileID: 2648441773478850721}
   - component: {fileID: 8754370947709134377}
   - component: {fileID: 2873647969812485631}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Ramp Agend Right Hand
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -862,7 +871,7 @@ GameObject:
   m_Component:
   - component: {fileID: 6685084673074560046}
   - component: {fileID: 7033241142179084656}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Arrow
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -954,7 +963,7 @@ GameObject:
   - component: {fileID: 3178171289317632774}
   - component: {fileID: 6280715327653727071}
   - component: {fileID: 3298716408939310333}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: headset headband
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1103,7 +1112,7 @@ GameObject:
   - component: {fileID: 1595560028160439337}
   - component: {fileID: 4505352047445884388}
   - component: {fileID: 3065297903949326519}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: eyebrow
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1193,7 +1202,7 @@ GameObject:
   - component: {fileID: 6470909762979979050}
   - component: {fileID: 7067997749528780205}
   - component: {fileID: 7945379261117060282}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: arm 2
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1283,7 +1292,7 @@ GameObject:
   - component: {fileID: 6796811596190211066}
   - component: {fileID: 7090553542138838642}
   - component: {fileID: 6019024489477225699}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Ramp Agent Left Hand
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1374,7 +1383,7 @@ GameObject:
   - component: {fileID: 1337630448181303166}
   - component: {fileID: 5737662314354347970}
   - component: {fileID: 3663085568121665244}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: head 3
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1489,7 +1498,7 @@ GameObject:
   - component: {fileID: 2470239217082268180}
   - component: {fileID: 1297926668065519854}
   - component: {fileID: 7551647175017409999}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: eyes
   m_TagString: Untagged
   m_Icon: {fileID: 0}
