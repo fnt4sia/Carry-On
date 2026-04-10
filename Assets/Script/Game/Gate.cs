@@ -19,8 +19,8 @@ public class Gate : MonoBehaviour
 
             GameManager.Instance.AddScore(10);
 
-            if (playerIndex == 0) GameManager.Instance.AddPlayer1Score(10);
-            else GameManager.Instance.AddPlayer2Score(10);
+            if (playerIndex >= 0)
+                GameManager.Instance.AddPlayerScore(playerIndex, 10);
 
             luggage.DestroyLuggage();
         }

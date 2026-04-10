@@ -219,7 +219,7 @@ MonoBehaviour:
   playerRb: {fileID: 7950293537792215194}
   movementSpeedNormal: 10
   rotationSpeed: 4
-  grabRotationSpeedMultiplier: 0.5
+  grabRotationSpeedMultiplier: 1
   lerpSpeed: 0.15
   bubblePrefab: {fileID: 7994873443017988739, guid: 12ea29dfda7a5f441b78f2abce54e68f,
     type: 3}
@@ -238,7 +238,7 @@ Animator:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1229066062301933466}
-  m_Enabled: 0
+  m_Enabled: 1
   m_Avatar: {fileID: 0}
   m_Controller: {fileID: 9100000, guid: 2a833230ee78b0048874724f855b08be, type: 2}
   m_CullingMode: 0
@@ -376,7 +376,7 @@ MonoBehaviour:
       m_Calls: []
   m_ActionEvents: []
   m_NeverAutoSwitchControlSchemes: 1
-  m_DefaultControlScheme: Keyboard
+  m_DefaultControlScheme: 
   m_DefaultActionMap: Player
   m_SplitScreenIndex: -1
   m_Camera: {fileID: 0}

@@ -6,14 +6,16 @@ using System.Collections.Generic;
 public class MapMover : MonoBehaviour
 {
     public float moveSpeed = 10f;
-    public float rotationSpeed = 150f;
+    public float rotationSpeed = 720f;
     public float detectRadius = 2f;
 
     private LevelNode currentNode;
-    private List<GameObject> hiddenPlayers = new List<GameObject>();
+    private readonly List<GameObject> hiddenPlayers = new();
+    private bool loading = false;
 
     void Start()
     {
+        // Hide all player GameObjects while in ChooseStage
         PlayerInput[] players = FindObjectsByType<PlayerInput>(FindObjectsSortMode.None);
         foreach (var p in players)
         {
@@ -24,44 +26,43 @@ public class MapMover : MonoBehaviour
 
     void Update()
     {
-        MovePlane();
+        if (loading) return;
+        Move();
         DetectNode();
         TryEnterLevel();
     }
 
-    void MovePlane()
+    void Move()
     {
-        float forwardInput = 0f;
-        float turnInput = 0f;
+        float h = 0f, v = 0f;
 
-        // Only allow moving forward
-        if (Keyboard.current.wKey.isPressed) forwardInput = 1f;
+        if (Keyboard.current.wKey.isPressed) v += 1f;
+        if (Keyboard.current.sKey.isPressed) v -= 1f;
+        if (Keyboard.current.dKey.isPressed) h += 1f;
+        if (Keyboard.current.aKey.isPressed) h -= 1f;
 
-        // A and D for steering
-        if (Keyboard.current.aKey.isPressed) turnInput = -1f;
-        if (Keyboard.current.dKey.isPressed) turnInput = 1f;
+        Vector2 input = new Vector2(h, v);
+        if (input.sqrMagnitude > 1f) input.Normalize();
 
-        // Only allow steering if we are actually moving forward
-        if (forwardInput > 0.1f)
+        // Free movement — no car steering, same feel as PlayerMovement
+        Vector3 moveDir = new Vector3(input.x, 0f, input.y);
+        transform.position += moveDir * moveSpeed * Time.deltaTime;
+
+        // Rotate to face movement direction instantly (or slerp for smoothness)
+        if (moveDir.sqrMagnitude > 0.01f)
         {
-            // Safely rotate only the Y axis
-            float newAngle = transform.eulerAngles.y + (turnInput * rotationSpeed * Time.deltaTime);
-            transform.eulerAngles = new Vector3(transform.eulerAngles.x, newAngle, transform.eulerAngles.z);
+            Quaternion targetRot = Quaternion.LookRotation(moveDir);
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot, rotationSpeed * Time.deltaTime);
         }
-
-        transform.position += transform.forward * forwardInput * moveSpeed * Time.deltaTime;
     }
 
     void DetectNode()
     {
         currentNode = null;
-
         Collider[] hits = Physics.OverlapSphere(transform.position, detectRadius);
-
         foreach (var hit in hits)
         {
             LevelNode node = hit.GetComponent<LevelNode>();
-
             if (node != null)
             {
                 currentNode = node;
@@ -73,14 +74,14 @@ public class MapMover : MonoBehaviour
     void TryEnterLevel()
     {
         if (currentNode == null) return;
+        if (!Keyboard.current.enterKey.wasPressedThisFrame) return;
 
-        if (Keyboard.current.enterKey.wasPressedThisFrame)
-        {
-            foreach (var p in hiddenPlayers)
-            {
-                if (p != null) p.SetActive(true);
-            }
-            SceneManager.LoadScene(currentNode.levelIndex);
-        }
+        loading = true;
+
+        // Re-activate all players before entering the stage
+        foreach (var p in hiddenPlayers)
+            if (p != null) p.SetActive(true);
+
+        SceneManager.LoadScene(currentNode.levelIndex);
     }
 }

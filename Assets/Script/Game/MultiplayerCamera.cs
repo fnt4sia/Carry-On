@@ -1,12 +1,9 @@
-using System.Collections;
 using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
-using static UnityEngine.GraphicsBuffer;
+using UnityEngine.InputSystem;
 
 public class MultiplayerCamera : MonoBehaviour
 {
-    [SerializeField] private List<Transform> players;
     [SerializeField] private Camera mainCamera;
     [SerializeField] private float smoothTime;
     [SerializeField] private float zoomLimiter;
@@ -15,40 +12,49 @@ public class MultiplayerCamera : MonoBehaviour
     [SerializeField] private float minimumCameraOffset;
     [SerializeField] private float maximumCameraOffset;
 
+    private readonly List<Transform> players = new();
     private Vector3 velocity;
-    private Vector3 offset;
-    private Vector3 newPosition;
-    private Vector3 targetPosition;
-    private float distance;
-    private float newY;
-    private float smoothOffset;
+
     private void Start()
     {
+        FindAllPlayers();
         Move();
+    }
+
+    private void FindAllPlayers()
+    {
+        players.Clear();
+        var allPlayers = FindObjectsByType<PlayerInput>(FindObjectsSortMode.None);
+        System.Array.Sort(allPlayers, (a, b) => a.playerIndex.CompareTo(b.playerIndex));
+        foreach (var p in allPlayers)
+            players.Add(p.transform);
     }
 
     void LateUpdate()
     {
         if (players.Count == 0) return;
 
+        // Remove any destroyed player references
+        players.RemoveAll(p => p == null);
+
         Move();
     }
 
     void Move()
     {
+        if (players.Count == 0) return;
+
         Vector3 centerPoint = GetCenterPoint();
+        float distance = GetGreatestDistance();
 
-        distance = GetGreatestDistance();
-
-        newY = Mathf.Lerp(yMinimum, yMaximum, distance / zoomLimiter);
+        float newY = Mathf.Lerp(yMinimum, yMaximum, distance / zoomLimiter);
         newY = Mathf.Clamp(newY, yMinimum, yMaximum);
 
-        smoothOffset = Mathf.Lerp(minimumCameraOffset, maximumCameraOffset, Mathf.InverseLerp(yMinimum, yMaximum, newY));
+        float smoothOffset = Mathf.Lerp(minimumCameraOffset, maximumCameraOffset,
+            Mathf.InverseLerp(yMinimum, yMaximum, newY));
 
-        offset = new(smoothOffset, 0, smoothOffset);
-
-        newPosition = new(centerPoint.x, newY, centerPoint.z);
-        targetPosition = newPosition + offset;
+        Vector3 offset = new(smoothOffset, 0, smoothOffset);
+        Vector3 targetPosition = new Vector3(centerPoint.x, newY, centerPoint.z) + offset;
 
         transform.position = Vector3.SmoothDamp(transform.position, targetPosition, ref velocity, smoothTime);
     }

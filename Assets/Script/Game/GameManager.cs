@@ -33,8 +33,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] private TextMeshProUGUI gameTimerText;
     [SerializeField] private TextMeshProUGUI totalDeliveredText;
     [SerializeField] private TextMeshProUGUI scoreText;
-    [SerializeField] private TextMeshProUGUI player1DeliveredText;
-    [SerializeField] private TextMeshProUGUI player2DeliveredText;
+    [SerializeField] private TextMeshProUGUI[] playerDeliveredTexts; // index 0–3
     [SerializeField] private TextMeshProUGUI stageText;
     [SerializeField] private TextMeshProUGUI firstStarRequirement;
     [SerializeField] private TextMeshProUGUI secondStarRequirement;
@@ -59,8 +58,7 @@ public class GameManager : MonoBehaviour
     private bool gameStarted;
     private bool isPaused;
     private int gameScore;
-    private int player1Score;
-    private int player2Score;
+    private int[] playerScores = new int[4];
     private GameObject airplaneObject;
 
     private void Awake()
@@ -105,14 +103,10 @@ public class GameManager : MonoBehaviour
         // else secondAudioSource.PlayOneShot(wrongSound);
     }
 
-    public void AddPlayer1Score(int score)
+    public void AddPlayerScore(int playerIndex, int score)
     {
-        player1Score += score;
-    }
-
-    public void AddPlayer2Score(int score)
-    {
-        player2Score += score;
+        if (playerIndex >= 0 && playerIndex < playerScores.Length)
+            playerScores[playerIndex] += score;
     }
 
     private IEnumerator StartGameCountdown()
@@ -158,9 +152,14 @@ public class GameManager : MonoBehaviour
 
         totalDeliveredText.text = (gameScore / 10).ToString();
         yield return new WaitForSecondsRealtime(1f);
-        player1DeliveredText.text = (player1Score / 10).ToString();
-        yield return new WaitForSecondsRealtime(1f);
-        player2DeliveredText.text = (player2Score / 10).ToString();
+        for (int i = 0; i < playerDeliveredTexts.Length; i++)
+        {
+            if (playerDeliveredTexts[i] != null)
+            {
+                playerDeliveredTexts[i].text = (playerScores[i] / 10).ToString();
+                yield return new WaitForSecondsRealtime(1f);
+            }
+        }
 
         yield return new WaitForSecondsRealtime(1.5f);
 

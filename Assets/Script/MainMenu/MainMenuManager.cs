@@ -1,28 +1,26 @@
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
-using UnityEngine.InputSystem.UI;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class MainMenuManager : MonoBehaviour
 {
-
     [Header("Buttons")]
     [SerializeField] private Button defaultButton;
 
     [Header("Player UI")]
-    [SerializeField] private Transform playerPanel;  
+    [SerializeField] private Transform playerPanel;
     [SerializeField] private GameObject playerUIPrefab;
     [SerializeField] private Transform spawnCenter;
     [SerializeField] private float spacing = 2f;
     [SerializeField] private Camera lobbyCamera;
 
-    private readonly List<PlayerInput> joinedPlayers = new();
-    private bool uiModeLocked = false;
+    [Header("Join Prompt")]
+    [SerializeField] private GameObject joinPrompt; // "Press Space/A to join"
 
+    private readonly List<PlayerInput> joinedPlayers = new();
     private PlayerInputManager manager;
 
     private void Start()
@@ -32,87 +30,67 @@ public class MainMenuManager : MonoBehaviour
         if (manager != null)
             manager.onPlayerJoined += HandlePlayerJoined;
 
+        // Register players that already joined in Boot
         var existingPlayers = FindObjectsByType<PlayerInput>(FindObjectsSortMode.None);
-
         foreach (var player in existingPlayers)
-        {
             HandlePlayerJoined(player);
-        }
+
+        UpdateJoinPrompt();
     }
 
     private void HandlePlayerJoined(PlayerInput player)
     {
-
-        if (joinedPlayers.Contains(player))
-            return;
+        if (joinedPlayers.Contains(player)) return;
 
         joinedPlayers.Add(player);
+        DontDestroyOnLoad(player.gameObject);
 
-        GameObject ui = Instantiate(playerUIPrefab, playerPanel);
+        // Show player avatar in lobby
+        player.gameObject.SetActive(true);
 
-        TMP_Text text = ui.GetComponentInChildren<TMP_Text>();
-        text.text = $"Player {player.playerIndex + 1}";
-
-        if (!uiModeLocked)
+        // Create UI card
+        if (playerUIPrefab != null && playerPanel != null)
         {
-            SetUIMode(player);
-            uiModeLocked = true;
+            GameObject ui = Instantiate(playerUIPrefab, playerPanel);
+            TMP_Text text = ui.GetComponentInChildren<TMP_Text>();
+            if (text != null)
+                text.text = $"Player {player.playerIndex + 1}";
         }
 
-        AddPlayer(player);        
-
-        DontDestroyOnLoad(player.gameObject);
-    }
-
-    public void AddPlayer(PlayerInput player)
-    {
-        joinedPlayers.Add(player);
         UpdatePositions();
+        UpdateJoinPrompt();
     }
 
     private void UpdatePositions()
     {
         int count = joinedPlayers.Count;
-
         for (int i = 0; i < count; i++)
         {
             float offset = (i - (count - 1) / 2f) * spacing;
-
             Vector3 pos = spawnCenter.position + new Vector3(offset, 0, 0);
             joinedPlayers[i].transform.position = pos;
 
-            Vector3 lookDir = lobbyCamera.transform.position - joinedPlayers[i].transform.position;
-            lookDir.y = 0;
+            if (lobbyCamera != null)
+            {
+                Vector3 lookDir = lobbyCamera.transform.position - joinedPlayers[i].transform.position;
+                lookDir.y = 0;
+                joinedPlayers[i].transform.rotation = Quaternion.LookRotation(lookDir);
+            }
 
-            joinedPlayers[i].transform.rotation = Quaternion.LookRotation(lookDir);
             joinedPlayers[i].transform.localScale = Vector3.one * 0.325f;
         }
     }
 
-    private void SetUIMode(PlayerInput player)
+    private void UpdateJoinPrompt()
     {
-        if (player.devices[0] is Gamepad)
-        {
-            Cursor.visible = false;
-        }
-        else
-        {
-            Cursor.visible = true;
-        }
+        if (joinPrompt == null) return;
+        // Show join prompt only when fewer than 4 players have joined
+        joinPrompt.SetActive(joinedPlayers.Count < 4);
     }
-
 
     public void OnClickStart()
     {
         SceneManager.LoadScene("ChooseStage");
-    }
-
-    public void OnBackmenu()
-    {
-    }
-
-    public void OnClickOptions()
-    {
     }
 
     public void OnClickExit()
@@ -120,8 +98,9 @@ public class MainMenuManager : MonoBehaviour
         Application.Quit();
     }
 
-    public void LoadStage(int level)
+    private void OnDestroy()
     {
-        SceneManager.LoadScene(level);
+        if (manager != null)
+            manager.onPlayerJoined -= HandlePlayerJoined;
     }
 }

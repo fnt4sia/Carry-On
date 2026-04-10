@@ -35,6 +35,9 @@ public class PlayerGrab : MonoBehaviour
 
     [SerializeField] private int playerIndex;
 
+    private PlayerInput playerInput;
+    private InputAction grabAction;
+
     private bool isGrabInputHeld;
     private float grabInputHoldTime;
 
@@ -56,6 +59,9 @@ public class PlayerGrab : MonoBehaviour
 
     private void Awake()
     {
+        playerInput = GetComponent<PlayerInput>();
+        grabAction = playerInput.actions["Grab"];
+
         playerColliders = GetComponentsInChildren<Collider>();
         bridgeObject = new GameObject("BridgeCollider");
         bridgeObject.transform.SetParent(transform);
@@ -66,27 +72,8 @@ public class PlayerGrab : MonoBehaviour
 
     void Update()
     {
-        // --- HARDCODED INPUT FOR VALIDATION ---
-        // bool grabDown = grabAction.WasPressedThisFrame();
-        // bool grabUp = grabAction.WasReleasedThisFrame();
-
-        bool grabDown = false;
-        bool grabUp = false;
-
-        if (Keyboard.current != null)
-        {
-            if (playerIndex == 0) // Player 1
-            {
-                grabDown = Keyboard.current.eKey.wasPressedThisFrame;
-                grabUp = Keyboard.current.eKey.wasReleasedThisFrame;
-            }
-            else // Player 2
-            {
-                grabDown = Keyboard.current.rightShiftKey.wasPressedThisFrame;
-                grabUp = Keyboard.current.rightShiftKey.wasReleasedThisFrame;
-            }
-        }
-        // --------------------------------------
+        bool grabDown = grabAction.WasPressedThisFrame();
+        bool grabUp = grabAction.WasReleasedThisFrame();
 
         if (grabDown && objectRigidbody != null)
         {

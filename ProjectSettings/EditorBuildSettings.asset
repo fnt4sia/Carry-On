@@ -29,6 +29,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/ChooseStage.unity
     guid: d3c4b14a1e2c24010b61834d9676977e
+  - enabled: 1
+    path: Assets/Scenes/TestStage.unity
+    guid: 2069c10b20c21fe438d05dcf438d7627
   m_configObjects:
     com.unity.dt.app-ui: {fileID: 11400000, guid: 1b1c20d82303e4b5781c3ef50ac1449f,
       type: 2}

@@ -1,6 +1,8 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 
 public class PlayerMovement : MonoBehaviour
 {
@@ -39,6 +41,9 @@ public class PlayerMovement : MonoBehaviour
 
 
 
+    private static readonly HashSet<string> gameplayScenes = new()
+        { "TestStage", "Stage_1", "Stage_2", "Stage_2_New", "Stage_3", "Stage Tutorial" };
+
     private bool isPlaying;
 
     private void Awake()
@@ -49,47 +54,40 @@ public class PlayerMovement : MonoBehaviour
         playerGrab = GetComponent<PlayerGrab>();
     }
 
+    private void OnEnable()
+    {
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    private void OnDisable()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        // Re-find camera each time a scene loads (it changes between scenes)
+        var cam = FindAnyObjectByType<Camera>();
+        if (cam != null) cameraTransform = cam.transform;
+    }
+
+    private bool IsGameplayScene()
+        => gameplayScenes.Contains(SceneManager.GetActiveScene().name);
+
     private void Start()
     {
-        cameraTransform = FindAnyObjectByType<Camera>().transform;
+        var cam = FindAnyObjectByType<Camera>();
+        if (cam != null) cameraTransform = cam.transform;
         StartCoroutine(SpawnBubblesCoroutine());
     }
 
     void Update()
     {
-        // Removed `if(!isPlaying) return;` because it is preventing movement.
+        if (!IsGameplayScene()) return;
+        if (cameraTransform == null) return;
 
-        // --- HARDCODED INPUT FOR VALIDATION ---
-        // moveInput = moveAction.ReadValue<Vector2>();
-        // bool dashPressed = dashAction.WasPressedThisFrame();
-
-        moveInput = Vector2.zero;
-        bool dashPressed = false;
-
-        if (Keyboard.current != null)
-        {
-            if (playerIndex == 0) // Player 1
-            {
-                float h = 0; float v = 0;
-                if (Keyboard.current.wKey.isPressed) v += 1;
-                if (Keyboard.current.sKey.isPressed) v -= 1;
-                if (Keyboard.current.dKey.isPressed) h += 1;
-                if (Keyboard.current.aKey.isPressed) h -= 1;
-                moveInput = new Vector2(h, v).normalized;
-                dashPressed = Keyboard.current.leftShiftKey.wasPressedThisFrame;
-            }
-            else // Player 2
-            {
-                float h = 0; float v = 0;
-                if (Keyboard.current.upArrowKey.isPressed) v += 1;
-                if (Keyboard.current.downArrowKey.isPressed) v -= 1;
-                if (Keyboard.current.rightArrowKey.isPressed) h += 1;
-                if (Keyboard.current.leftArrowKey.isPressed) h -= 1;
-                moveInput = new Vector2(h, v).normalized;
-                dashPressed = Keyboard.current.enterKey.wasPressedThisFrame;
-            }
-        }
-        // --------------------------------------
+        moveInput = moveAction.ReadValue<Vector2>();
+        bool dashPressed = dashAction.WasPressedThisFrame();
 
         if (dashPressed && !isDashing && Time.time >= lastDashTime + dashCooldown)
         {
@@ -114,6 +112,7 @@ public class PlayerMovement : MonoBehaviour
 
     void FixedUpdate()
     {
+        if (!IsGameplayScene()) return;
         if (isDashing) return;
 
         // Smooth movement

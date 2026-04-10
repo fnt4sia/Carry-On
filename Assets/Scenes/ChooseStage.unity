@@ -501,7 +501,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 771d94b1511b546a1b8742cb2ddebf95, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LevelNode
-  levelIndex: 0
+  levelIndex: 8
 --- !u!1 &513537353
 GameObject:
   m_ObjectHideFlags: 0
@@ -754,7 +754,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 771d94b1511b546a1b8742cb2ddebf95, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LevelNode
-  levelIndex: 3
+  levelIndex: 6
 --- !u!1 &987373291
 GameObject:
   m_ObjectHideFlags: 0
