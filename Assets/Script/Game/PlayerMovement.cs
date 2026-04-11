@@ -42,7 +42,7 @@ public class PlayerMovement : MonoBehaviour
 
 
     private static readonly HashSet<string> gameplayScenes = new()
-        { "TestStage", "Stage_1", "Stage_2", "Stage_2_New", "Stage_3", "Stage Tutorial" };
+        { "TestStage", "Stage_1", "Stage_2", "Stage_2_New", "Stage_3", "Stage Tutorial", "DesignScene" };
 
     private bool isPlaying;
 
@@ -85,6 +85,7 @@ public class PlayerMovement : MonoBehaviour
     {
         if (!IsGameplayScene()) return;
         if (cameraTransform == null) return;
+        if (SceneManager.GetActiveScene().name == "DesignScene") return; // driven by DesignSceneInput
 
         moveInput = moveAction.ReadValue<Vector2>();
         bool dashPressed = dashAction.WasPressedThisFrame();
@@ -185,6 +186,26 @@ public class PlayerMovement : MonoBehaviour
 
             float currentRotSpeed = isGrabbing ? rotationSpeed * grabRotationSpeedMultiplier : rotationSpeed;
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, currentRotSpeed * Time.fixedDeltaTime);
+        }
+    }
+
+    // Called by DesignSceneInput to bypass PlayerInput in the design scene
+    public void InjectInput(Vector2 move, bool dashPressed)
+    {
+        if (dashPressed && !isDashing && Time.time >= lastDashTime + dashCooldown)
+        {
+            StartCoroutine(DashCoroutine());
+            return;
+        }
+
+        if (!isDashing)
+        {
+            Vector3 forward = cameraTransform != null ? cameraTransform.forward : Vector3.forward;
+            Vector3 right   = cameraTransform != null ? cameraTransform.right   : Vector3.right;
+            forward.y = 0; right.y = 0;
+            forward.Normalize(); right.Normalize();
+            movementDirection = (move.x * right + move.y * forward).normalized;
+            isMoving = movementDirection.sqrMagnitude > 0.1f;
         }
     }
 

@@ -72,24 +72,14 @@ public class PlayerGrab : MonoBehaviour
 
     void Update()
     {
-        bool grabDown = grabAction.WasPressedThisFrame();
-        bool grabUp = grabAction.WasReleasedThisFrame();
-
-        if (grabDown && objectRigidbody != null)
+        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "DesignScene")
         {
-            // Sticky luggage can't be thrown or dropped, so skip the charge entirely
-            if (luggageHeld != null && luggageHeld.behaviorType == LuggageBehaviorType.Sticky)
-            {
-                // Do nothing
-            }
-            else
-            {
-                isGrabInputHeld = true;
-                grabInputHoldTime = 0f;
-                if (Arrow) Arrow.SetActive(true);
-            }
+            bool grabDown = grabAction.WasPressedThisFrame();
+            bool grabUp   = grabAction.WasReleasedThisFrame();
+            ProcessGrabInput(grabDown, grabUp);
         }
 
+        // Arrow charge visual (runs in all scenes)
         if (isGrabInputHeld && objectRigidbody != null)
         {
             float t = Mathf.Clamp01(grabInputHoldTime / throwMaxHoldTime);
@@ -100,6 +90,27 @@ public class PlayerGrab : MonoBehaviour
             Arrow.transform.localPosition = new Vector3(0, ArrowHeight, arrowZPos);
         }
 
+        if (isGrabInputHeld)
+            grabInputHoldTime += Time.deltaTime;
+
+        CheckOutline();
+
+        if (luggageHeld != null)
+            UpdateBridgeCollider();
+    }
+
+    private void ProcessGrabInput(bool grabDown, bool grabUp)
+    {
+        if (grabDown && objectRigidbody != null)
+        {
+            if (luggageHeld == null || luggageHeld.behaviorType != LuggageBehaviorType.Sticky)
+            {
+                isGrabInputHeld = true;
+                grabInputHoldTime = 0f;
+                if (Arrow) Arrow.SetActive(true);
+            }
+        }
+
         if (grabUp && objectRigidbody != null && isGrabInputHeld)
         {
             if (Arrow) Arrow.SetActive(false);
@@ -108,11 +119,7 @@ public class PlayerGrab : MonoBehaviour
             {
                 float clampedHoldTime = Mathf.Clamp(grabInputHoldTime, throwMinHoldTime, throwMaxHoldTime);
                 float t = (clampedHoldTime - throwMinHoldTime) / (throwMaxHoldTime - throwMinHoldTime);
-
-                float forwardForce = Mathf.Lerp(throwMinForce, throwMaxForce, t);
-                float upForce = Mathf.Lerp(throwMinUpForce, throwMaxUpForce, t);
-
-                Throw(forwardForce, upForce);
+                Throw(Mathf.Lerp(throwMinForce, throwMaxForce, t), Mathf.Lerp(throwMinUpForce, throwMaxUpForce, t));
             }
             else
             {
@@ -123,19 +130,7 @@ public class PlayerGrab : MonoBehaviour
         }
 
         if (grabDown && objectRigidbody == null)
-        {
             TryGrab();
-        }
-
-        if (isGrabInputHeld)
-        {
-            grabInputHoldTime += Time.deltaTime;
-        }
-
-        CheckOutline();
-
-        if (luggageHeld != null)
-            UpdateBridgeCollider();
     }
 
     private void CheckOutline()
@@ -450,6 +445,9 @@ public class PlayerGrab : MonoBehaviour
         bridgeBoxCollider.size = new Vector3(bridgeWidth, bridgeHeight, totalLength);
         bridgeBoxCollider.center = Vector3.zero;
     }
+
+    // Called by DesignSceneInput to bypass PlayerInput in the design scene
+    public void InjectGrabInput(bool grabDown, bool grabUp) => ProcessGrabInput(grabDown, grabUp);
 
     public void Drop(bool forceRelease = false)
     {
