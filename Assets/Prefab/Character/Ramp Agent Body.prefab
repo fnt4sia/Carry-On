@@ -192,6 +192,7 @@ MonoBehaviour:
   throwMinUpForce: 100
   throwMaxUpForce: 400
   animator: {fileID: 6001178260083503141}
+  grabAlignDuration: 1.25
   Arrow: {fileID: 4076100637945455777}
   ArrowMinScale: 1.5
   ArrowMaxScale: 3
@@ -226,8 +227,8 @@ MonoBehaviour:
   bubbleSpawnInterval: 0.04
   bubbleOffsetRange: {x: 0.2, y: 0.1, z: 0.2}
   animator: {fileID: 6001178260083503141}
-  dashForce: 13
-  dashDuration: 0.2
+  dashSpeedMultiplier: 2
+  dashDuration: 0.15
   dashCooldown: 1
   playerIndex: 0
 --- !u!95 &6001178260083503141

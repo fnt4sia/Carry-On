@@ -12,5 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 46a7a0b3583f742aaac3866c77fd7464, type: 3}
   m_Name: Luggage
   m_EditorClassIdentifier: Assembly-CSharp::LuggageData
-  luggageType: 0
+  behaviorType: 0
   prefab: {fileID: 4513759083496081845, guid: 79e01fc4b81aa384b8df97d3b77a0e0d, type: 3}
+  lifetime: 300

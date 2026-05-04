@@ -1052,6 +1052,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4a6cfabcffae3cc4c84a5658a2f63d49, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  levelConfig: {fileID: 0}
   airplanePrefab: {fileID: 4551419139393154460, guid: 5327798688a91244baf2d303cc218401,
     type: 3}
   spawnPosition: {x: 115, y: 2, z: 0}
@@ -1068,8 +1069,7 @@ MonoBehaviour:
   gameTimerText: {fileID: 8349262433619060124}
   totalDeliveredText: {fileID: 2909968317759577678}
   scoreText: {fileID: 2708219050977347538}
-  player1DeliveredText: {fileID: 6691504482682560993}
-  player2DeliveredText: {fileID: 5187415442953588817}
+  playerDeliveredTexts: []
   stageText: {fileID: 7333950655953170995}
   firstStarRequirement: {fileID: 4745755791183291233}
   secondStarRequirement: {fileID: 8284291145460861318}
@@ -1077,8 +1077,6 @@ MonoBehaviour:
   firstStar: {fileID: 7247901519286421706}
   secondStar: {fileID: 7423646605243546494}
   thirdStar: {fileID: 361191143354224386}
-  initialGameTime: 3
-  scoreRequired: 000000000000000000000000
   resumeButton: {fileID: 7279548675544684468}
 --- !u!82 &2307759358889897583
 AudioSource:
@@ -2350,7 +2348,7 @@ RectTransform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3993144475367859817}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: -1664}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
