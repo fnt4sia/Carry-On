@@ -12,7 +12,7 @@ public class LuggageSpawner : MonoBehaviour
     private Vector3 spawnPosition;
     private Quaternion spawnRotation;
 
-    private Dictionary<LuggageData, Queue<GameObject>> poolDictionary = new Dictionary<LuggageData, Queue<GameObject>>();
+    private Dictionary<GameObject, Queue<GameObject>> poolDictionary = new Dictionary<GameObject, Queue<GameObject>>();
 
     private void Awake()
     {
@@ -29,8 +29,8 @@ public class LuggageSpawner : MonoBehaviour
 
     private IEnumerator WaveLoop()
     {
-        var list = levelConfig.luggageDataList;
-        if (list == null || list.Count == 0) yield break;
+        var prefabs = levelConfig.luggagePrefabs;
+        if (prefabs == null || prefabs.Count == 0) yield break;
 
         while (true)
         {
@@ -42,24 +42,32 @@ public class LuggageSpawner : MonoBehaviour
 
             for (int i = 0; i < wavePerWave; i++)
             {
-                SpawnOne(list, forceBomb: i == bombIndex);
+                SpawnOne(prefabs, levelConfig.possibleBehaviors, forceBomb: i == bombIndex);
                 if (i < wavePerWave - 1)
                     yield return new WaitForSeconds(levelConfig.intraWaveInterval);
             }
         }
     }
 
-    private void SpawnOne(List<LuggageData> list, bool forceBomb)
+    private void SpawnOne(List<GameObject> prefabs, List<LuggageBehaviorType> behaviors, bool forceBomb)
     {
-        LuggageData selectedData = list[Random.Range(0, list.Count)];
-        if (selectedData.prefab == null) return;
+        GameObject prefab = prefabs[Random.Range(0, prefabs.Count)];
+        if (prefab == null) return;
+
+        LuggageBehaviorType behavior;
+        if (forceBomb)
+            behavior = LuggageBehaviorType.Bomb;
+        else if (behaviors != null && behaviors.Count > 0)
+            behavior = behaviors[Random.Range(0, behaviors.Count)];
+        else
+            behavior = LuggageBehaviorType.Normal;
 
         spawnPosition = transform.position;
         spawnRotation = Quaternion.Euler(0, 0, 90);
 
         GameObject spawnedLuggage;
 
-        if (poolDictionary.TryGetValue(selectedData, out Queue<GameObject> queue) && queue.Count > 0)
+        if (poolDictionary.TryGetValue(prefab, out Queue<GameObject> queue) && queue.Count > 0)
         {
             spawnedLuggage = queue.Dequeue();
             spawnedLuggage.transform.position = spawnPosition;
@@ -68,18 +76,13 @@ public class LuggageSpawner : MonoBehaviour
         }
         else
         {
-            spawnedLuggage = Instantiate(selectedData.prefab, spawnPosition, spawnRotation);
+            spawnedLuggage = Instantiate(prefab, spawnPosition, spawnRotation);
         }
 
         Luggage luggage = spawnedLuggage.GetComponent<Luggage>();
         if (luggage == null) return;
 
-        luggage.data = selectedData;
-        luggage.behaviorType = selectedData.behaviorType;
-        if (forceBomb)
-            luggage.behaviorType |= LuggageBehaviorType.Bomb;
-
-        luggage.ApplyBehaviorVisual();
+        luggage.Initialize(behavior, levelConfig.luggageLifetime, prefab);
     }
 
     public static void ReturnLuggage(Luggage luggage)
@@ -103,7 +106,7 @@ public class LuggageSpawner : MonoBehaviour
         luggage.ActiveConveyor = null;
         luggage.gameObject.SetActive(false);
 
-        LuggageData key = luggage.data;
+        GameObject key = luggage.sourcePrefab;
         if (key == null)
         {
             Destroy(luggage.gameObject);

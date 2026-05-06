@@ -54,7 +54,7 @@ public class DesignSceneInput : MonoBehaviour
             p1Grab.InjectStationUse(kb.fKey.wasPressedThisFrame);
         }
 
-        // ── Player 2: Arrow keys + Right Shift dash + Right Ctrl grab + Slash station ──
+        // ── Player 2: Arrow keys + Right Shift dash + Right Ctrl grab + L station ──
         if (p2Movement != null)
         {
             Vector2 move = new Vector2(
@@ -70,7 +70,7 @@ public class DesignSceneInput : MonoBehaviour
             p2Grab.InjectGrabInput(held && !p2GrabWasHeld, !held && p2GrabWasHeld);
             p2GrabWasHeld = held;
 
-            p2Grab.InjectStationUse(kb.slashKey.wasPressedThisFrame);
+            p2Grab.InjectStationUse(kb.lKey.wasPressedThisFrame);
         }
     }
 }

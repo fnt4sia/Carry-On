@@ -5,8 +5,14 @@ public class Luggage : MonoBehaviour
 {
     [SerializeField] private Outline outline;
 
-    public LuggageData data;
     public LuggageBehaviorType behaviorType;
+    [HideInInspector] public GameObject sourcePrefab;
+
+    [Header("Visuals")]
+    [SerializeField] private MeshRenderer targetRenderer;
+    [SerializeField] private Material normalMaterial;
+    [SerializeField] private Material fragileMaterial;
+    [SerializeField] private Material stickyMaterial;
 
     [Header("Fragile Settings")]
     [SerializeField] private float fragileBreakThreshold = 10f;
@@ -29,7 +35,7 @@ public class Luggage : MonoBehaviour
     public bool IsWashed  { get; private set; }
     public bool IsWrapped { get; private set; }
     public bool IsScanned { get; private set; }
-    public bool IsBomb => behaviorType.HasFlag(LuggageBehaviorType.Bomb);
+    public bool IsBomb => behaviorType == LuggageBehaviorType.Bomb;
     public bool IsInStation => isInStation;
     public Conveyor ActiveConveyor { get; set; }
     [HideInInspector] public Vector3 kinematicVelocity;
@@ -39,15 +45,20 @@ public class Luggage : MonoBehaviour
         if (outline != null) outline.enabled = false;
     }
 
-    private void OnEnable()
+    public void Initialize(LuggageBehaviorType behavior, float lifetime, GameObject prefabKey)
     {
-        lifetimeRemaining = data != null ? data.lifetime : 20f;
+        behaviorType = behavior;
+        sourcePrefab = prefabKey;
+        lifetimeRemaining = lifetime;
         hasExploded = false;
         hasExpired = false;
         isInStation = false;
+        IsDelivered = false;
         IsWashed = false;
         IsWrapped = false;
         IsScanned = false;
+        fragileGrabImmunity = 0f;
+        ApplyBehaviorVisual();
     }
 
     private void Update()
@@ -64,7 +75,7 @@ public class Luggage : MonoBehaviour
 
     private void OnCollisionEnter(Collision collision)
     {
-        if (!behaviorType.HasFlag(LuggageBehaviorType.Fragile)) return;
+        if (behaviorType != LuggageBehaviorType.Fragile) return;
         if (IsWrapped) return;
         if (fragileGrabImmunity > 0f) return;
         if (collision.impulse.magnitude > fragileBreakThreshold)
@@ -124,7 +135,7 @@ public class Luggage : MonoBehaviour
     {
         if (!grabbers.Contains(playerGrab)) grabbers.Add(playerGrab);
         lastGrabber = playerGrab;
-        if (behaviorType.HasFlag(LuggageBehaviorType.Fragile))
+        if (behaviorType == LuggageBehaviorType.Fragile)
             fragileGrabImmunity = 2f;
     }
 
@@ -150,16 +161,15 @@ public class Luggage : MonoBehaviour
 
     public void ApplyBehaviorVisual()
     {
-        Renderer rend = GetComponentInChildren<Renderer>();
-        if (rend == null) return;
+        if (targetRenderer == null) return;
 
-        // Bomb has no indicator — looks normal. Fragile/Sticky show a placeholder color.
-        if (behaviorType.HasFlag(LuggageBehaviorType.Fragile))
-            rend.material.color = Color.yellow;
-        else if (behaviorType.HasFlag(LuggageBehaviorType.Sticky))
-            rend.material.color = Color.green;
-        else
-            rend.material.color = Color.white;
+        // Bomb has no indicator — looks normal. Fragile/Sticky swap to their material.
+        if (behaviorType == LuggageBehaviorType.Fragile && fragileMaterial != null)
+            targetRenderer.material = fragileMaterial;
+        else if (behaviorType == LuggageBehaviorType.Sticky && stickyMaterial != null)
+            targetRenderer.material = stickyMaterial;
+        else if (normalMaterial != null)
+            targetRenderer.material = normalMaterial;
     }
 
     public void SetInStation(bool value)
@@ -169,14 +179,16 @@ public class Luggage : MonoBehaviour
 
     public void MarkWashed()
     {
-        behaviorType &= ~LuggageBehaviorType.Sticky;
+        if (behaviorType == LuggageBehaviorType.Sticky)
+            behaviorType = LuggageBehaviorType.Normal;
         IsWashed = true;
         ApplyBehaviorVisual();
     }
 
     public void MarkWrapped()
     {
-        behaviorType &= ~LuggageBehaviorType.Fragile;
+        if (behaviorType == LuggageBehaviorType.Fragile)
+            behaviorType = LuggageBehaviorType.Normal;
         IsWrapped = true;
         ApplyBehaviorVisual();
     }

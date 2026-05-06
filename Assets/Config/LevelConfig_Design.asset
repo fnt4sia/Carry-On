@@ -16,5 +16,15 @@ MonoBehaviour:
   star1Score: 10
   star2Score: 30
   star3Score: 60
-  luggageDataList: []
-  spawnInterval: 2
+  luggagePrefabs:
+  - {fileID: 1388067739045215241, guid: 53a1ecc49c1554b8bb7f94f33506f1ca, type: 3}
+  possibleBehaviors: 000000000100000002000000
+  luggageLifetime: 30
+  waveDelay: 10
+  luggagePerWave: 5
+  intraWaveInterval: 3
+  bombWaveChance: 0.3
+  scoreCorrectDelivery: 10
+  scoreMissingProcess: -5
+  scoreBombDelivered: -15
+  scoreTimerExpired: -5

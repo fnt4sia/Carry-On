@@ -121,7 +121,7 @@ public class PlayerGrab : MonoBehaviour
     {
         if (grabDown && objectRigidbody != null)
         {
-            if (luggageHeld == null || !luggageHeld.behaviorType.HasFlag(LuggageBehaviorType.Sticky))
+            if (luggageHeld == null || luggageHeld.behaviorType != LuggageBehaviorType.Sticky)
             {
                 isGrabInputHeld = true;
                 grabInputHoldTime = 0f;
@@ -245,7 +245,7 @@ public class PlayerGrab : MonoBehaviour
             if (luggageHeld != null)
             {
                 // Sticky luggage cannot be thrown
-                if (luggageHeld.behaviorType.HasFlag(LuggageBehaviorType.Sticky))
+                if (luggageHeld.behaviorType == LuggageBehaviorType.Sticky)
                 {
                     isGrabInputHeld = false;
                     grabInputHoldTime = 0f;
@@ -284,12 +284,14 @@ public class PlayerGrab : MonoBehaviour
         float startYaw = startWorldRotation.eulerAngles.y;
 
         // Two valid carry poses: luggage aligned with player (endYaw1) or 180° flipped (endYaw2).
-        // Pick whichever requires less rotation from the current luggage yaw.
+        // Pick whichever puts the luggage's back face toward the player at grab time, using a
+        // horizontal-plane dot product to avoid eulerAngles gimbal-lock when pitch/roll are large.
         Quaternion playerRot = grabPoint.rotation;
+        Vector3 luggageFwdH = Vector3.ProjectOnPlane(objectRigidbody.transform.forward, Vector3.up);
+        Vector3 playerFwdH  = Vector3.ProjectOnPlane(grabPoint.forward, Vector3.up);
+        bool useFlipped = Vector3.Dot(luggageFwdH, playerFwdH) < 0f;
         float endYaw1 = playerRot.eulerAngles.y;
         float endYaw2 = endYaw1 + 180f;
-        bool useFlipped = Mathf.Abs(Mathf.DeltaAngle(startYaw, endYaw2)) <
-                          Mathf.Abs(Mathf.DeltaAngle(startYaw, endYaw1));
         float endYaw = useFlipped ? endYaw2 : endYaw1;
 
         // For the normal pose: connect at the back face (min.z) so luggage extends forward.
@@ -542,7 +544,7 @@ public class PlayerGrab : MonoBehaviour
         if (Arrow) Arrow.SetActive(false);
 
         // Sticky luggage cannot be dropped unless forced (e.g. by another player grabbing it, or station placement)
-        if (!forceRelease && luggageHeld != null && luggageHeld.behaviorType.HasFlag(LuggageBehaviorType.Sticky))
+        if (!forceRelease && luggageHeld != null && luggageHeld.behaviorType == LuggageBehaviorType.Sticky)
         {
             grabInputHoldTime = 0f;
             isGrabInputHeld = false;

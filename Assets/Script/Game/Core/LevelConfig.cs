@@ -13,7 +13,12 @@ public class LevelConfig : ScriptableObject
     public int star3Score = 90;
 
     [Header("Spawner — Luggage Pool")]
-    public List<LuggageData> luggageDataList;
+    [Tooltip("Prefabs that can be spawned. One is picked at random per spawn.")]
+    public List<GameObject> luggagePrefabs;
+    [Tooltip("Possible behaviors that can be rolled for a spawned luggage.")]
+    public List<LuggageBehaviorType> possibleBehaviors;
+    [Tooltip("Seconds before a spawned luggage expires if not delivered.")]
+    public float luggageLifetime = 20f;
 
     [Header("Spawner — Waves")]
     [Tooltip("Seconds between the end of one wave and the start of the next.")]
