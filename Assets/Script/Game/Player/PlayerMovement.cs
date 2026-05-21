@@ -3,6 +3,10 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 
+// Per-player ground movement and dash. Reads camera-relative move input, applies
+// smoothed velocity with a wall-slide sweep so the player (and any carried luggage)
+// can't tunnel through walls, drives the movement / dash animator bools, and emits
+// bubble particles while moving.
 public class PlayerMovement : MonoBehaviour
 {
     public bool isGrabbing;
@@ -107,24 +111,11 @@ public class PlayerMovement : MonoBehaviour
         Luggage held = isHolding ? playerGrab.GetHeldLuggage() : null;
         Rigidbody luggageRb = held?.GetComponent<Rigidbody>();
 
-        // Wall-slide sweep: constrain moveDelta so luggage doesn't push into walls.
-        // Ignore lightweight dynamic objects (cones, decorations) — let physics push them.
-        if (luggageRb != null && moveDelta.sqrMagnitude > 0.0001f)
-        {
-            if (luggageRb.SweepTest(moveDelta.normalized, out RaycastHit hit, moveDelta.magnitude + 0.05f))
-            {
-                Rigidbody hitRb = hit.rigidbody;
-                bool isWall = hitRb == null || hitRb.isKinematic || hitRb.mass >= luggageRb.mass;
-                if (isWall)
-                {
-                    Vector3 wallNormal = hit.normal; wallNormal.y = 0; wallNormal.Normalize();
-                    float intoWall = Vector3.Dot(moveDelta, -wallNormal);
-                    if (intoWall > 0) moveDelta += wallNormal * intoWall;
-                    float velIntoWall = Vector3.Dot(currentVelocity, -wallNormal);
-                    if (velIntoWall > 0) currentVelocity += wallNormal * velIntoWall;
-                }
-            }
-        }
+        // Wall-slide sweep: the player is moved by a transform teleport, which gets NO
+        // swept collision — so fast movement (dash) would tunnel through thin walls.
+        // Sweep the carried luggage AND the player body, clamping moveDelta against each.
+        ClampMoveDeltaAgainstWalls(luggageRb, ref moveDelta);
+        ClampMoveDeltaAgainstWalls(playerRb, ref moveDelta);
 
         // Snapshot grab anchor BEFORE movement + rotation so we can compute full delta
         Vector3 anchorBefore = (luggageRb != null) ? playerGrab.GetGrabAnchorWorldPosition() : Vector3.zero;
@@ -150,6 +141,32 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
+    // Sweeps `body` along moveDelta and strips out the into-wall component if it would
+    // hit a static or heavier collider, so the teleport-based move can't push through it.
+    // Lightweight dynamic objects (cones, decorations) are ignored — let physics push them.
+    // Trigger colliders (pressure plates, scanner/sink zones) are ignored — they must
+    // never block movement even though the project has queriesHitTriggers enabled.
+    private void ClampMoveDeltaAgainstWalls(Rigidbody body, ref Vector3 moveDelta)
+    {
+        if (body == null || moveDelta.sqrMagnitude <= 0.0001f) return;
+        if (!body.SweepTest(moveDelta.normalized, out RaycastHit hit, moveDelta.magnitude + 0.05f,
+                            QueryTriggerInteraction.Ignore)) return;
+
+        Rigidbody hitRb = hit.rigidbody;
+        bool isWall = hitRb == null || hitRb.isKinematic || hitRb.mass >= body.mass;
+        if (!isWall) return;
+
+        Vector3 wallNormal = hit.normal; wallNormal.y = 0f;
+        if (wallNormal.sqrMagnitude < 0.0001f) return; // grazing a floor/ceiling — ignore
+        wallNormal.Normalize();
+
+        float intoWall = Vector3.Dot(moveDelta, -wallNormal);
+        if (intoWall > 0f) moveDelta += wallNormal * intoWall;
+
+        float velIntoWall = Vector3.Dot(currentVelocity, -wallNormal);
+        if (velIntoWall > 0f) currentVelocity += wallNormal * velIntoWall;
+    }
+
     // Called by DesignSceneInput to bypass PlayerInput in the design scene
     public void InjectInput(Vector2 move, bool dashPressed)
     {
@@ -169,6 +186,7 @@ public class PlayerMovement : MonoBehaviour
         isDashing = true;
         lastDashTime = Time.time;
         animator.SetBool("isDashing", true);
+        AudioManager.Instance?.PlaySFX("Player Dash");
 
         yield return new WaitForSeconds(dashDuration);
 
