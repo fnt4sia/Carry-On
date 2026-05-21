@@ -1,11 +1,14 @@
 using System.Collections;
-using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
+// Singleton in-round controller. Owns the start countdown, per-round timer, total
+// and per-player score, pause/resume, airplane decoration spawner, and the end-game
+// UI sequence (game over → visa → totals → star reveal → approved stamp → next stage).
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance;
@@ -48,38 +51,71 @@ public class GameManager : MonoBehaviour
     [SerializeField] private Button resumeButton;
 
     private float gameTimer;
-    private float randomSpeed;
     private bool gameStarted;
     private bool isPaused;
+    private bool gameEnded;
     private int gameScore;
-    private int[] playerScores = new int[4];
-    private GameObject airplaneObject;
+    private int lastDisplayedSecond = -1;
+    private readonly int[] playerScores = new int[4];
+    private InputAction pauseAction;
+    private DesignSceneInput designSceneInput;
 
     private void Awake()
     {
         if (Instance == null)
         {
             Instance = this;
-        } 
+        }
+        else if (Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        pauseAction = new InputAction("Pause", InputActionType.Button);
+        pauseAction.AddBinding("<Keyboard>/escape");
+        pauseAction.AddBinding("<Gamepad>/start");
+        pauseAction.Enable();
     }
 
     void Start()
     {
+        designSceneInput = FindFirstObjectByType<DesignSceneInput>();
         scoreText.text = gameScore.ToString();
-        gameTimer = levelConfig.gameTime + 1.5f;
+        gameTimer = levelConfig.gameTime;
+        UpdateTimerText();
         StartCoroutine(StartGameCountdown());
         StartCoroutine(SpawnAirplane());
     }
-    
+
+    private void OnDestroy()
+    {
+        pauseAction?.Dispose();
+
+        if (Instance == this)
+            Instance = null;
+    }
+
+    private void Update()
+    {
+        HandlePauseInput();
+        UpdateGameTimer();
+    }
+
     public void ExitGame()
     {
+        PlayButtonSelectSfx();
+        Time.timeScale = 1f;
         SceneManager.LoadScene(0);
     }
 
     public void ResumeGame()
     {
+        if (gameEnded) return;
+
+        PlayButtonSelectSfx();
         isPaused = false;
-        Time.timeScale = 1;
+        Time.timeScale = 1f;
         backgroundDimObject.SetActive(false);
         pausePanel.SetActive(false);
     }
@@ -89,8 +125,11 @@ public class GameManager : MonoBehaviour
         gameScore += score;
         if (gameScore < 0) gameScore = 0;
         scoreText.text = gameScore.ToString();
-        // if (score > 0) secondAudioSource.PlayOneShot(scoreSound);
-        // else secondAudioSource.PlayOneShot(wrongSound);
+
+        if (score > 0)
+            AudioManager.Instance?.PlaySFX("Score");
+        else if (score < 0)
+            AudioManager.Instance?.PlaySFX("wrong");
     }
 
     public LevelConfig GetLevelConfig() => levelConfig;
@@ -98,6 +137,7 @@ public class GameManager : MonoBehaviour
     public int GetMissingProcessPenalty() => levelConfig.scoreMissingProcess;
     public int GetBombDeliveredPenalty() => levelConfig.scoreBombDelivered;
     public int GetTimerExpiredPenalty() => levelConfig.scoreTimerExpired;
+    public int GetWrongGatePenalty() => levelConfig.scoreWrongGateDelivery;
 
     public void AddPlayerScore(int playerIndex, int score)
     {
@@ -109,7 +149,7 @@ public class GameManager : MonoBehaviour
     {
         backgroundDimObject.SetActive(true);
 
-        Time.timeScale = 0;
+        Time.timeScale = 0f;
 
         float countdown = 3f;
         while (countdown > -1)
@@ -123,7 +163,9 @@ public class GameManager : MonoBehaviour
 
         backgroundDimObject.SetActive(false);
         gameStarted = true;
-        Time.timeScale = 1;
+        AudioManager.Instance?.PlaySFX("Start");
+        Time.timeScale = 1f;
+        StartCoroutine(PlayGameplayMusicAfterStart());
 
         scoreObject.SetActive(true);
         RectTransform rectTransform = scoreObject.GetComponent<RectTransform>();
@@ -134,7 +176,9 @@ public class GameManager : MonoBehaviour
 
     private IEnumerator EndGame()
     {
-        Time.timeScale = 0;
+        gameEnded = true;
+        Time.timeScale = 0f;
+        AudioManager.Instance?.PlaySFX("Time's Up");
 
         gameTimerObject.SetActive(false);
         scoreObject.SetActive(false);
@@ -163,6 +207,7 @@ public class GameManager : MonoBehaviour
         {
             yield return new WaitForSecondsRealtime(0.325f);
             firstStar.color = Color.white;
+            AudioManager.Instance?.PlaySFX("Star");
             yield return new WaitForSecondsRealtime(0.5f);
         }
 
@@ -170,6 +215,7 @@ public class GameManager : MonoBehaviour
         {
             yield return new WaitForSecondsRealtime(0.325f);
             secondStar.color = Color.white;
+            AudioManager.Instance?.PlaySFX("Star");
             yield return new WaitForSecondsRealtime(0.5f);
         }
 
@@ -177,6 +223,7 @@ public class GameManager : MonoBehaviour
         {
             yield return new WaitForSecondsRealtime(0.325f);
             thirdStar.color = Color.white;
+            AudioManager.Instance?.PlaySFX("Star");
             yield return new WaitForSecondsRealtime(0.5f);
         }
 
@@ -184,6 +231,7 @@ public class GameManager : MonoBehaviour
 
         yield return new WaitForSecondsRealtime(0.02f);
         approvedStampObject.SetActive(true);
+        AudioManager.Instance?.PlaySFX("Stamp");
         nextStageObject.SetActive(true);
 
         EventSystem.current.SetSelectedGameObject(nextStageObject.gameObject);
@@ -289,8 +337,8 @@ public class GameManager : MonoBehaviour
         int randomNumber = Random.Range(1, 15);
         if (randomNumber == 1)
         {
-            airplaneObject = Instantiate(airplanePrefab, spawnPosition, Quaternion.identity);
-            randomSpeed = Random.Range(10f, 40f);
+            GameObject airplaneObject = Instantiate(airplanePrefab, spawnPosition, Quaternion.identity);
+            float randomSpeed = Random.Range(10f, 40f);
             yield return StartCoroutine(MoveAirplane(airplaneObject, randomSpeed));
         }
 
@@ -317,7 +365,73 @@ public class GameManager : MonoBehaviour
 
     public void BackToLobby()
     {
+        PlayButtonSelectSfx();
+        Time.timeScale = 1f;
         SceneManager.LoadScene(0);
+    }
+
+    private IEnumerator PlayGameplayMusicAfterStart()
+    {
+        yield return new WaitForSecondsRealtime(1f);
+        AudioManager.Instance?.PlayGameplayMusic();
+    }
+
+    private static void PlayButtonSelectSfx()
+    {
+        AudioManager.Instance?.PlaySFX("Button Select");
+    }
+
+    private void HandlePauseInput()
+    {
+        if (!gameStarted || gameEnded)
+            return;
+
+        bool pausePressed = designSceneInput != null
+            ? Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame
+            : pauseAction.WasPressedThisFrame();
+
+        if (!pausePressed)
+            return;
+
+        if (isPaused)
+            ResumeGame();
+        else
+            PauseGame();
+    }
+
+    private void PauseGame()
+    {
+        isPaused = true;
+        Time.timeScale = 0f;
+        backgroundDimObject.SetActive(true);
+        pausePanel.SetActive(true);
+
+        if (resumeButton != null)
+            EventSystem.current.SetSelectedGameObject(resumeButton.gameObject);
+    }
+
+    private void UpdateGameTimer()
+    {
+        if (!gameStarted || isPaused || gameEnded)
+            return;
+
+        gameTimer = Mathf.Max(0f, gameTimer - Time.deltaTime);
+        UpdateTimerText();
+
+        if (gameTimer <= 0f)
+            StartCoroutine(EndGame());
+    }
+
+    private void UpdateTimerText()
+    {
+        int displaySecond = Mathf.CeilToInt(gameTimer);
+        if (gameTimerText == null || displaySecond == lastDisplayedSecond)
+            return;
+
+        lastDisplayedSecond = displaySecond;
+        int minutes = displaySecond / 60;
+        int seconds = displaySecond % 60;
+        gameTimerText.SetText("{0}:{1:00}", minutes, seconds);
     }
 
 }

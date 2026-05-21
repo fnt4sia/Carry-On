@@ -1,0 +1,97 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &919928392431050219
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7011923873023979205}
+  - component: {fileID: 3938982308579248625}
+  m_Layer: 0
+  m_Name: AudioManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7011923873023979205
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 919928392431050219}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3938982308579248625
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 919928392431050219}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: da78f5ae403824847b69a3a52ec1afeb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AudioManager
+  audioClips:
+  - name: Button Select
+    clip: {fileID: 8300000, guid: b1d3aeb844aad694ebe7dd6cac332fe5, type: 3}
+  - name: Carry On Main Theme Mastered
+    clip: {fileID: 8300000, guid: 65cbb081ecffa4e058e285a6d71deed1, type: 3}
+  - name: Dash
+    clip: {fileID: 8300000, guid: 6a622f1c7d2c2b54387151b5e1c6815b, type: 3}
+  - name: groundLuggage Collision1
+    clip: {fileID: 8300000, guid: 7196d98575bde46e9a59bb7256016990, type: 3}
+  - name: groundLuggage Collision2
+    clip: {fileID: 8300000, guid: 31ebe379cba5a4b21a1ce852cef67ca4, type: 3}
+  - name: groundLuggage Collision3
+    clip: {fileID: 8300000, guid: 9b6d9318fbd3f4b889977b1fe8b314e3, type: 3}
+  - name: groundLuggage Collision4
+    clip: {fileID: 8300000, guid: 1ebf033ff9fd143f39f00b91ded76765, type: 3}
+  - name: Loopable Main Music
+    clip: {fileID: 8300000, guid: 1768896981d7e1c47a9a6a068b825c83, type: 3}
+  - name: Main Menu
+    clip: {fileID: 8300000, guid: 0f3637670f0201647abf77c5f368af6b, type: 3}
+  - name: Main Music
+    clip: {fileID: 8300000, guid: 950f4a9a7b74cf44383a82bdd61453b6, type: 3}
+  - name: Player Dash
+    clip: {fileID: 8300000, guid: 6fb11ac7c28824f6fabd67282a418f78, type: 3}
+  - name: Player Throw buildup
+    clip: {fileID: 8300000, guid: 0a26555827bc64d96a6c0df2a25565ad, type: 3}
+  - name: Player Throw full
+    clip: {fileID: 8300000, guid: 6a9e60dfbeec4492195d5231d2c2e291, type: 3}
+  - name: Player Throw throwonly
+    clip: {fileID: 8300000, guid: 0064dc68a51364f199eb83ba237c949f, type: 3}
+  - name: Score
+    clip: {fileID: 8300000, guid: dd35dc5fbeb23a840aa1625cd3964f42, type: 3}
+  - name: Stamp
+    clip: {fileID: 8300000, guid: 1b89a750f318ab244974bad80093aa17, type: 3}
+  - name: Star
+    clip: {fileID: 8300000, guid: 1fa10d85f9263ee41a75aa84c46f6a8c, type: 3}
+  - name: Start
+    clip: {fileID: 8300000, guid: bb76e100d50d01b48827a6518c4c8d3c, type: 3}
+  - name: Step
+    clip: {fileID: 8300000, guid: 230173c35c08f5348a74a4a51b2ed510, type: 3}
+  - name: Time's Up
+    clip: {fileID: 8300000, guid: 3c2329b50777a7a4e90f542d57542cb1, type: 3}
+  - name: windowLuggage Collision1
+    clip: {fileID: 8300000, guid: 82024a9929ac948218f2e91bb002ab61, type: 3}
+  - name: windowLuggage Collision2
+    clip: {fileID: 8300000, guid: 69788a26ad9ae43f894cac1a3fc77ced, type: 3}
+  - name: windowLuggage Collision3
+    clip: {fileID: 8300000, guid: e3d4b83c1c4424e22839458c169927e4, type: 3}
+  - name: wrong
+    clip: {fileID: 8300000, guid: 69e88705c80431c41b14d3e6f2620939, type: 3}
+  sfxSourceCount: 4
+  musicFadeTime: 1

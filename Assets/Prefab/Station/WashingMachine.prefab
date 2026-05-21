@@ -520,6 +520,14 @@ MonoBehaviour:
   snapTransform: {fileID: 1240859526799568017}
   sliderTransform: {fileID: 7685628605966008039}
   machineAnimator: {fileID: 6587274479084746675}
+  shoveBlockingLuggageOnPlace: 1
+  obstacleCheckTransform: {fileID: 7685628605966008039}
+  obstacleCheckHalfExtents: {x: 1.5, y: 1, z: 1.5}
+  obstacleShoveImpulse: 5
+  obstacleShoveUpImpulse: 1.5
+  obstacleShoveRandomness: 0.65
+  washedLuggagePrefab: {fileID: 2657728768583679652, guid: 3ff59be8ddf8948129c2020ea3ca360c,
+    type: 3}
 --- !u!95 &6587274479084746675
 Animator:
   serializedVersion: 7

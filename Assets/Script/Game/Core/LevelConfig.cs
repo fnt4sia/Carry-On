@@ -1,6 +1,9 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+// ScriptableObject defining a level's tuning: round timer, 1/2/3-star score thresholds,
+// luggage spawner settings (pool, wave size, intervals, bomb chance), and scoring
+// values (correct delivery / missing-process / bomb / expired / wrong-gate penalties).
 [CreateAssetMenu(fileName = "LevelConfig", menuName = "Carry On/Level Config")]
 public class LevelConfig : ScriptableObject
 {
@@ -13,10 +16,8 @@ public class LevelConfig : ScriptableObject
     public int star3Score = 90;
 
     [Header("Spawner — Luggage Pool")]
-    [Tooltip("Prefabs that can be spawned. One is picked at random per spawn.")]
+    [Tooltip("Prefabs that can be spawned. Each prefab already defines its own luggage behavior.")]
     public List<GameObject> luggagePrefabs;
-    [Tooltip("Possible behaviors that can be rolled for a spawned luggage.")]
-    public List<LuggageBehaviorType> possibleBehaviors;
     [Tooltip("Seconds before a spawned luggage expires if not delivered.")]
     public float luggageLifetime = 20f;
 
@@ -39,4 +40,6 @@ public class LevelConfig : ScriptableObject
     public int scoreBombDelivered = -15;
     [Tooltip("Penalty when a luggage's lifetime expires before delivery.")]
     public int scoreTimerExpired = -5;
+    [Tooltip("Penalty for delivering luggage to the wrong numbered gate when a level has multiple delivery gates.")]
+    public int scoreWrongGateDelivery = -5;
 }

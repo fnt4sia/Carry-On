@@ -1,8 +1,14 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+// Hardcoded two-player keyboard input bridge used ONLY in the design / test scene.
+// WASD + LShift + E + F drive player 1; arrows + RShift + RCtrl + L drive player 2.
+// Bypasses the normal PlayerInput / PlayerInputManager flow via the Inject* methods.
 public class DesignSceneInput : MonoBehaviour
 {
+    [Header("Audio")]
+    [SerializeField] private AudioManager audioManagerPrefab;
+
     [Header("Players")]
     [SerializeField] private GameObject player1;
     [SerializeField] private GameObject player2;
@@ -17,6 +23,9 @@ public class DesignSceneInput : MonoBehaviour
 
     private void Awake()
     {
+        if (AudioManager.Instance == null && audioManagerPrefab != null)
+            Instantiate(audioManagerPrefab);
+
         if (player1 != null)
         {
             p1Movement = player1.GetComponent<PlayerMovement>();
@@ -34,6 +43,7 @@ public class DesignSceneInput : MonoBehaviour
     {
         var kb = Keyboard.current;
         if (kb == null) return;
+
 
         // ── Player 1: WASD + Left Shift dash + E grab + F station ──────
         if (p1Movement != null)

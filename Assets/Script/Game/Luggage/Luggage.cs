@@ -1,18 +1,16 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
+// Main luggage runtime. Owns behavior type (Normal / Sticky / Fragile / Bomb),
+// lifetime countdown, fragile collision break, bomb explosion, grabber tracking,
+// and the IsWashed / IsWrapped / IsScanned flags the delivery gate reads to score it.
 public class Luggage : MonoBehaviour
 {
     [SerializeField] private Outline outline;
 
     public LuggageBehaviorType behaviorType;
     [HideInInspector] public GameObject sourcePrefab;
-
-    [Header("Visuals")]
-    [SerializeField] private MeshRenderer targetRenderer;
-    [SerializeField] private Material normalMaterial;
-    [SerializeField] private Material fragileMaterial;
-    [SerializeField] private Material stickyMaterial;
 
     [Header("Fragile Settings")]
     [SerializeField] private float fragileBreakThreshold = 10f;
@@ -21,12 +19,22 @@ public class Luggage : MonoBehaviour
     [SerializeField] private float explosionRadius = 5f;
     [SerializeField] private float explosionForce = 500f;
 
+    [Header("Collision Audio")]
+    [SerializeField, Min(0f)] private float minimumCollisionAudioSpeed = 1.5f;
+    [SerializeField, Min(0f)] private float mediumCollisionAudioSpeed = 4f;
+    [SerializeField, Min(0f)] private float hardCollisionAudioSpeed = 8f;
+    [SerializeField, Min(0f)] private float collisionAudioCooldown = 0.15f;
+
     private float lifetimeRemaining;
+    private float lifetimeDuration;
     private bool hasExploded;
     private bool isInStation;
     private bool hasExpired;
 
     private float fragileGrabImmunity;
+    private float nextCollisionAudioTime;
+    private LuggageBehaviorType initialBehaviorType;
+    private int destinationGateNumber;
 
     private List<PlayerGrab> grabbers = new List<PlayerGrab>();
     private PlayerGrab lastGrabber;
@@ -36,9 +44,22 @@ public class Luggage : MonoBehaviour
     public bool IsWrapped { get; private set; }
     public bool IsScanned { get; private set; }
     public bool IsBomb => behaviorType == LuggageBehaviorType.Bomb;
+    public bool RequiresWashing => initialBehaviorType == LuggageBehaviorType.Sticky;
+    public bool RequiresWrapping => initialBehaviorType == LuggageBehaviorType.Fragile;
     public bool IsInStation => isInStation;
+    public bool HasDestinationGate => destinationGateNumber > 0;
+    public int DestinationGateNumber => destinationGateNumber;
+    public float LifetimeRemaining => Mathf.Max(0f, lifetimeRemaining);
+    public float LifetimeNormalized => lifetimeDuration > 0f
+        ? Mathf.Clamp01(lifetimeRemaining / lifetimeDuration)
+        : 0f;
     public Conveyor ActiveConveyor { get; set; }
     [HideInInspector] public Vector3 kinematicVelocity;
+
+    private void Awake()
+    {
+        initialBehaviorType = behaviorType;
+    }
 
     private void Start()
     {
@@ -48,8 +69,10 @@ public class Luggage : MonoBehaviour
     public void Initialize(LuggageBehaviorType behavior, float lifetime, GameObject prefabKey)
     {
         behaviorType = behavior;
+        initialBehaviorType = behavior;
         sourcePrefab = prefabKey;
         lifetimeRemaining = lifetime;
+        lifetimeDuration = lifetime;
         hasExploded = false;
         hasExpired = false;
         isInStation = false;
@@ -58,7 +81,8 @@ public class Luggage : MonoBehaviour
         IsWrapped = false;
         IsScanned = false;
         fragileGrabImmunity = 0f;
-        ApplyBehaviorVisual();
+        destinationGateNumber = 0;
+        RefreshTimerDisplay();
     }
 
     private void Update()
@@ -75,6 +99,8 @@ public class Luggage : MonoBehaviour
 
     private void OnCollisionEnter(Collision collision)
     {
+        PlayCollisionAudio(collision);
+
         if (behaviorType != LuggageBehaviorType.Fragile) return;
         if (IsWrapped) return;
         if (fragileGrabImmunity > 0f) return;
@@ -85,6 +111,42 @@ public class Luggage : MonoBehaviour
     private void BreakLuggage()
     {
         DestroyLuggage();
+    }
+
+    private void PlayCollisionAudio(Collision collision)
+    {
+        if (Time.time < nextCollisionAudioTime)
+            return;
+
+        float collisionSpeed = collision.relativeVelocity.magnitude;
+        if (collisionSpeed < minimumCollisionAudioSpeed)
+            return;
+
+        nextCollisionAudioTime = Time.time + collisionAudioCooldown;
+
+        int clipIndex = collisionSpeed >= hardCollisionAudioSpeed
+            ? 3
+            : collisionSpeed >= mediumCollisionAudioSpeed
+                ? 2
+                : 1;
+
+        string surfacePrefix = IsWindowLikeCollision(collision) ? "window" : "ground";
+        string clipName = $"{surfacePrefix}Luggage Collision{clipIndex}";
+        float volume = Mathf.Lerp(0.35f, 1f, Mathf.InverseLerp(minimumCollisionAudioSpeed, hardCollisionAudioSpeed * 1.5f, collisionSpeed));
+        AudioManager.Instance?.PlaySFX(clipName, volume);
+    }
+
+    private static bool IsWindowLikeCollision(Collision collision)
+    {
+        return ContainsWindowLikeName(collision.collider.name)
+            || ContainsWindowLikeName(collision.gameObject.name);
+    }
+
+    private static bool ContainsWindowLikeName(string value)
+    {
+        return !string.IsNullOrWhiteSpace(value)
+            && (value.Contains("window", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("glass", StringComparison.OrdinalIgnoreCase));
     }
 
     private void OnLifetimeExpired()
@@ -159,38 +221,41 @@ public class Luggage : MonoBehaviour
         return new List<PlayerGrab>(grabbers);
     }
 
-    public void ApplyBehaviorVisual()
-    {
-        if (targetRenderer == null) return;
-
-        // Bomb has no indicator — looks normal. Fragile/Sticky swap to their material.
-        if (behaviorType == LuggageBehaviorType.Fragile && fragileMaterial != null)
-            targetRenderer.material = fragileMaterial;
-        else if (behaviorType == LuggageBehaviorType.Sticky && stickyMaterial != null)
-            targetRenderer.material = stickyMaterial;
-        else if (normalMaterial != null)
-            targetRenderer.material = normalMaterial;
-    }
-
     public void SetInStation(bool value)
     {
         isInStation = value;
     }
 
-    public void MarkWashed()
+    public void AssignDestinationGate(int gateNumber)
     {
-        if (behaviorType == LuggageBehaviorType.Sticky)
-            behaviorType = LuggageBehaviorType.Normal;
-        IsWashed = true;
-        ApplyBehaviorVisual();
+        destinationGateNumber = gateNumber;
+        RefreshTimerDisplay();
     }
 
-    public void MarkWrapped()
+    public Luggage ConvertToWashed(GameObject washedPrefab)
     {
-        if (behaviorType == LuggageBehaviorType.Fragile)
+        if (washedPrefab == null)
+        {
+            Debug.LogWarning($"{nameof(Luggage)} on {name} has no washed replacement prefab.");
             behaviorType = LuggageBehaviorType.Normal;
-        IsWrapped = true;
-        ApplyBehaviorVisual();
+            IsWashed = true;
+            return this;
+        }
+
+        return ReplaceWithPrefab(washedPrefab, markWashed: true, markWrapped: false);
+    }
+
+    public Luggage ConvertToWrapped(GameObject wrappedPrefab)
+    {
+        if (wrappedPrefab == null)
+        {
+            Debug.LogWarning($"{nameof(Luggage)} on {name} has no wrapped replacement prefab.");
+            behaviorType = LuggageBehaviorType.Normal;
+            IsWrapped = true;
+            return this;
+        }
+
+        return ReplaceWithPrefab(wrappedPrefab, markWashed: false, markWrapped: true);
     }
 
     public void MarkScanned()
@@ -209,4 +274,74 @@ public class Luggage : MonoBehaviour
     {
         return grabbers.Count > 0;
     }
+
+    private Luggage ReplaceWithPrefab(GameObject replacementPrefab, bool markWashed, bool markWrapped)
+    {
+        Transform originalParent = transform.parent;
+        Vector3 originalWorldScale = transform.lossyScale;
+
+        GameObject replacementObject = Instantiate(
+            replacementPrefab,
+            transform.position,
+            transform.rotation);
+
+        replacementObject.transform.localScale = originalWorldScale;
+        if (originalParent != null)
+            replacementObject.transform.SetParent(originalParent, worldPositionStays: true);
+
+        Luggage replacement = replacementObject.GetComponent<Luggage>();
+        if (replacement == null)
+        {
+            Debug.LogError($"Replacement prefab {replacementPrefab.name} is missing {nameof(Luggage)}.");
+            Destroy(replacementObject);
+            return this;
+        }
+
+        Rigidbody oldRb = GetComponent<Rigidbody>();
+        Rigidbody newRb = replacement.GetComponent<Rigidbody>();
+
+        replacement.CopyRuntimeStateFrom(this, replacementPrefab, markWashed, markWrapped);
+
+        if (oldRb != null && newRb != null)
+        {
+            newRb.isKinematic = oldRb.isKinematic;
+            if (!newRb.isKinematic)
+            {
+                newRb.linearVelocity = oldRb.linearVelocity;
+                newRb.angularVelocity = oldRb.angularVelocity;
+            }
+        }
+
+        gameObject.SetActive(false);
+        Destroy(gameObject);
+        return replacement;
+    }
+
+    private void CopyRuntimeStateFrom(Luggage source, GameObject replacementPrefab, bool markWashed, bool markWrapped)
+    {
+        initialBehaviorType = source.initialBehaviorType;
+        sourcePrefab = replacementPrefab;
+        lifetimeRemaining = source.lifetimeRemaining;
+        lifetimeDuration = source.lifetimeDuration;
+        hasExploded = source.hasExploded;
+        hasExpired = source.hasExpired;
+        isInStation = source.isInStation;
+        IsDelivered = source.IsDelivered;
+        IsWashed = source.IsWashed || markWashed;
+        IsWrapped = source.IsWrapped || markWrapped;
+        IsScanned = source.IsScanned;
+        ActiveConveyor = source.ActiveConveyor;
+        kinematicVelocity = source.kinematicVelocity;
+        lastGrabber = source.lastGrabber;
+        destinationGateNumber = source.destinationGateNumber;
+        RefreshTimerDisplay();
+    }
+
+    private void RefreshTimerDisplay()
+    {
+        LuggageTimerDisplay timerDisplay = GetComponentInChildren<LuggageTimerDisplay>(true);
+        if (timerDisplay != null)
+            timerDisplay.RefreshImmediate();
+    }
+
 }

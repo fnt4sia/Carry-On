@@ -5,6 +5,9 @@ using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
+// Lobby controller. Handles player join events from PlayerInputManager, spawns a
+// player card per joiner, positions the player avatars in front of the lobby camera,
+// shows/hides the "Press to join" prompt, and routes the Start button to ChooseStage.
 public class MainMenuManager : MonoBehaviour
 {
     [Header("Buttons")]
@@ -90,11 +93,18 @@ public class MainMenuManager : MonoBehaviour
 
     public void OnClickStart()
     {
+        PlayButtonSelectSfx();
         SceneManager.LoadScene("ChooseStage");
+    }
+
+    public void OnClickOptions()
+    {
+        PlayButtonSelectSfx();
     }
 
     public void OnClickExit()
     {
+        PlayButtonSelectSfx();
         Application.Quit();
     }
 
@@ -102,5 +112,10 @@ public class MainMenuManager : MonoBehaviour
     {
         if (manager != null)
             manager.onPlayerJoined -= HandlePlayerJoined;
+    }
+
+    private static void PlayButtonSelectSfx()
+    {
+        AudioManager.Instance?.PlaySFX("Button Select");
     }
 }

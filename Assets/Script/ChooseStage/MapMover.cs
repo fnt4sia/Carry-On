@@ -3,6 +3,9 @@ using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using System.Collections.Generic;
 
+// ChooseStage map controller. Moves a token across the level-select map with WASD,
+// detects overlap with a LevelNode, and loads that node's scene when Enter is pressed.
+// Hides persisted players while on the map and re-activates them before entering a stage.
 public class MapMover : MonoBehaviour
 {
     public float moveSpeed = 10f;
@@ -82,6 +85,9 @@ public class MapMover : MonoBehaviour
         foreach (var p in hiddenPlayers)
             if (p != null) p.SetActive(true);
 
-        SceneManager.LoadScene(currentNode.levelIndex);
+        if (!string.IsNullOrWhiteSpace(currentNode.sceneName))
+            SceneManager.LoadScene(currentNode.sceneName);
+        else
+            SceneManager.LoadScene(currentNode.levelIndex);
     }
 }

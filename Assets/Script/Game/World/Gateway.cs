@@ -1,5 +1,7 @@
 using UnityEngine;
 
+// Animated door, normally driven by GatewayPressurePlate. Open/Close/Toggle flip the isOpen
+// flag and push it to the animator's "IsOpen" bool, which plays the matching clip.
 public class Gateway : MonoBehaviour
 {
     [Header("Gateway State")]

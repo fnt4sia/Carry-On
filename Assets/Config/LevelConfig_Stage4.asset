@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1f8186d497b8b436e9308ccb7c9ddeae, type: 3}
+  m_Name: LevelConfig_Stage4
+  m_EditorClassIdentifier: Assembly-CSharp::LevelConfig
+  gameTime: 120
+  star1Score: 60
+  star2Score: 120
+  star3Score: 180
+  luggagePrefabs:
+  - {fileID: 2657728768583679652, guid: 3ff59be8ddf8948129c2020ea3ca360c, type: 3}
+  - {fileID: 7318264214933058454, guid: 918e7b0e7e18340caa11355807c50fc4, type: 3}
+  - {fileID: 5920138206827221722, guid: d6fb8693343434e868f7bcd75488e959, type: 3}
+  luggageLifetime: 20
+  waveDelay: 10
+  luggagePerWave: 5
+  intraWaveInterval: 1.5
+  bombWaveChance: 0.3
+  scoreCorrectDelivery: 10
+  scoreMissingProcess: -5
+  scoreBombDelivered: -15
+  scoreTimerExpired: -5
+  scoreWrongGateDelivery: -5

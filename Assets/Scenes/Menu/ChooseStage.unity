@@ -244,7 +244,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 771d94b1511b546a1b8742cb2ddebf95, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LevelNode
-  levelIndex: 2
+  sceneName: Stage_3
+  levelIndex: 4
 --- !u!1 &192117738
 GameObject:
   m_ObjectHideFlags: 0
@@ -501,7 +502,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 771d94b1511b546a1b8742cb2ddebf95, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LevelNode
-  levelIndex: 8
+  sceneName: Stage_1
+  levelIndex: 2
 --- !u!1 &513537353
 GameObject:
   m_ObjectHideFlags: 0
@@ -754,7 +756,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 771d94b1511b546a1b8742cb2ddebf95, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LevelNode
-  levelIndex: 6
+  sceneName: Stage_4
+  levelIndex: 5
 --- !u!1 &987373291
 GameObject:
   m_ObjectHideFlags: 0
@@ -1129,7 +1132,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 771d94b1511b546a1b8742cb2ddebf95, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LevelNode
-  levelIndex: 1
+  sceneName: Stage_2
+  levelIndex: 3
 --- !u!1 &1571544296
 GameObject:
   m_ObjectHideFlags: 0

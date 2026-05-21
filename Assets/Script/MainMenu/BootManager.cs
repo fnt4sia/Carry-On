@@ -3,10 +3,8 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 
-/// <summary>
-/// Boot scene. The first player to press Space (keyboard) or A (gamepad) joins
-/// and the game immediately loads MainMenu. Additional players join in MainMenu.
-/// </summary>
+// Boot scene. The first player to press Space (keyboard) or A (gamepad) joins
+// and the game immediately loads MainMenu. Additional players join in MainMenu.
 public class BootManager : MonoBehaviour
 {
     [Header("UI")]

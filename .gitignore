@@ -79,3 +79,19 @@ CLAUDE.md
 CLAUDE.md.meta
 **/CLAUDE.md
 **/CLAUDE.md.meta
+
+# Codex instructions (contain credentials, same as CLAUDE.md)
+AGENTS.md
+**/AGENTS.md
+.codex/
+
+# macOS Finder metadata
+.DS_Store
+**/.DS_Store
+
+# Unity crash dumps
+mono_crash.*
+
+# MCP / debug screenshots
+/[Aa]ssets/[Ss]creenshots/
+/[Aa]ssets/[Ss]creenshots.meta

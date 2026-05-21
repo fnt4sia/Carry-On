@@ -2,6 +2,9 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+// Camera rig that follows the midpoint of all joined players and zooms out as they
+// spread apart. Uses SmoothDamp for follow and lerps height + offset based on the
+// bounding-box size of all player positions.
 public class MultiplayerCamera : MonoBehaviour
 {
     [SerializeField] private Camera mainCamera;

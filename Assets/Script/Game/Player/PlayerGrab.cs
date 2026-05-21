@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+// Per-player grab / throw / station-use controller. Reads the Grab and UseStation
+// input, casts for grabbable luggage, builds a ConfigurableJoint to carry it, animates
+// the carry alignment, handles throw-charge timing, and routes placement into stations.
 public class PlayerGrab : MonoBehaviour
 {
     [SerializeField] private Transform grabPoint;
@@ -43,6 +46,7 @@ public class PlayerGrab : MonoBehaviour
 
     private bool isGrabInputHeld;
     private float grabInputHoldTime;
+    private AudioSource throwBuildUpAudioSource;
 
     private ConfigurableJoint configurableJoint;
     private Luggage luggageHeld;
@@ -61,7 +65,11 @@ public class PlayerGrab : MonoBehaviour
     private bool hasShiftedCoM;
 
     private void OnEnable()  => UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
-    private void OnDisable() => UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+    private void OnDisable()
+    {
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+        StopThrowBuildUpAudio();
+    }
 
     private void OnSceneLoaded(UnityEngine.SceneManagement.Scene _, UnityEngine.SceneManagement.LoadSceneMode __)
         => designInput = FindFirstObjectByType<DesignSceneInput>();
@@ -125,6 +133,7 @@ public class PlayerGrab : MonoBehaviour
             {
                 isGrabInputHeld = true;
                 grabInputHoldTime = 0f;
+                StartThrowBuildUpAudio();
                 if (Arrow) Arrow.SetActive(true);
             }
         }
@@ -249,6 +258,7 @@ public class PlayerGrab : MonoBehaviour
                 {
                     isGrabInputHeld = false;
                     grabInputHoldTime = 0f;
+                    StopThrowBuildUpAudio();
                     if (Arrow) Arrow.SetActive(false);
                     return;
                 }
@@ -269,6 +279,8 @@ public class PlayerGrab : MonoBehaviour
 
             Vector3 throwDir = grabPoint.forward.normalized * forwardForce + Vector3.up * upForce;
             objectRigidbody.AddForce(throwDir, ForceMode.Impulse);
+            StopThrowBuildUpAudio();
+            AudioManager.Instance?.PlaySFX("Player Throw throwonly");
 
             objectRigidbody = null;
             playerMovement.isGrabbing = false;
@@ -283,22 +295,12 @@ public class PlayerGrab : MonoBehaviour
         Bounds localBounds = ComputeLuggageLocalBounds(luggageHeld);
         float startYaw = startWorldRotation.eulerAngles.y;
 
-        // Two valid carry poses: luggage aligned with player (endYaw1) or 180° flipped (endYaw2).
-        // Pick whichever puts the luggage's back face toward the player at grab time, using a
-        // horizontal-plane dot product to avoid eulerAngles gimbal-lock when pitch/roll are large.
+        // Always align luggage with the player (normal pose). Connect at the back face (min.z)
+        // so the luggage body extends forward, away from the player.
         Quaternion playerRot = grabPoint.rotation;
-        Vector3 luggageFwdH = Vector3.ProjectOnPlane(objectRigidbody.transform.forward, Vector3.up);
-        Vector3 playerFwdH  = Vector3.ProjectOnPlane(grabPoint.forward, Vector3.up);
-        bool useFlipped = Vector3.Dot(luggageFwdH, playerFwdH) < 0f;
-        float endYaw1 = playerRot.eulerAngles.y;
-        float endYaw2 = endYaw1 + 180f;
-        float endYaw = useFlipped ? endYaw2 : endYaw1;
+        float endYaw = playerRot.eulerAngles.y;
 
-        // For the normal pose: connect at the back face (min.z) so luggage extends forward.
-        // For the flipped pose: connect at the front face (max.z) — after 180° rotation that face
-        // is the one closest to the player, so the luggage body still sits in front.
-        float connectZ = useFlipped ? localBounds.max.z : localBounds.min.z;
-        Vector3 localGrabPoint = new Vector3(localBounds.center.x, localBounds.center.y, connectZ);
+        Vector3 localGrabPoint = new Vector3(localBounds.center.x, localBounds.center.y, localBounds.min.z);
 
         if (!hasShiftedCoM)
         {
@@ -309,9 +311,7 @@ public class PlayerGrab : MonoBehaviour
 
         CreateGrabJoint(localGrabPoint);
 
-        Quaternion alignTarget = useFlipped
-            ? Quaternion.Inverse(startWorldRotation) * (playerRot * Quaternion.Euler(0f, 180f, 0f))
-            : Quaternion.Inverse(startWorldRotation) * playerRot;
+        Quaternion alignTarget = Quaternion.Inverse(startWorldRotation) * playerRot;
 
         StartCoroutine(GrabRotationAnimation(startWorldRotation, startYaw, endYaw, alignTarget));
     }
@@ -542,6 +542,7 @@ public class PlayerGrab : MonoBehaviour
     public void Drop(bool forceRelease = false)
     {
         if (Arrow) Arrow.SetActive(false);
+        StopThrowBuildUpAudio();
 
         // Sticky luggage cannot be dropped unless forced (e.g. by another player grabbing it, or station placement)
         if (!forceRelease && luggageHeld != null && luggageHeld.behaviorType == LuggageBehaviorType.Sticky)
@@ -592,6 +593,18 @@ public class PlayerGrab : MonoBehaviour
     public Vector3 GetGrabAnchorWorldPosition()
     {
         return grabAnchor.position;
+    }
+
+    private void StartThrowBuildUpAudio()
+    {
+        StopThrowBuildUpAudio();
+        throwBuildUpAudioSource = AudioManager.Instance?.PlayLoopingSFX("Player Throw buildup");
+    }
+
+    private void StopThrowBuildUpAudio()
+    {
+        AudioManager.Instance?.StopSFX(throwBuildUpAudioSource);
+        throwBuildUpAudioSource = null;
     }
 
     private void OnDrawGizmosSelected()

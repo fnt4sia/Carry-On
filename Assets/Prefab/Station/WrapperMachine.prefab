@@ -54,6 +54,14 @@ MonoBehaviour:
   snapTransform: {fileID: 6317119070986223701}
   sliderTransform: {fileID: 987338436429672221}
   machineAnimator: {fileID: 2447674340670864001}
+  shoveBlockingLuggageOnPlace: 1
+  obstacleCheckTransform: {fileID: 987338436429672221}
+  obstacleCheckHalfExtents: {x: 1.5, y: 1, z: 1.5}
+  obstacleShoveImpulse: 5
+  obstacleShoveUpImpulse: 1.5
+  obstacleShoveRandomness: 0.65
+  wrappedLuggagePrefab: {fileID: 3038766662974888717, guid: df2fd58c6463a4f6ca2c77e2b21d642d,
+    type: 3}
 --- !u!95 &2447674340670864001
 Animator:
   serializedVersion: 7
@@ -280,7 +288,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2580896785569755283}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: -0.5, z: -5.55}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0

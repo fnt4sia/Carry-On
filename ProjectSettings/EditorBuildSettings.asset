@@ -8,7 +8,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/Menu/MainMenu.unity
     guid: dbd16920b44940c47b2eadebf6d72c10
-  - enabled: 0
+  - enabled: 1
     path: Assets/Scenes/Level/Stage Tutorial.unity
     guid: 4f636e35d3716bb43bee2a0fbed60fde
   - enabled: 1
@@ -16,22 +16,19 @@ EditorBuildSettings:
     guid: 52a47c9d4c238fc498cbd8e895be4fbf
   - enabled: 1
     path: Assets/Scenes/Level/Stage_2.unity
-    guid: 441b41b9db03240298c5b7f1db5856e6
-  - enabled: 0
-    path: Assets/Scenes/Stage_2.unity
-    guid: 4d32d1de80b96b149b0fffba28eaf0a4
+    guid: df1519e7273fb4bfab69990ef68b6baa
   - enabled: 1
     path: Assets/Scenes/Level/Stage_3.unity
-    guid: e0d9fbdeb223927439c7b99f133400e8
+    guid: 085f09f0e97d14f63be050cd542d7c94
+  - enabled: 1
+    path: Assets/Scenes/Level/Stage_4.unity
+    guid: 9b49c71947c49437c9f2b19259b74346
   - enabled: 1
     path: Assets/Scenes/Menu/Boot.unity
     guid: 0f980e4ce92261944b5d851440175132
   - enabled: 1
     path: Assets/Scenes/Menu/ChooseStage.unity
     guid: d3c4b14a1e2c24010b61834d9676977e
-  - enabled: 1
-    path: Assets/Scenes/Level/TestStage.unity
-    guid: 2069c10b20c21fe438d05dcf438d7627
   m_configObjects:
     com.unity.dt.app-ui: {fileID: 11400000, guid: 1b1c20d82303e4b5781c3ef50ac1449f,
       type: 2}

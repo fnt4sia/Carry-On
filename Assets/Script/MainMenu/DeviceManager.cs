@@ -2,6 +2,9 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using System.Collections.Generic;
 
+// Persistent singleton that tracks which input devices (keyboard, gamepads) have
+// already been claimed by joined players, so the lobby can offer only un-claimed
+// devices to new joiners and avoid double-binding the same device to two players.
 public class DeviceManager : MonoBehaviour
 {
     public static DeviceManager Instance;
