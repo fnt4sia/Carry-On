@@ -232,6 +232,19 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 83781907}
   m_Mesh: {fileID: -5623148206537946848, guid: d7fb37bca296a284ca10dd594fdd9233, type: 3}
+--- !u!134 &122536145
+PhysicsMaterial:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  serializedVersion: 2
+  m_DynamicFriction: 0.6
+  m_StaticFriction: 0.6
+  m_Bounciness: 0
+  m_FrictionCombine: 0
+  m_BounceCombine: 0
 --- !u!1 &278455706
 GameObject:
   m_ObjectHideFlags: 0
@@ -1325,6 +1338,19 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 981575561}
   m_Mesh: {fileID: -11556844200854231, guid: d7fb37bca296a284ca10dd594fdd9233, type: 3}
+--- !u!134 &1014285560
+PhysicsMaterial:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  serializedVersion: 2
+  m_DynamicFriction: 0.6
+  m_StaticFriction: 0.6
+  m_Bounciness: 0
+  m_FrictionCombine: 0
+  m_BounceCombine: 0
 --- !u!1 &1111505010
 GameObject:
   m_ObjectHideFlags: 0
@@ -1437,6 +1463,19 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1111505010}
   m_Mesh: {fileID: -629847759472686084, guid: d7fb37bca296a284ca10dd594fdd9233, type: 3}
+--- !u!134 &1116911412
+PhysicsMaterial:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  serializedVersion: 2
+  m_DynamicFriction: 0.6
+  m_StaticFriction: 0.6
+  m_Bounciness: 0
+  m_FrictionCombine: 0
+  m_BounceCombine: 0
 --- !u!1 &1221293390
 GameObject:
   m_ObjectHideFlags: 0
@@ -2586,6 +2625,32 @@ Transform:
   m_Children: []
   m_Father: {fileID: 888962285}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!134 &1656026578
+PhysicsMaterial:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  serializedVersion: 2
+  m_DynamicFriction: 0.6
+  m_StaticFriction: 0.6
+  m_Bounciness: 0
+  m_FrictionCombine: 0
+  m_BounceCombine: 0
+--- !u!134 &1696588425
+PhysicsMaterial:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  serializedVersion: 2
+  m_DynamicFriction: 0.6
+  m_StaticFriction: 0.6
+  m_Bounciness: 0
+  m_FrictionCombine: 0
+  m_BounceCombine: 0
 --- !u!1 &1752150904
 GameObject:
   m_ObjectHideFlags: 0
@@ -4328,7 +4393,7 @@ BoxCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2467997201381538933}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 1116911412}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -4349,7 +4414,7 @@ BoxCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2467997201325187420}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 122536145}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -4370,7 +4435,7 @@ BoxCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2467997200748358594}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 1696588425}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -6114,7 +6179,7 @@ BoxCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4273642860347886947}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 1014285560}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -6135,7 +6200,7 @@ BoxCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4273642858634175820}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 1656026578}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0

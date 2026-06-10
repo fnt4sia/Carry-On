@@ -3,9 +3,11 @@ using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using System.Collections.Generic;
 
-// ChooseStage map controller. Moves a token across the level-select map with WASD,
-// detects overlap with a LevelNode, and loads that node's scene when Enter is pressed.
-// Hides persisted players while on the map and re-activates them before entering a stage.
+// ChooseStage map controller. Moves a token across the level-select map and loads the
+// overlapped LevelNode's scene on confirm. The token is a shared cursor any joined
+// device can drive: movement reads WASD / arrows / D-pad / left stick, confirm reads
+// Enter / Space / gamepad South / Start. Hides persisted players while on the map and
+// re-activates them before entering a stage.
 public class MapMover : MonoBehaviour
 {
     public float moveSpeed = 10f;
@@ -15,6 +17,48 @@ public class MapMover : MonoBehaviour
     private LevelNode currentNode;
     private readonly List<GameObject> hiddenPlayers = new();
     private bool loading = false;
+
+    private InputAction moveAction;
+    private InputAction confirmAction;
+
+    void Awake()
+    {
+        moveAction = new InputAction("MapMove", InputActionType.Value, expectedControlType: "Vector2");
+        moveAction.AddCompositeBinding("2DVector")
+            .With("Up", "<Keyboard>/w").With("Down", "<Keyboard>/s")
+            .With("Left", "<Keyboard>/a").With("Right", "<Keyboard>/d");
+        moveAction.AddCompositeBinding("2DVector")
+            .With("Up", "<Keyboard>/upArrow").With("Down", "<Keyboard>/downArrow")
+            .With("Left", "<Keyboard>/leftArrow").With("Right", "<Keyboard>/rightArrow");
+        moveAction.AddCompositeBinding("2DVector")
+            .With("Up", "<Gamepad>/dpad/up").With("Down", "<Gamepad>/dpad/down")
+            .With("Left", "<Gamepad>/dpad/left").With("Right", "<Gamepad>/dpad/right");
+        moveAction.AddBinding("<Gamepad>/leftStick");
+
+        confirmAction = new InputAction("MapConfirm", InputActionType.Button);
+        confirmAction.AddBinding("<Keyboard>/enter");
+        confirmAction.AddBinding("<Keyboard>/space");
+        confirmAction.AddBinding("<Gamepad>/buttonSouth");
+        confirmAction.AddBinding("<Gamepad>/start");
+    }
+
+    void OnEnable()
+    {
+        moveAction.Enable();
+        confirmAction.Enable();
+    }
+
+    void OnDisable()
+    {
+        moveAction.Disable();
+        confirmAction.Disable();
+    }
+
+    void OnDestroy()
+    {
+        moveAction?.Dispose();
+        confirmAction?.Dispose();
+    }
 
     void Start()
     {
@@ -37,21 +81,14 @@ public class MapMover : MonoBehaviour
 
     void Move()
     {
-        float h = 0f, v = 0f;
-
-        if (Keyboard.current.wKey.isPressed) v += 1f;
-        if (Keyboard.current.sKey.isPressed) v -= 1f;
-        if (Keyboard.current.dKey.isPressed) h += 1f;
-        if (Keyboard.current.aKey.isPressed) h -= 1f;
-
-        Vector2 input = new Vector2(h, v);
+        Vector2 input = moveAction.ReadValue<Vector2>();
         if (input.sqrMagnitude > 1f) input.Normalize();
 
         // Free movement — no car steering, same feel as PlayerMovement
         Vector3 moveDir = new Vector3(input.x, 0f, input.y);
         transform.position += moveDir * moveSpeed * Time.deltaTime;
 
-        // Rotate to face movement direction instantly (or slerp for smoothness)
+        // Rotate to face movement direction
         if (moveDir.sqrMagnitude > 0.01f)
         {
             Quaternion targetRot = Quaternion.LookRotation(moveDir);
@@ -77,7 +114,7 @@ public class MapMover : MonoBehaviour
     void TryEnterLevel()
     {
         if (currentNode == null) return;
-        if (!Keyboard.current.enterKey.wasPressedThisFrame) return;
+        if (!confirmAction.WasPressedThisFrame()) return;
 
         loading = true;
 

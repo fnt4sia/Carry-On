@@ -24,9 +24,6 @@ EditorBuildSettings:
     path: Assets/Scenes/Level/Stage_4.unity
     guid: 9b49c71947c49437c9f2b19259b74346
   - enabled: 1
-    path: Assets/Scenes/Menu/Boot.unity
-    guid: 0f980e4ce92261944b5d851440175132
-  - enabled: 1
     path: Assets/Scenes/Menu/ChooseStage.unity
     guid: d3c4b14a1e2c24010b61834d9676977e
   m_configObjects:
