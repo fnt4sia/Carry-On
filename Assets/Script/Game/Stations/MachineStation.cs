@@ -58,7 +58,6 @@ public abstract class MachineStation : MonoBehaviour
             luggageSliderLocalRotation = Quaternion.Inverse(sliderTransform.rotation) * luggage.transform.rotation;
         }
 
-        luggage.ActiveConveyor = null;
         luggage.SetInStation(true);
         currentLuggage = luggage;
         isProcessing = true;
@@ -141,7 +140,6 @@ public abstract class MachineStation : MonoBehaviour
             if (blockingRb == null)
                 continue;
 
-            blockingLuggage.ActiveConveyor = null;
             blockingRb.isKinematic = false;
 
             Vector3 shoveDirection = blockingRb.position - pushOrigin;

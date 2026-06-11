@@ -177,7 +177,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   grabPoint: {fileID: 2458189276180386721}
   grabAnchor: {fileID: 6063352573525768461}
-  grabRadius: 0.5
+  grabRadius: 1.4
   grabbableLayer:
     serializedVersion: 2
     m_Bits: 64

@@ -3,25 +3,27 @@ using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using System.Collections.Generic;
 
-// ChooseStage map controller. Moves a token across the level-select map and loads the
-// overlapped LevelNode's scene on confirm. The token is a shared cursor any joined
-// device can drive: movement reads WASD / arrows / D-pad / left stick, confirm reads
-// Enter / Space / gamepad South / Start. Hides persisted players while on the map and
-// re-activates them before entering a stage.
+// ChooseStage airplane token. Overcooked-style: snappy WASD / left-stick movement that
+// faces the travel direction instantly (no easing). When it parks on a LevelNode the
+// info card pops up; confirm loads that node's scene. Any joined device can drive it.
+// Persisted players are hidden while on the map and re-activated before entering a stage.
 public class MapMover : MonoBehaviour
 {
-    public float moveSpeed = 10f;
-    public float rotationSpeed = 720f;
-    public float detectRadius = 2f;
+    [Header("Movement")]
+    [SerializeField] private float moveSpeed = 11f;
+    [SerializeField] private float detectRadius = 1.6f;
+
+    [Header("Refs")]
+    [SerializeField] private LevelInfoPopup popup;
 
     private LevelNode currentNode;
     private readonly List<GameObject> hiddenPlayers = new();
-    private bool loading = false;
+    private bool loading;
 
     private InputAction moveAction;
     private InputAction confirmAction;
 
-    void Awake()
+    private void Awake()
     {
         moveAction = new InputAction("MapMove", InputActionType.Value, expectedControlType: "Vector2");
         moveAction.AddCompositeBinding("2DVector")
@@ -42,27 +44,27 @@ public class MapMover : MonoBehaviour
         confirmAction.AddBinding("<Gamepad>/start");
     }
 
-    void OnEnable()
+    private void OnEnable()
     {
         moveAction.Enable();
         confirmAction.Enable();
     }
 
-    void OnDisable()
+    private void OnDisable()
     {
         moveAction.Disable();
         confirmAction.Disable();
     }
 
-    void OnDestroy()
+    private void OnDestroy()
     {
         moveAction?.Dispose();
         confirmAction?.Dispose();
     }
 
-    void Start()
+    private void Start()
     {
-        // Hide all player GameObjects while in ChooseStage
+        // Hide all player GameObjects while picking a stage.
         PlayerInput[] players = FindObjectsByType<PlayerInput>(FindObjectsSortMode.None);
         foreach (var p in players)
         {
@@ -71,7 +73,7 @@ public class MapMover : MonoBehaviour
         }
     }
 
-    void Update()
+    private void Update()
     {
         if (loading) return;
         Move();
@@ -79,52 +81,50 @@ public class MapMover : MonoBehaviour
         TryEnterLevel();
     }
 
-    void Move()
+    private void Move()
     {
         Vector2 input = moveAction.ReadValue<Vector2>();
         if (input.sqrMagnitude > 1f) input.Normalize();
 
-        // Free movement — no car steering, same feel as PlayerMovement
         Vector3 moveDir = new Vector3(input.x, 0f, input.y);
-        transform.position += moveDir * moveSpeed * Time.deltaTime;
+        if (moveDir.sqrMagnitude < 0.01f) return;
 
-        // Rotate to face movement direction
-        if (moveDir.sqrMagnitude > 0.01f)
-        {
-            Quaternion targetRot = Quaternion.LookRotation(moveDir);
-            transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot, rotationSpeed * Time.deltaTime);
-        }
+        // Snappy: move at constant speed and snap to face the travel direction instantly.
+        transform.position += moveDir * moveSpeed * Time.deltaTime;
+        transform.rotation = Quaternion.LookRotation(moveDir, Vector3.up);
     }
 
-    void DetectNode()
+    private void DetectNode()
     {
-        currentNode = null;
+        LevelNode found = null;
         Collider[] hits = Physics.OverlapSphere(transform.position, detectRadius);
         foreach (var hit in hits)
         {
-            LevelNode node = hit.GetComponent<LevelNode>();
-            if (node != null)
-            {
-                currentNode = node;
-                break;
-            }
+            LevelNode node = hit.GetComponentInParent<LevelNode>();
+            if (node != null) { found = node; break; }
+        }
+
+        if (found == currentNode) return;
+        currentNode = found;
+
+        if (popup != null)
+        {
+            if (currentNode != null) popup.Show(currentNode);
+            else popup.Hide();
         }
     }
 
-    void TryEnterLevel()
+    private void TryEnterLevel()
     {
-        if (currentNode == null) return;
+        if (currentNode == null || string.IsNullOrWhiteSpace(currentNode.sceneName)) return;
         if (!confirmAction.WasPressedThisFrame()) return;
 
         loading = true;
 
-        // Re-activate all players before entering the stage
+        // Re-activate persisted players before entering the stage.
         foreach (var p in hiddenPlayers)
             if (p != null) p.SetActive(true);
 
-        if (!string.IsNullOrWhiteSpace(currentNode.sceneName))
-            SceneManager.LoadScene(currentNode.sceneName);
-        else
-            SceneManager.LoadScene(currentNode.levelIndex);
+        SceneManager.LoadScene(currentNode.sceneName);
     }
 }

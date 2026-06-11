@@ -53,9 +53,6 @@ public class Luggage : MonoBehaviour
     public float LifetimeNormalized => lifetimeDuration > 0f
         ? Mathf.Clamp01(lifetimeRemaining / lifetimeDuration)
         : 0f;
-    public Conveyor ActiveConveyor { get; set; }
-    [HideInInspector] public Vector3 kinematicVelocity;
-
     private void Awake()
     {
         initialBehaviorType = behaviorType;
@@ -330,8 +327,6 @@ public class Luggage : MonoBehaviour
         IsWashed = source.IsWashed || markWashed;
         IsWrapped = source.IsWrapped || markWrapped;
         IsScanned = source.IsScanned;
-        ActiveConveyor = source.ActiveConveyor;
-        kinematicVelocity = source.kinematicVelocity;
         lastGrabber = source.lastGrabber;
         destinationGateNumber = source.destinationGateNumber;
         RefreshTimerDisplay();

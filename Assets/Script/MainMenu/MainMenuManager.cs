@@ -4,33 +4,47 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 // Lobby controller. Opens on a "press to start" gate with the camera looking away; the
-// first player to press (keyboard or gamepad) sets the input mode, swings the camera
-// round to the menu, reveals the UI and spawns as the first character. Further players
-// join into a camera-facing lineup that re-centres as players join/leave. Start routes
-// to ChooseStage.
+// first player to press (keyboard half or gamepad) sets the input mode, swings the
+// camera round to the menu, reveals the UI and spawns as the first character. Further
+// players join into a camera-facing lineup that re-centres as players join.
+//
+// Top-right slot cards: one card per joined player (number, device, colour) plus a
+// single translucent "press to join" card that lists only the join options still free
+// (keyboard halves / gamepads) — it disappears when nothing is left.
 public class MainMenuManager : MonoBehaviour
 {
     [Header("Player Lineup")]
     [SerializeField] private Transform spawnCenter;     // row centre, on the floor, +X = row axis
     [SerializeField] private Camera lobbyCamera;        // characters face this
-    [SerializeField] private float spacing = 1.6f;      // world units between characters
+    [SerializeField] private float spacing = 2.6f;      // max world units between characters (few players)
+    [SerializeField] private float bandWidth = 4.6f;    // row never spreads wider than this (many players pack in)
     [SerializeField] private float lobbyScale = 0.55f;  // character display scale in the lobby
     [SerializeField] private float feetPivotOffset = 1.005f; // model feet sit this far below pivot at scale 1
 
-    [Header("Player Cards")]
+    [Header("Player Slots")]
     [SerializeField] private Transform playerPanel;
-    [SerializeField] private GameObject playerUIPrefab;
+    [SerializeField] private GameObject playerUIPrefab;     // card: Title / Subtitle / ColorBar
+    [SerializeField] private GameObject joinHintRoot;       // "press to join" card inside the panel
+    [SerializeField] private TMP_Text joinHintDevices;      // available options, e.g. "Space · Right Ctrl · (A)"
 
     [Header("Start Gate / Intro")]
-    [SerializeField] private GameObject startPrompt;       // "Press Space / (A) to Start"
-    [SerializeField] private GameObject[] menuObjects;     // MenuPanel, PlayerPanel — shown after start
-    [SerializeField] private GameObject joinPrompt;        // "Press to Join" — shown after start when < 4
+    [SerializeField] private GameObject startPrompt;        // "Press ... to Start"
+    [SerializeField] private GameObject[] menuObjects;      // MenuPanel, PlayerPanel — shown after start
     [SerializeField] private InputModeManager inputModeManager;
-    [SerializeField] private Transform startView;          // camera pose before start (looking away)
-    [SerializeField] private Transform menuView;           // camera pose framing the lineup
+    [SerializeField] private Transform startView;           // camera pose before start (looking away)
+    [SerializeField] private Transform menuView;            // camera pose framing the lineup
     [SerializeField] private float introDuration = 1f;
+
+    private static readonly Color[] playerColors =
+    {
+        new Color(0.31f, 0.64f, 0.89f), // P1 blue
+        new Color(0.89f, 0.44f, 0.31f), // P2 orange
+        new Color(0.44f, 0.75f, 0.35f), // P3 green
+        new Color(0.89f, 0.77f, 0.31f), // P4 yellow
+    };
 
     private readonly List<PlayerInput> joinedPlayers = new();
     private PlayerInputManager manager;
@@ -63,6 +77,8 @@ public class MainMenuManager : MonoBehaviour
         {
             ShowStartGate();
         }
+
+        RefreshJoinHint();
     }
 
     private void OnDestroy()
@@ -71,12 +87,13 @@ public class MainMenuManager : MonoBehaviour
             manager.onPlayerJoined -= HandlePlayerJoined;
     }
 
+    private void Update() => RefreshJoinHint();
+
     private void ShowStartGate()
     {
         started = false;
         if (startPrompt != null) startPrompt.SetActive(true);
         SetMenuObjectsActive(false);
-        if (joinPrompt != null) joinPrompt.SetActive(false);
 
         if (inputModeManager != null) inputModeManager.enabled = false;
         Cursor.visible = false; // attract screen
@@ -94,7 +111,7 @@ public class MainMenuManager : MonoBehaviour
     }
 
     // Show the menu UI and choose the initial input mode from the first device.
-    // Keyboard/mouse player -> Pointer (cursor), gamepad player -> Navigation (highlight).
+    // Keyboard player -> Pointer (cursor + mouse), gamepad player -> Navigation (highlight).
     private void RevealMenu(PlayerInput firstPlayer)
     {
         started = true;
@@ -105,7 +122,8 @@ public class MainMenuManager : MonoBehaviour
         if (inputModeManager != null)
         {
             inputModeManager.enabled = true;
-            bool keyboard = firstPlayer != null && firstPlayer.currentControlScheme == "Keyboard";
+            bool keyboard = firstPlayer != null && firstPlayer.currentControlScheme != null
+                && firstPlayer.currentControlScheme.StartsWith("Keyboard");
             inputModeManager.SetInitialMode(keyboard
                 ? InputModeManager.Mode.Pointer
                 : InputModeManager.Mode.Navigation);
@@ -148,16 +166,66 @@ public class MainMenuManager : MonoBehaviour
         if (!started)
             EnterMenuState(player);
 
-        if (playerUIPrefab != null && playerPanel != null)
+        AddPlayerCard(player);
+        UpdatePositions();
+        RefreshJoinHint();
+    }
+
+    private void AddPlayerCard(PlayerInput player)
+    {
+        if (playerUIPrefab == null || playerPanel == null) return;
+
+        GameObject ui = Instantiate(playerUIPrefab, playerPanel);
+
+        foreach (var text in ui.GetComponentsInChildren<TMP_Text>())
         {
-            GameObject ui = Instantiate(playerUIPrefab, playerPanel);
-            TMP_Text text = ui.GetComponentInChildren<TMP_Text>();
-            if (text != null)
-                text.text = $"Player {player.playerIndex + 1}";
+            if (text.name == "Title") text.text = $"Player {player.playerIndex + 1}";
+            else if (text.name == "Subtitle") text.text = SchemeLabel(player.currentControlScheme);
         }
 
-        UpdatePositions();
-        UpdateJoinPrompt();
+        Transform bar = ui.transform.Find("ColorBar");
+        if (bar != null && bar.TryGetComponent(out Image barImage))
+            barImage.color = playerColors[Mathf.Clamp(player.playerIndex, 0, playerColors.Length - 1)];
+
+        // Keep the join-hint card at the end of the row.
+        if (joinHintRoot != null && joinHintRoot.transform.parent == playerPanel)
+            joinHintRoot.transform.SetAsLastSibling();
+    }
+
+    private static string SchemeLabel(string scheme) => scheme switch
+    {
+        PlayerSystem.SchemeKeyboardLeft  => "Keyboard · WASD",
+        PlayerSystem.SchemeKeyboardRight => "Keyboard · Arrows",
+        PlayerSystem.SchemeGamepad       => "Gamepad",
+        _ => scheme,
+    };
+
+    // Show the join card only while something can still join, listing just the free options.
+    private void RefreshJoinHint()
+    {
+        if (joinHintRoot == null) return;
+
+        bool show = started && joinedPlayers.Count < 4;
+        string options = "";
+
+        if (show)
+        {
+            var parts = new List<string>(3);
+            if (Keyboard.current != null)
+            {
+                if (PlayerSystem.IsSchemeFree(PlayerSystem.SchemeKeyboardLeft)) parts.Add("Space");
+                if (PlayerSystem.IsSchemeFree(PlayerSystem.SchemeKeyboardRight)) parts.Add("Right Ctrl");
+            }
+            if (PlayerSystem.FreeGamepadCount() > 0) parts.Add("(A)");
+
+            show = parts.Count > 0;
+            options = string.Join("  ·  ", parts);
+        }
+
+        if (joinHintRoot.activeSelf != show)
+            joinHintRoot.SetActive(show);
+        if (show && joinHintDevices != null && joinHintDevices.text != options)
+            joinHintDevices.text = options;
     }
 
     // Lay the joined characters out as a centred row facing the lobby camera.
@@ -169,9 +237,12 @@ public class MainMenuManager : MonoBehaviour
         Vector3 axis = spawnCenter.right;
         float feetY = spawnCenter.position.y + feetPivotOffset * lobbyScale;
 
+        // Spread out for few players, pack tighter so the row never exceeds bandWidth.
+        float effSpacing = count > 1 ? Mathf.Min(spacing, bandWidth / (count - 1)) : 0f;
+
         for (int i = 0; i < count; i++)
         {
-            float offset = (i - (count - 1) / 2f) * spacing;
+            float offset = (i - (count - 1) / 2f) * effSpacing;
             Vector3 pos = spawnCenter.position + axis * offset;
             pos.y = feetY;
 
@@ -187,12 +258,6 @@ public class MainMenuManager : MonoBehaviour
                     t.rotation = Quaternion.LookRotation(look);
             }
         }
-    }
-
-    private void UpdateJoinPrompt()
-    {
-        if (joinPrompt == null) return;
-        joinPrompt.SetActive(started && joinedPlayers.Count < 4);
     }
 
     private void SetMenuObjectsActive(bool active)
@@ -221,6 +286,10 @@ public class MainMenuManager : MonoBehaviour
 
     public void OnClickStart()
     {
+        // The press that just joined a player must not also activate the button.
+        if (PlayerSystem.Instance != null && PlayerSystem.Instance.LastJoinFrame == Time.frameCount)
+            return;
+
         // Need at least one joined player, otherwise the stage would have no characters.
         if (joinedPlayers.Count < 1)
         {
@@ -230,12 +299,9 @@ public class MainMenuManager : MonoBehaviour
 
         PlayButtonSelectSfx();
 
-        // Un-freeze so gameplay physics resume, and stop accepting new joiners.
+        // Un-freeze so gameplay physics resume.
         foreach (var player in joinedPlayers)
             FreezeForLobby(player, false);
-
-        if (manager != null)
-            manager.DisableJoining();
 
         SceneManager.LoadScene("ChooseStage");
     }

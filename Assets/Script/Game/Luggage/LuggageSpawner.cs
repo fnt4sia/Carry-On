@@ -164,7 +164,6 @@ public class LuggageSpawner : MonoBehaviour
             rb.angularVelocity = Vector3.zero;
         }
 
-        luggage.ActiveConveyor = null;
         luggage.gameObject.SetActive(false);
 
         GameObject key = luggage.sourcePrefab;
