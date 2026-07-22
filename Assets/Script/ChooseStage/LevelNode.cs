@@ -1,13 +1,45 @@
 using UnityEngine;
 
-// A level-select node on the ChooseStage map. Holds the scene it loads plus the
-// display info shown in the popup card when the airplane token parks on it.
+/// <summary>
+/// Stage-select presentation for one LevelConfig. Progression data belongs to the
+/// save service; this component only reflects it in the map scene.
+/// </summary>
 public class LevelNode : MonoBehaviour
 {
-    [Header("Load")]
-    public string sceneName;        // scene loaded on confirm
+    [SerializeField] private LevelConfig level;
+    [SerializeField] private GameObject unlockedVisual;
+    [SerializeField] private GameObject lockedVisual;
 
-    [Header("Display")]
-    public string levelName = "Level";   // e.g. "Level 1"
-    [TextArea] public string description; // short blurb shown in the popup
+    public LevelConfig Level => level;
+    public string DisplayName => level != null ? level.displayName : "Unconfigured Level";
+    public string Description => level != null ? level.description : string.Empty;
+    public bool IsUnlocked => level != null
+        && (ProgressionService.Instance == null
+            ? level.unlockedByDefault
+            : ProgressionService.Instance.IsUnlocked(level));
+    public int BestStars => level != null && ProgressionService.Instance != null
+        ? ProgressionService.Instance.GetBestStars(level)
+        : 0;
+
+    private void OnEnable()
+    {
+        if (ProgressionService.Instance != null)
+            ProgressionService.Instance.ProgressChanged += Refresh;
+        Refresh();
+    }
+
+    private void OnDisable()
+    {
+        if (ProgressionService.Instance != null)
+            ProgressionService.Instance.ProgressChanged -= Refresh;
+    }
+
+    public void Refresh()
+    {
+        bool unlocked = IsUnlocked;
+        if (unlockedVisual != null)
+            unlockedVisual.SetActive(unlocked);
+        if (lockedVisual != null)
+            lockedVisual.SetActive(!unlocked);
+    }
 }

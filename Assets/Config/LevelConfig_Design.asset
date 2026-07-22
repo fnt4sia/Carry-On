@@ -12,6 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1f8186d497b8b436e9308ccb7c9ddeae, type: 3}
   m_Name: LevelConfig_Design
   m_EditorClassIdentifier: Assembly-CSharp::LevelConfig
+  levelId: design-sandbox
+  sceneName: DesignScene
+  displayName: Design Sandbox
+  description: Relaxed sandbox for testing mechanics and level layouts.
+  unlockedByDefault: 1
+  nextLevel: {fileID: 0}
   gameTime: 999
   star1Score: 10
   star2Score: 30
@@ -24,9 +30,7 @@ MonoBehaviour:
   waveDelay: 10
   luggagePerWave: 5
   intraWaveInterval: 3
-  bombWaveChance: 0.3
   scoreCorrectDelivery: 10
   scoreMissingProcess: -5
-  scoreBombDelivered: -15
   scoreTimerExpired: -5
   scoreWrongGateDelivery: -5

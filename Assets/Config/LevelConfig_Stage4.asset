@@ -12,6 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1f8186d497b8b436e9308ccb7c9ddeae, type: 3}
   m_Name: LevelConfig_Stage4
   m_EditorClassIdentifier: Assembly-CSharp::LevelConfig
+  levelId: stage-4
+  sceneName: Stage_4
+  displayName: Stage 4
+  description: Peak-hour waves leave little time and make bomb detection essential.
+  unlockedByDefault: 0
+  nextLevel: {fileID: 0}
   gameTime: 120
   star1Score: 60
   star2Score: 120
@@ -20,13 +26,11 @@ MonoBehaviour:
   - {fileID: 2657728768583679652, guid: 3ff59be8ddf8948129c2020ea3ca360c, type: 3}
   - {fileID: 7318264214933058454, guid: 918e7b0e7e18340caa11355807c50fc4, type: 3}
   - {fileID: 5920138206827221722, guid: d6fb8693343434e868f7bcd75488e959, type: 3}
-  luggageLifetime: 20
-  waveDelay: 10
-  luggagePerWave: 5
-  intraWaveInterval: 1.5
-  bombWaveChance: 0.3
+  luggageLifetime: 19
+  waveDelay: 7
+  luggagePerWave: 6
+  intraWaveInterval: 1.1
   scoreCorrectDelivery: 10
   scoreMissingProcess: -5
-  scoreBombDelivered: -15
   scoreTimerExpired: -5
   scoreWrongGateDelivery: -5

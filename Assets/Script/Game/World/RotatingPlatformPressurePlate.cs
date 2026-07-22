@@ -18,6 +18,10 @@ public class RotatingPlatformPressurePlate : MonoBehaviour
     [SerializeField] private Color pressedColor = Color.green;
 
     private int objectsOnPlate;
+    private MaterialPropertyBlock propertyBlock;
+
+    private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+    private static readonly int ColorId = Shader.PropertyToID("_Color");
 
     private void Reset()
     {
@@ -78,8 +82,14 @@ public class RotatingPlatformPressurePlate : MonoBehaviour
 
     private void SetPlateColor(Color color)
     {
-        if (plateRenderer != null)
-            plateRenderer.material.color = color;
+        if (plateRenderer == null)
+            return;
+
+        propertyBlock ??= new MaterialPropertyBlock();
+        plateRenderer.GetPropertyBlock(propertyBlock);
+        propertyBlock.SetColor(BaseColorId, color);
+        propertyBlock.SetColor(ColorId, color);
+        plateRenderer.SetPropertyBlock(propertyBlock);
     }
 
     private bool IsValidTrigger(Collider other)
@@ -87,8 +97,7 @@ public class RotatingPlatformPressurePlate : MonoBehaviour
         bool isPlayer = canPlayerTrigger
             && (other.CompareTag("Player") || other.GetComponentInParent<PlayerMovement>() != null);
 
-        bool isLuggage = canLuggageTrigger
-            && (other.CompareTag("Luggage") || other.GetComponentInParent<Luggage>() != null);
+        bool isLuggage = canLuggageTrigger && Luggage.TryGetFromCollider(other, out _);
 
         return isPlayer || isLuggage;
     }

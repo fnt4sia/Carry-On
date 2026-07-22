@@ -99,15 +99,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0da5492ce84b242708134c32a7294506, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TestConveyor
+  tuning: {fileID: 11400000, guid: 08040470eac664c2f8debfdecdfda880, type: 2}
   shape: 1
-  moveSpeed: 6
-  acceleration: 22
   turnPivot: {fileID: 2940314489242610772}
   clockwise: 0
-  centerRadius: 3.5
-  centeringGain: 3
-  uprightGain: 4
-  surfaceCheckMargin: 0.25
 --- !u!1001 &7567279386853312244
 PrefabInstance:
   m_ObjectHideFlags: 0

@@ -493,7 +493,7 @@ Transform:
   m_GameObject: {fileID: 8900681013512861856}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 42.701073, y: 3, z: 34.03095}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 0.75, y: 0.7, z: 0.7}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -517,15 +517,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 62860e150e6514c11a30677f15bcaa23, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WashingMachine
+  stationTuning: {fileID: 11400000, guid: b8b5e5a98894c420ba2582d039f21488, type: 2}
   snapTransform: {fileID: 1240859526799568017}
   sliderTransform: {fileID: 7685628605966008039}
   machineAnimator: {fileID: 6587274479084746675}
+  animationDriven: 1
+  processDuration: 1.5
+  readyDuration: 0.75
   shoveBlockingLuggageOnPlace: 1
   obstacleCheckTransform: {fileID: 7685628605966008039}
-  obstacleCheckHalfExtents: {x: 1.5, y: 1, z: 1.5}
-  obstacleShoveImpulse: 5
-  obstacleShoveUpImpulse: 1.5
-  obstacleShoveRandomness: 0.65
   washedLuggagePrefab: {fileID: 2657728768583679652, guid: 3ff59be8ddf8948129c2020ea3ca360c,
     type: 3}
 --- !u!95 &6587274479084746675

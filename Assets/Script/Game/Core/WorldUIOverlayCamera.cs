@@ -3,7 +3,7 @@ using UnityEngine.Rendering.Universal;
 using UnityEngine.SceneManagement;
 
 [DisallowMultipleComponent]
-public sealed class WorldUIOverlayCamera : MonoBehaviour
+public class WorldUIOverlayCamera : MonoBehaviour
 {
     public const string LayerName = "WorldUI";
 

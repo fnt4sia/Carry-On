@@ -13,7 +13,6 @@ public class Gateway : MonoBehaviour
     private void Start()
     {
         UpdateGateVisuals();
-        gateAnimator.SetBool("IsOpen", isOpen);
     }
 
     public void Open()
@@ -36,7 +35,6 @@ public class Gateway : MonoBehaviour
 
     public void Toggle()
     {
-        Debug.Log("kepanggil bang");
         isOpen = !isOpen;
         UpdateGateVisuals();
     }
@@ -45,7 +43,7 @@ public class Gateway : MonoBehaviour
     {
         if (gateAnimator != null)
         {
-            gateAnimator.SetBool("IsOpen", isOpen);
+            gateAnimator.SetBool(AnimId.IsOpen, isOpen);
         }
     }
 }

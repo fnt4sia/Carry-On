@@ -1,46 +1,80 @@
+using System.Collections;
 using UnityEngine;
 
-// Abstract base for all luggage-processing stations (Washer / Wrapper / Scanner).
-// Handles the place → animator-trigger → process-complete → eject lifecycle and is
-// driven by animation events (AnimEvent_OnDoorClosed, AnimEvent_OnOutputComplete).
+public enum StationPhase
+{
+    Idle,
+    Processing,
+    Ready
+}
+
+/// <summary>
+/// Shared place → process → ready → eject lifecycle for the Washer and Wrapper.
+/// Finished animation clips can drive the lifecycle with events; prototype machines
+/// can use the timed fallback without changing gameplay code.
+/// </summary>
 public abstract class MachineStation : MonoBehaviour
 {
+    [Header("Tuning")]
+    [SerializeField] private StationTuning stationTuning;
+
     [Header("Station")]
-    [Tooltip("Where the luggage snaps to when first placed (should sit on the slider's receive end).")]
+    [Tooltip("Where luggage snaps when placed.")]
     [SerializeField] protected Transform snapTransform;
-    [Tooltip("The slider GameObject — luggage is parented here so it rides the animation.")]
+    [Tooltip("Moving anchor used by the machine's output animation.")]
     [SerializeField] protected Transform sliderTransform;
     [SerializeField] protected Animator machineAnimator;
+
+    [Header("Lifecycle")]
+    [Tooltip("Disable for prototype machines that do not have animation events.")]
+    [SerializeField] private bool animationDriven = true;
+    [SerializeField, Min(0.05f)] private float processDuration = 1.5f;
+    [SerializeField, Min(0f)] private float readyDuration = 0.75f;
 
     [Header("Output Clearance")]
     [SerializeField] private bool shoveBlockingLuggageOnPlace = true;
     [SerializeField] private Transform obstacleCheckTransform;
-    [SerializeField] private Vector3 obstacleCheckHalfExtents = new Vector3(1.5f, 1f, 1.5f);
-    [SerializeField, Min(0f)] private float obstacleShoveImpulse = 5f;
-    [SerializeField, Min(0f)] private float obstacleShoveUpImpulse = 1.5f;
-    [SerializeField, Min(0f)] private float obstacleShoveRandomness = 0.65f;
 
     protected Luggage currentLuggage;
     protected bool isProcessing;
+
     private Vector3 luggageSliderLocalPosition;
     private Quaternion luggageSliderLocalRotation;
+    private StationPhase phase;
 
     private static readonly Collider[] s_ObstacleHits = new Collider[24];
 
-    public bool IsOccupied => isProcessing;
-    public bool IsProcessing => isProcessing;
+    public bool IsOccupied => phase != StationPhase.Idle;
+    public bool IsProcessing => phase == StationPhase.Processing;
+
+    private Vector3 ObstacleCheckHalfExtents => stationTuning.ObstacleCheckHalfExtents;
+    private float ObstacleShoveImpulse => stationTuning.ObstacleShoveImpulse;
+    private float ObstacleShoveUpImpulse => stationTuning.ObstacleShoveUpImpulse;
+    private float ObstacleShoveRandomness => stationTuning.ObstacleShoveRandomness;
 
     public abstract bool CanAccept(Luggage luggage);
     protected abstract Luggage OnProcessComplete(Luggage luggage);
+    protected virtual void OnLuggagePlaced(Luggage luggage) { }
+    protected virtual void OnStationReset() { }
+
+    private void Awake()
+    {
+        if (stationTuning != null)
+            return;
+
+        Debug.LogError($"{GetType().Name} '{name}' has no {nameof(StationTuning)}.", this);
+        enabled = false;
+    }
 
     public bool TryPlace(Luggage luggage)
     {
-        if (IsOccupied || luggage == null || !CanAccept(luggage)) return false;
+        if (IsOccupied || luggage == null || !CanAccept(luggage))
+            return false;
 
         ShoveBlockingLuggage(luggage);
         luggage.DropAllGrabbers();
 
-        Rigidbody rb = luggage.GetComponent<Rigidbody>();
+        Rigidbody rb = luggage.Body;
         if (rb != null)
         {
             rb.linearVelocity = Vector3.zero;
@@ -48,9 +82,12 @@ public abstract class MachineStation : MonoBehaviour
             rb.isKinematic = true;
         }
 
-        Transform anchor = snapTransform != null ? snapTransform : sliderTransform != null ? sliderTransform : transform;
-        luggage.transform.position = anchor.position;
-        luggage.transform.rotation = anchor.rotation;
+        Transform anchor = snapTransform != null
+            ? snapTransform
+            : sliderTransform != null
+                ? sliderTransform
+                : transform;
+        luggage.transform.SetPositionAndRotation(anchor.position, anchor.rotation);
 
         if (sliderTransform != null)
         {
@@ -61,33 +98,47 @@ public abstract class MachineStation : MonoBehaviour
         luggage.SetInStation(true);
         currentLuggage = luggage;
         isProcessing = true;
+        phase = StationPhase.Processing;
+        OnLuggagePlaced(luggage);
 
-        machineAnimator.SetBool("isTriggered", true);
+        if (machineAnimator != null)
+            machineAnimator.SetBool(AnimId.IsTriggered, true);
+
+        if (!animationDriven || machineAnimator == null)
+            StartCoroutine(AutomaticProcess());
+
         return true;
     }
 
-    // Animation Event — place on the last frame of "door closing" (luggage is sealed inside)
+    // Animation Event: the gameplay operation occurs when the luggage is sealed.
     public void AnimEvent_OnDoorClosed()
     {
-        if (currentLuggage == null) return;
+        if (currentLuggage == null || phase != StationPhase.Processing)
+            return;
+
         currentLuggage = OnProcessComplete(currentLuggage);
+        phase = StationPhase.Ready;
     }
 
-    // Animation Event — place on the last frame of "washing slider pushing" (luggage fully pushed out)
+    // Animation Event: the output is reachable and can be picked up again.
     public void AnimEvent_OnOutputComplete()
     {
-        if (currentLuggage == null) return;
+        if (currentLuggage == null)
+            return;
 
         Luggage finishedLuggage = currentLuggage;
-        Rigidbody rb = finishedLuggage.GetComponent<Rigidbody>();
+        Rigidbody rb = finishedLuggage.Body;
         if (rb != null)
             rb.isKinematic = false;
 
         finishedLuggage.SetInStation(false);
         currentLuggage = null;
         isProcessing = false;
+        if (machineAnimator != null)
+            machineAnimator.SetBool(AnimId.IsTriggered, false);
 
-        machineAnimator.SetBool("isTriggered", false);
+        phase = StationPhase.Idle;
+        OnStationReset();
     }
 
     private void LateUpdate()
@@ -97,6 +148,17 @@ public abstract class MachineStation : MonoBehaviour
 
         currentLuggage.transform.position = sliderTransform.TransformPoint(luggageSliderLocalPosition);
         currentLuggage.transform.rotation = sliderTransform.rotation * luggageSliderLocalRotation;
+    }
+
+    private IEnumerator AutomaticProcess()
+    {
+        yield return new WaitForSeconds(processDuration);
+        AnimEvent_OnDoorClosed();
+
+        if (readyDuration > 0f)
+            yield return new WaitForSeconds(readyDuration);
+
+        AnimEvent_OnOutputComplete();
     }
 
     private void ShoveBlockingLuggage(Luggage incomingLuggage)
@@ -114,7 +176,7 @@ public abstract class MachineStation : MonoBehaviour
 
         int hitCount = Physics.OverlapBoxNonAlloc(
             checkTransform.position,
-            obstacleCheckHalfExtents,
+            ObstacleCheckHalfExtents,
             s_ObstacleHits,
             checkTransform.rotation,
             ~0,
@@ -128,15 +190,16 @@ public abstract class MachineStation : MonoBehaviour
             if (hit == null)
                 continue;
 
-            Luggage blockingLuggage = hit.GetComponentInParent<Luggage>();
-            if (blockingLuggage == null
+            if (!Luggage.TryGetFromCollider(hit, out Luggage blockingLuggage)
                 || blockingLuggage == incomingLuggage
                 || blockingLuggage.IsInStation
                 || blockingLuggage.IsDelivered
                 || blockingLuggage.GetIsGrabbed())
+            {
                 continue;
+            }
 
-            Rigidbody blockingRb = blockingLuggage.GetComponent<Rigidbody>();
+            Rigidbody blockingRb = blockingLuggage.Body;
             if (blockingRb == null)
                 continue;
 
@@ -147,19 +210,23 @@ public abstract class MachineStation : MonoBehaviour
 
             if (shoveDirection.sqrMagnitude < 0.0001f)
             {
-                Vector2 randomFlatDirection = Random.insideUnitCircle.normalized;
+                Vector2 randomFlatDirection = UnityEngine.Random.insideUnitCircle.normalized;
                 shoveDirection = new Vector3(randomFlatDirection.x, 0f, randomFlatDirection.y);
             }
 
-            Vector2 randomFlatOffset = Random.insideUnitCircle * obstacleShoveRandomness;
-            shoveDirection = (shoveDirection.normalized + new Vector3(randomFlatOffset.x, 0f, randomFlatOffset.y)).normalized;
+            Vector2 randomFlatOffset = UnityEngine.Random.insideUnitCircle * ObstacleShoveRandomness;
+            shoveDirection = (
+                shoveDirection.normalized
+                + new Vector3(randomFlatOffset.x, 0f, randomFlatOffset.y)).normalized;
             if (shoveDirection.sqrMagnitude < 0.0001f)
                 shoveDirection = transform.forward;
 
             blockingRb.AddForce(
-                shoveDirection * obstacleShoveImpulse + Vector3.up * obstacleShoveUpImpulse,
+                shoveDirection * ObstacleShoveImpulse + Vector3.up * ObstacleShoveUpImpulse,
                 ForceMode.Impulse);
-            blockingRb.AddTorque(Random.onUnitSphere * obstacleShoveImpulse, ForceMode.Impulse);
+            blockingRb.AddTorque(
+                UnityEngine.Random.onUnitSphere * ObstacleShoveImpulse,
+                ForceMode.Impulse);
         }
 
         for (int i = 0; i < hitCount; i++)

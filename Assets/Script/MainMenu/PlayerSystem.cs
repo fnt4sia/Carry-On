@@ -18,13 +18,13 @@ using UnityEngine.SceneManagement;
 // on the same frame (see LastJoinFrame).
 [DefaultExecutionOrder(-100)]
 [RequireComponent(typeof(PlayerInputManager))]
-public class PlayerSystem : MonoBehaviour
+public class PlayerSystem : SingletonBehaviour<PlayerSystem>
 {
+    private const string ResourcePath = "Runtime/PlayerSystem";
+
     public const string SchemeKeyboardLeft  = "KeyboardLeft";
     public const string SchemeKeyboardRight = "KeyboardRight";
     public const string SchemeGamepad       = "Gamepad";
-
-    public static PlayerSystem Instance { get; private set; }
 
     [SerializeField] private string lobbySceneName = "MainMenu";
 
@@ -40,31 +40,30 @@ public class PlayerSystem : MonoBehaviour
     // press that joined a player doesn't also activate the selected button.
     public int LastJoinFrame { get; private set; } = -1;
 
-    private void Awake()
+    protected override bool PersistAcrossScenes => true;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    private static void Bootstrap()
     {
-        // Singleton: when MainMenu reloads (back-to-lobby), the fresh scene copy
-        // destroys itself and the original persisted instance keeps the players.
-        if (Instance != null && Instance != this)
-        {
-            Destroy(gameObject);
+        if (Instance != null)
             return;
-        }
 
-        Instance = this;
-        DontDestroyOnLoad(gameObject);
+        PlayerSystem prefab = Resources.Load<PlayerSystem>(ResourcePath);
+        if (prefab != null)
+            Instantiate(prefab);
+    }
 
+    protected override void OnSingletonAwake()
+    {
         manager = GetComponent<PlayerInputManager>();
 
         SceneManager.sceneLoaded += OnSceneLoaded;
         ApplyJoinState(SceneManager.GetActiveScene().name);
     }
 
-    private void OnDestroy()
+    protected override void OnSingletonDestroyed()
     {
-        if (Instance != this) return;
-
         SceneManager.sceneLoaded -= OnSceneLoaded;
-        Instance = null;
     }
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode) => ApplyJoinState(scene.name);

@@ -2,11 +2,21 @@ using System.Collections.Generic;
 using UnityEngine;
 
 // ScriptableObject defining a level's tuning: round timer, 1/2/3-star score thresholds,
-// luggage spawner settings (pool, wave size, intervals, bomb chance), and scoring
-// values (correct delivery / missing-process / bomb / expired / wrong-gate penalties).
+// luggage spawner settings (pool, wave size, intervals), and scoring values
+// (correct delivery / missing-process / expired / wrong-gate penalties).
 [CreateAssetMenu(fileName = "LevelConfig", menuName = "Carry On/Level Config")]
 public class LevelConfig : ScriptableObject
 {
+    [Header("Identity & Progression")]
+    [Tooltip("Stable save-data key. Do not change after shipping a level.")]
+    public string levelId = "stage-1";
+    [Tooltip("Scene name as listed in Build Settings.")]
+    public string sceneName = "Stage_1";
+    public string displayName = "Stage 1";
+    [TextArea] public string description;
+    public bool unlockedByDefault;
+    public LevelConfig nextLevel;
+
     [Header("Timer")]
     public float gameTime = 120f;
 
@@ -28,18 +38,38 @@ public class LevelConfig : ScriptableObject
     public int luggagePerWave = 5;
     [Tooltip("Seconds between spawns within a single wave.")]
     public float intraWaveInterval = 1.5f;
-    [Tooltip("0–1 chance that a wave contains a bomb (one of its luggage is replaced with a bomb-flagged one).")]
-    [Range(0f, 1f)] public float bombWaveChance = 0.3f;
 
     [Header("Scoring")]
-    [Tooltip("Points for a correctly processed non-bomb delivery.")]
+    [Tooltip("Points for a correctly processed delivery at the right gate.")]
     public int scoreCorrectDelivery = 10;
     [Tooltip("Penalty for delivering luggage with an unprocessed problem (unwashed/unwrapped).")]
     public int scoreMissingProcess = -5;
-    [Tooltip("Penalty for delivering a bomb (any bomb, regardless of scan state).")]
-    public int scoreBombDelivered = -15;
     [Tooltip("Penalty when a luggage's lifetime expires before delivery.")]
     public int scoreTimerExpired = -5;
     [Tooltip("Penalty for delivering luggage to the wrong numbered gate when a level has multiple delivery gates.")]
     public int scoreWrongGateDelivery = -5;
+
+    public int CalculateStars(int score)
+    {
+        if (score >= star3Score) return 3;
+        if (score >= star2Score) return 2;
+        if (score >= star1Score) return 1;
+        return 0;
+    }
+
+    private void OnValidate()
+    {
+        gameTime = Mathf.Max(1f, gameTime);
+        luggageLifetime = Mathf.Max(1f, luggageLifetime);
+        waveDelay = Mathf.Max(0f, waveDelay);
+        luggagePerWave = Mathf.Max(1, luggagePerWave);
+        intraWaveInterval = Mathf.Max(0f, intraWaveInterval);
+
+        star1Score = Mathf.Max(0, star1Score);
+        star2Score = Mathf.Max(star1Score, star2Score);
+        star3Score = Mathf.Max(star2Score, star3Score);
+
+        if (string.IsNullOrWhiteSpace(levelId))
+            levelId = name.ToLowerInvariant().Replace(' ', '-');
+    }
 }

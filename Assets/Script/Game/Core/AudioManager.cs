@@ -4,9 +4,9 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-public class AudioManager : MonoBehaviour
+public class AudioManager : SingletonBehaviour<AudioManager>
 {
-    public static AudioManager Instance { get; private set; }
+    private const string ResourcePath = "Runtime/AudioManager";
 
     [Serializable]
     public class AudioClipData
@@ -27,21 +27,27 @@ public class AudioManager : MonoBehaviour
     [SerializeField] private string gameplayMusicClipName = "Carry On Main Theme Mastered";
 
     private readonly Dictionary<string, AudioClip> clipDictionary = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> missingClipWarnings = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<AudioSource> loopingSources = new();
     private AudioSource[] sfxSources;
     private AudioSource musicSource;
     private Coroutine musicFadeRoutine;
 
-    private void Awake()
+    protected override bool PersistAcrossScenes => true;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    private static void Bootstrap()
     {
-        if (Instance != null && Instance != this)
-        {
-            Destroy(gameObject);
+        if (Instance != null)
             return;
-        }
 
-        Instance = this;
-        DontDestroyOnLoad(gameObject);
+        AudioManager prefab = Resources.Load<AudioManager>(ResourcePath);
+        if (prefab != null)
+            Instantiate(prefab);
+    }
 
+    protected override void OnSingletonAwake()
+    {
         BuildClipDictionary();
         CreateSources();
 
@@ -49,12 +55,9 @@ public class AudioManager : MonoBehaviour
         ConfigureSceneAudio(SceneManager.GetActiveScene());
     }
 
-    private void OnDestroy()
+    protected override void OnSingletonDestroyed()
     {
         SceneManager.sceneLoaded -= OnSceneLoaded;
-
-        if (Instance == this)
-            Instance = null;
     }
 
     public void PlayMusic(string clipName)
@@ -100,12 +103,14 @@ public class AudioManager : MonoBehaviour
         if (!TryGetClip(clipName, out AudioClip clip))
             return null;
 
-        AudioSource source = GetAvailableSfxSource();
-        source.Stop();
+        GameObject sourceObject = new($"Looping_SFX_{loopingSources.Count}");
+        sourceObject.transform.SetParent(transform, false);
+        AudioSource source = sourceObject.AddComponent<AudioSource>();
         source.clip = clip;
         source.volume = Mathf.Clamp01(volume);
         source.loop = true;
         source.Play();
+        loopingSources.Add(source);
         return source;
     }
 
@@ -117,6 +122,8 @@ public class AudioManager : MonoBehaviour
         source.Stop();
         source.loop = false;
         source.clip = null;
+        if (loopingSources.Remove(source))
+            Destroy(source.gameObject);
     }
 
     private void BuildClipDictionary()
@@ -153,7 +160,12 @@ public class AudioManager : MonoBehaviour
     private bool TryGetClip(string clipName, out AudioClip clip)
     {
         clip = null;
-        return !string.IsNullOrWhiteSpace(clipName) && clipDictionary.TryGetValue(clipName, out clip);
+        if (!string.IsNullOrWhiteSpace(clipName) && clipDictionary.TryGetValue(clipName, out clip))
+            return true;
+
+        if (!string.IsNullOrWhiteSpace(clipName) && missingClipWarnings.Add(clipName))
+            Debug.LogWarning($"Audio clip id '{clipName}' is not registered on {nameof(AudioManager)}.");
+        return false;
     }
 
     private AudioSource GetAvailableSfxSource()
@@ -174,7 +186,7 @@ public class AudioManager : MonoBehaviour
 
     private void ConfigureSceneAudio(Scene scene)
     {
-        if (scene.path.Contains("/Scenes/Level/"))
+        if (LevelContext.CurrentConfig != null)
             StopMusic(musicFadeTime);
         else
             PlayMenuMusic();

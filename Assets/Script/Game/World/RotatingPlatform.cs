@@ -22,7 +22,7 @@ public class RotatingPlatform : MonoBehaviour
     private readonly Dictionary<Transform, RiderState> riders = new Dictionary<Transform, RiderState>();
     private Rigidbody platformRigidbody;
 
-    private sealed class RiderState
+    private class RiderState
     {
         public RiderState(Transform transform, Rigidbody rigidbody)
         {
@@ -205,9 +205,8 @@ public class RotatingPlatform : MonoBehaviour
     private static bool IsCarryable(Collider other)
     {
         return other.CompareTag("Player")
-            || other.CompareTag("Luggage")
             || other.GetComponentInParent<PlayerMovement>() != null
-            || other.GetComponentInParent<Luggage>() != null;
+            || Luggage.TryGetFromCollider(other, out _);
     }
 
     private static Transform ResolveRiderTransform(Collider other, out Rigidbody riderRigidbody)

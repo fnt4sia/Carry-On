@@ -129,19 +129,10 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 850722505361531111, guid: f3f684af5b4384159ab9f96639aa8d8b,
         type: 3}
-      propertyPath: levelName
-      value: Level 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 850722505361531111, guid: f3f684af5b4384159ab9f96639aa8d8b,
-        type: 3}
-      propertyPath: sceneName
-      value: Stage_1
-      objectReference: {fileID: 0}
-    - target: {fileID: 850722505361531111, guid: f3f684af5b4384159ab9f96639aa8d8b,
-        type: 3}
-      propertyPath: description
-      value: First stop. Learn the ropes - sort the easy bags.
-      objectReference: {fileID: 0}
+      propertyPath: level
+      value: 
+      objectReference: {fileID: 11400000, guid: 33c3b7f5bf113437aafd465088effc9d,
+        type: 2}
     - target: {fileID: 6784668660914658354, guid: f3f684af5b4384159ab9f96639aa8d8b,
         type: 3}
       propertyPath: m_Name
@@ -310,6 +301,8 @@ MonoBehaviour:
   moveSpeed: 11
   detectRadius: 1.6
   popup: {fileID: 1669977887}
+  inputActions: {fileID: -944628639613478452, guid: dcff8a0dd9450484da7ac40d4e0cf7d9,
+    type: 3}
 --- !u!1001 &487549170
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -320,19 +313,10 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 850722505361531111, guid: f3f684af5b4384159ab9f96639aa8d8b,
         type: 3}
-      propertyPath: levelName
-      value: Level 3
-      objectReference: {fileID: 0}
-    - target: {fileID: 850722505361531111, guid: f3f684af5b4384159ab9f96639aa8d8b,
-        type: 3}
-      propertyPath: sceneName
-      value: Stage_3
-      objectReference: {fileID: 0}
-    - target: {fileID: 850722505361531111, guid: f3f684af5b4384159ab9f96639aa8d8b,
-        type: 3}
-      propertyPath: description
-      value: Rush hour. Bombs in the mix - scan everything.
-      objectReference: {fileID: 0}
+      propertyPath: level
+      value: 
+      objectReference: {fileID: 11400000, guid: 78d6d66ff873145dab72c6a1e99ebdd2,
+        type: 2}
     - target: {fileID: 6784668660914658354, guid: f3f684af5b4384159ab9f96639aa8d8b,
         type: 3}
       propertyPath: m_Name
@@ -667,19 +651,10 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 850722505361531111, guid: f3f684af5b4384159ab9f96639aa8d8b,
         type: 3}
-      propertyPath: levelName
-      value: Level 2
-      objectReference: {fileID: 0}
-    - target: {fileID: 850722505361531111, guid: f3f684af5b4384159ab9f96639aa8d8b,
-        type: 3}
-      propertyPath: sceneName
-      value: Stage_2
-      objectReference: {fileID: 0}
-    - target: {fileID: 850722505361531111, guid: f3f684af5b4384159ab9f96639aa8d8b,
-        type: 3}
-      propertyPath: description
-      value: Busier belt. Mind the wrapping machine.
-      objectReference: {fileID: 0}
+      propertyPath: level
+      value: 
+      objectReference: {fileID: 11400000, guid: fb48f04fc3c064b54a19f787b92b9c00,
+        type: 2}
     - target: {fileID: 6784668660914658354, guid: f3f684af5b4384159ab9f96639aa8d8b,
         type: 3}
       propertyPath: m_Name
@@ -750,19 +725,10 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 850722505361531111, guid: f3f684af5b4384159ab9f96639aa8d8b,
         type: 3}
-      propertyPath: levelName
-      value: Level 4
-      objectReference: {fileID: 0}
-    - target: {fileID: 850722505361531111, guid: f3f684af5b4384159ab9f96639aa8d8b,
-        type: 3}
-      propertyPath: sceneName
-      value: Stage_4
-      objectReference: {fileID: 0}
-    - target: {fileID: 850722505361531111, guid: f3f684af5b4384159ab9f96639aa8d8b,
-        type: 3}
-      propertyPath: description
-      value: Chaos. Fragile, sticky, and the clock's against you.
-      objectReference: {fileID: 0}
+      propertyPath: level
+      value: 
+      objectReference: {fileID: 11400000, guid: 15e248666776648698057017dab07e86,
+        type: 2}
     - target: {fileID: 6784668660914658354, guid: f3f684af5b4384159ab9f96639aa8d8b,
         type: 3}
       propertyPath: m_Name

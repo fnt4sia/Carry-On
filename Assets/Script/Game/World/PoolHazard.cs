@@ -13,6 +13,15 @@ public class PoolHazard : MonoBehaviour
 
     private readonly HashSet<PlayerInput> respawningPlayers = new HashSet<PlayerInput>();
 
+    private void OnDisable()
+    {
+        StopAllCoroutines();
+        foreach (PlayerInput player in respawningPlayers)
+            if (player != null)
+                player.gameObject.SetActive(true);
+        respawningPlayers.Clear();
+    }
+
     private void Reset()
     {
         Collider trigger = GetComponent<Collider>();

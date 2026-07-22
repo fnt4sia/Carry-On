@@ -5,31 +5,27 @@ using UnityEngine;
 // Singleton that runs the wave loop. Reads LevelConfig and spawns luggage at intervals
 // using a per-prefab object pool. Exposes ReturnLuggage(Luggage) so destroyed, expired,
 // or sunk luggage can be recycled back into the pool instead of being destroyed.
-public class LuggageSpawner : MonoBehaviour
+public class LuggageSpawner : SingletonBehaviour<LuggageSpawner>
 {
-    public static LuggageSpawner Instance { get; private set; }
-
-    [Header("Level Config")]
-    [SerializeField] private LevelConfig levelConfig;
+    private LevelConfig levelConfig;
 
     private Vector3 spawnPosition;
     private Quaternion spawnRotation;
 
-    private Dictionary<GameObject, Queue<GameObject>> poolDictionary = new Dictionary<GameObject, Queue<GameObject>>();
+    private readonly Dictionary<GameObject, Queue<GameObject>> poolDictionary = new();
     private readonly List<Gate> activeDeliveryGates = new List<Gate>();
+    private Transform poolRoot;
 
-    private void Awake()
+    protected override void OnSingletonAwake()
     {
-        if (Instance == null)
-            Instance = this;
-        else
-            Destroy(gameObject);
+        GameObject poolObject = new("LuggagePool");
+        poolObject.transform.SetParent(transform, false);
+        poolRoot = poolObject.transform;
     }
 
     private void Start()
     {
-        if (levelConfig == null && GameManager.Instance != null)
-            levelConfig = GameManager.Instance.GetLevelConfig();
+        ResolveLevelConfig();
 
         if (levelConfig == null)
         {
@@ -52,66 +48,32 @@ public class LuggageSpawner : MonoBehaviour
             yield return new WaitForSeconds(levelConfig.waveDelay);
 
             int wavePerWave = Mathf.Max(1, levelConfig.luggagePerWave);
-            bool bombWave = Random.value < levelConfig.bombWaveChance;
-            int bombIndex = bombWave ? Random.Range(0, wavePerWave) : -1;
 
             for (int i = 0; i < wavePerWave; i++)
             {
-                SpawnOne(prefabs, forceBomb: i == bombIndex);
+                SpawnOne(prefabs);
                 if (i < wavePerWave - 1)
                     yield return new WaitForSeconds(levelConfig.intraWaveInterval);
             }
         }
     }
 
-    private void SpawnOne(List<GameObject> prefabs, bool forceBomb)
+    private void SpawnOne(List<GameObject> prefabs)
     {
-        GameObject prefab = forceBomb ? FindBombVisualPrefab(prefabs) : prefabs[Random.Range(0, prefabs.Count)];
+        GameObject prefab = prefabs[Random.Range(0, prefabs.Count)];
         if (prefab == null) return;
 
         Luggage prefabLuggage = prefab.GetComponent<Luggage>();
         if (prefabLuggage == null) return;
 
-        LuggageBehaviorType behavior = forceBomb
-            ? LuggageBehaviorType.Bomb
-            : prefabLuggage.behaviorType;
-
         spawnPosition = transform.position;
         spawnRotation = GetRandomSpawnRotation();
 
-        GameObject spawnedLuggage;
-
-        if (poolDictionary.TryGetValue(prefab, out Queue<GameObject> queue) && queue.Count > 0)
-        {
-            spawnedLuggage = queue.Dequeue();
-            spawnedLuggage.transform.position = spawnPosition;
-            spawnedLuggage.transform.rotation = spawnRotation;
-            spawnedLuggage.SetActive(true);
-        }
-        else
-        {
-            spawnedLuggage = Instantiate(prefab, spawnPosition, spawnRotation);
-        }
-
-        Luggage luggage = spawnedLuggage.GetComponent<Luggage>();
+        Luggage luggage = RentLuggage(prefab, spawnPosition, spawnRotation);
         if (luggage == null) return;
 
-        luggage.Initialize(behavior, levelConfig.luggageLifetime, prefab);
+        luggage.Initialize(prefabLuggage.behaviorType, levelConfig.luggageLifetime, prefab);
         AssignDestinationGateIfNeeded(luggage);
-    }
-
-    private static GameObject FindBombVisualPrefab(List<GameObject> prefabs)
-    {
-        foreach (GameObject prefab in prefabs)
-        {
-            if (prefab == null) continue;
-
-            Luggage luggage = prefab.GetComponent<Luggage>();
-            if (luggage != null && luggage.behaviorType == LuggageBehaviorType.Normal)
-                return prefab;
-        }
-
-        return prefabs.Count > 0 ? prefabs[0] : null;
     }
 
     private static Quaternion GetRandomSpawnRotation()
@@ -146,17 +108,43 @@ public class LuggageSpawner : MonoBehaviour
         luggage.AssignDestinationGate(destinationGate.GateNumber);
     }
 
-    public static void ReturnLuggage(Luggage luggage)
+    public Luggage RentLuggage(GameObject prefab, Vector3 position, Quaternion rotation)
     {
-        if (Instance == null)
+        if (prefab == null)
+            return null;
+
+        GameObject luggageObject = null;
+        if (poolDictionary.TryGetValue(prefab, out Queue<GameObject> queue))
         {
-            Destroy(luggage.gameObject);
-            return;
+            while (queue.Count > 0 && luggageObject == null)
+                luggageObject = queue.Dequeue();
         }
+
+        if (luggageObject == null)
+            luggageObject = Instantiate(prefab);
+
+        luggageObject.transform.SetParent(null, worldPositionStays: false);
+        luggageObject.transform.SetPositionAndRotation(position, rotation);
+        luggageObject.transform.localScale = prefab.transform.localScale;
+        luggageObject.SetActive(true);
+
+        Luggage luggage = luggageObject.GetComponent<Luggage>();
+        if (luggage != null)
+            return luggage;
+
+        Debug.LogError($"Pooled prefab '{prefab.name}' is missing {nameof(Luggage)}.", prefab);
+        Destroy(luggageObject);
+        return null;
+    }
+
+    public bool ReturnLuggage(Luggage luggage)
+    {
+        if (luggage == null || luggage.sourcePrefab == null)
+            return false;
 
         luggage.DropAllGrabbers();
 
-        Rigidbody rb = luggage.GetComponent<Rigidbody>();
+        Rigidbody rb = luggage.Body != null ? luggage.Body : luggage.GetComponent<Rigidbody>();
         if (rb != null)
         {
             rb.isKinematic = false;
@@ -164,20 +152,27 @@ public class LuggageSpawner : MonoBehaviour
             rb.angularVelocity = Vector3.zero;
         }
 
-        luggage.gameObject.SetActive(false);
-
         GameObject key = luggage.sourcePrefab;
-        if (key == null)
-        {
-            Destroy(luggage.gameObject);
-            return;
-        }
+        if (!poolDictionary.TryGetValue(key, out Queue<GameObject> queue))
+            poolDictionary[key] = queue = new Queue<GameObject>();
 
-        if (!Instance.poolDictionary.ContainsKey(key))
-        {
-            Instance.poolDictionary[key] = new Queue<GameObject>();
-        }
+        luggage.gameObject.SetActive(false);
+        if (poolRoot != null)
+            luggage.transform.SetParent(poolRoot, worldPositionStays: false);
+        queue.Enqueue(luggage.gameObject);
+        return true;
+    }
 
-        Instance.poolDictionary[key].Enqueue(luggage.gameObject);
+    public bool TryGetConfiguredLifetime(out float lifetime)
+    {
+        ResolveLevelConfig();
+        lifetime = levelConfig != null ? levelConfig.luggageLifetime : 0f;
+        return lifetime > 0f;
+    }
+
+    private void ResolveLevelConfig()
+    {
+        if (LevelContext.TryGetConfig(out LevelConfig sceneConfig))
+            levelConfig = sceneConfig;
     }
 }

@@ -8,20 +8,15 @@ using UnityEngine.InputSystem;
 // the carry alignment, handles throw-charge timing, and routes placement into stations.
 public class PlayerGrab : MonoBehaviour
 {
+    [Header("Tuning")]
+    [SerializeField] private GrabConfig grabConfig;
+
     [SerializeField] private Transform grabPoint;
     [SerializeField] private Transform grabAnchor;
-    [SerializeField] private float grabRadius;
     [SerializeField] private LayerMask grabbableLayer;
     [SerializeField] private LayerMask grabBlockLayer;
     [SerializeField] private PlayerMovement playerMovement;
-    [SerializeField] private float throwMinHoldTime = 0.25f;
-    [SerializeField] private float throwMaxHoldTime = 2f;
-    [SerializeField] private float throwMinForce = 8f;
-    [SerializeField] private float throwMaxForce = 22f;
-    [SerializeField] private float throwMinUpForce = 3f;
-    [SerializeField] private float throwMaxUpForce = 8f;
     [SerializeField] private Animator animator;
-    [SerializeField] private float grabAlignDuration = 2f;
 
     [Header("Arrow")]
     [SerializeField] private GameObject Arrow;
@@ -32,17 +27,9 @@ public class PlayerGrab : MonoBehaviour
     [SerializeField] private float ArrowHeight = 2.0f;
 
     [Header("Bridge Collider")]
-    [SerializeField] private float bridgeWidth = 0.5f;
-    [SerializeField] private float bridgeHeight = 0.5f;
-    [SerializeField] private float bridgeYOffset = 0f;
-    [SerializeField] private float bridgeExtraZ = 0.5f;
-
-    [SerializeField] private int playerIndex;
-
     private PlayerInput playerInput;
     private InputAction grabAction;
     private InputAction useStationAction;
-    private DesignSceneInput designInput;
 
     private bool isGrabInputHeld;
     private float grabInputHoldTime;
@@ -56,34 +43,43 @@ public class PlayerGrab : MonoBehaviour
     private BoxCollider bridgeBoxCollider;
     private Collider[] heldLuggageColliders;
 
-    private Collider[] grabHits;
-    private Collider[] outlineGrabHits;
+    private readonly Collider[] nearbyHits = new Collider[32];
     private Outline lastOutlined = null;
 
     private Collider[] playerColliders;
     private Vector3 originalCenterOfMass;
     private bool hasShiftedCoM;
 
-    private void OnEnable()  => UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
+    private float GrabRadius => grabConfig.GrabRadius;
+    private float GrabAlignDuration => grabConfig.GrabAlignDuration;
+    private float ThrowMinHoldTime => grabConfig.ThrowMinHoldTime;
+    private float ThrowMaxHoldTime => grabConfig.ThrowMaxHoldTime;
+    private float ThrowMinForce => grabConfig.ThrowMinForce;
+    private float ThrowMaxForce => grabConfig.ThrowMaxForce;
+    private float ThrowMinUpForce => grabConfig.ThrowMinUpForce;
+    private float ThrowMaxUpForce => grabConfig.ThrowMaxUpForce;
+    private float BridgeWidth => grabConfig.BridgeWidth;
+    private float BridgeHeight => grabConfig.BridgeHeight;
+    private float BridgeYOffset => grabConfig.BridgeYOffset;
+    private float BridgeExtraZ => grabConfig.BridgeExtraZ;
+
     private void OnDisable()
     {
-        UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
-        StopThrowBuildUpAudio();
-    }
-
-    private void OnSceneLoaded(UnityEngine.SceneManagement.Scene _, UnityEngine.SceneManagement.LoadSceneMode __)
-        => designInput = FindFirstObjectByType<DesignSceneInput>();
-
-    private void Start()
-    {
-        designInput = FindFirstObjectByType<DesignSceneInput>();
+        Drop(forceRelease: true);
     }
 
     private void Awake()
     {
+        if (grabConfig == null)
+        {
+            Debug.LogError($"{nameof(PlayerGrab)} '{name}' has no {nameof(GrabConfig)}.", this);
+            enabled = false;
+            return;
+        }
+
         playerInput = GetComponent<PlayerInput>();
-        grabAction = playerInput.actions["Grab"];
-        useStationAction = playerInput.actions["UseStation"];
+        grabAction = playerInput.actions.FindAction("Player/Grab", throwIfNotFound: true);
+        useStationAction = playerInput.actions.FindAction("Player/UseStation", throwIfNotFound: true);
 
         playerColliders = GetComponentsInChildren<Collider>();
         bridgeObject = new GameObject("BridgeCollider");
@@ -95,20 +91,18 @@ public class PlayerGrab : MonoBehaviour
 
     void Update()
     {
-        if (designInput == null)
-        {
-            bool grabDown = grabAction.WasPressedThisFrame();
-            bool grabUp   = grabAction.WasReleasedThisFrame();
-            ProcessGrabInput(grabDown, grabUp);
+        bool grabDown = grabAction.WasPressedThisFrame();
+        bool grabUp   = grabAction.WasReleasedThisFrame();
+        Luggage candidate = luggageHeld == null ? FindBestGrabCandidate() : null;
+        ProcessGrabInput(grabDown, grabUp, candidate);
 
-            if (useStationAction.WasPressedThisFrame())
-                TryUseStation();
-        }
+        if (useStationAction.WasPressedThisFrame())
+            TryUseStation();
 
         // Arrow charge visual (runs in all scenes)
         if (isGrabInputHeld && objectRigidbody != null)
         {
-            float t = Mathf.Clamp01(grabInputHoldTime / throwMaxHoldTime);
+            float t = Mathf.Clamp01(grabInputHoldTime / Mathf.Max(0.01f, ThrowMaxHoldTime));
             float arrowScale = Mathf.Lerp(ArrowMinScale, ArrowMaxScale, t);
             Arrow.transform.localScale = new Vector3(arrowScale, arrowScale, arrowScale);
 
@@ -119,13 +113,13 @@ public class PlayerGrab : MonoBehaviour
         if (isGrabInputHeld)
             grabInputHoldTime += Time.deltaTime;
 
-        CheckOutline();
+        UpdateOutline(luggageHeld == null ? candidate : null);
 
         if (luggageHeld != null)
             UpdateBridgeCollider();
     }
 
-    private void ProcessGrabInput(bool grabDown, bool grabUp)
+    private void ProcessGrabInput(bool grabDown, bool grabUp, Luggage candidate)
     {
         if (grabDown && objectRigidbody != null)
         {
@@ -142,11 +136,12 @@ public class PlayerGrab : MonoBehaviour
         {
             if (Arrow) Arrow.SetActive(false);
 
-            if (grabInputHoldTime >= throwMinHoldTime)
+            if (grabInputHoldTime >= ThrowMinHoldTime)
             {
-                float clampedHoldTime = Mathf.Clamp(grabInputHoldTime, throwMinHoldTime, throwMaxHoldTime);
-                float t = (clampedHoldTime - throwMinHoldTime) / (throwMaxHoldTime - throwMinHoldTime);
-                Throw(Mathf.Lerp(throwMinForce, throwMaxForce, t), Mathf.Lerp(throwMinUpForce, throwMaxUpForce, t));
+                float clampedHoldTime = Mathf.Clamp(grabInputHoldTime, ThrowMinHoldTime, ThrowMaxHoldTime);
+                float holdRange = Mathf.Max(0.01f, ThrowMaxHoldTime - ThrowMinHoldTime);
+                float t = (clampedHoldTime - ThrowMinHoldTime) / holdRange;
+                Throw(Mathf.Lerp(ThrowMinForce, ThrowMaxForce, t), Mathf.Lerp(ThrowMinUpForce, ThrowMaxUpForce, t));
             }
             else
             {
@@ -157,94 +152,79 @@ public class PlayerGrab : MonoBehaviour
         }
 
         if (grabDown && objectRigidbody == null)
-            TryGrab();
+            TryGrab(candidate);
     }
 
-    private void CheckOutline()
+    private void UpdateOutline(Luggage candidate)
     {
-        if (luggageHeld != null)
-        {
-            if (lastOutlined != null)
-            {
-                lastOutlined.enabled = false;
-                lastOutlined = null;
-            }
+        Outline current = candidate != null ? candidate.GetComponent<Outline>() : null;
+        if (lastOutlined == current)
             return;
-        }
-
-        outlineGrabHits = Physics.OverlapSphere(grabPoint.position, grabRadius, grabbableLayer);
-
-        foreach (var hit in outlineGrabHits)
-        {
-            Outline current = hit.GetComponentInParent<Outline>();
-            Luggage luggage = hit.GetComponentInParent<Luggage>();
-
-            if (luggage != null)
-            {
-                if (lastOutlined != null && lastOutlined != current)
-                    lastOutlined.enabled = false;
-
-                if (current != null) current.enabled = true;
-                lastOutlined = current;
-                return;
-            }
-        }
 
         if (lastOutlined != null)
-        {
             lastOutlined.enabled = false;
-            lastOutlined = null;
-        }
+
+        lastOutlined = current;
+        if (lastOutlined != null)
+            lastOutlined.enabled = true;
     }
 
-    private void TryGrab()
+    private Luggage FindBestGrabCandidate()
     {
-        grabHits = Physics.OverlapSphere(grabPoint.position, grabRadius, grabbableLayer);
+        int hitCount = Physics.OverlapSphereNonAlloc(
+            grabPoint.position,
+            GrabRadius,
+            nearbyHits,
+            grabbableLayer,
+            QueryTriggerInteraction.Collide);
 
-        foreach (var hit in grabHits)
+        Luggage best = null;
+        float bestDistance = float.PositiveInfinity;
+        for (int i = 0; i < hitCount; i++)
         {
-            objectRigidbody = hit.attachedRigidbody;
-            if (objectRigidbody != null)
-            {
-                Vector3 toTarget = objectRigidbody.worldCenterOfMass - grabPoint.position;
-                if (Physics.Raycast(grabPoint.position, toTarget.normalized, toTarget.magnitude, grabBlockLayer))
-                {
-                    objectRigidbody = null;
-                    continue;
-                }
+            Collider hit = nearbyHits[i];
+            nearbyHits[i] = null;
+            if (!Luggage.TryGetFromCollider(hit, out Luggage luggage)
+                || luggage.Body == null
+                || luggage.IsInStation)
+                continue;
 
-                luggageHeld = objectRigidbody.GetComponent<Luggage>();
+            Vector3 toTarget = luggage.Body.worldCenterOfMass - grabPoint.position;
+            if (Physics.Raycast(
+                    grabPoint.position,
+                    toTarget.normalized,
+                    toTarget.magnitude,
+                    grabBlockLayer,
+                    QueryTriggerInteraction.Ignore))
+                continue;
 
-                if (luggageHeld != null && luggageHeld.IsInStation)
-                {
-                    luggageHeld = null;
-                    objectRigidbody = null;
-                    continue;
-                }
+            float distance = toTarget.sqrMagnitude;
+            if (distance >= bestDistance)
+                continue;
 
-                if (luggageHeld != null)
-                {
-                    // Force-drop all other grabbers (steal the luggage)
-                    luggageHeld.DropAllGrabbers();
-
-                    objectRigidbody.isKinematic = false;
-
-                    animator.SetBool("isGrabbing", true);
-
-                    luggageHeld.AddGrabber(this);
-
-                    playerMovement.isGrabbing = true;
-
-                    LightLuggageGrab();
-                    EnableBridgeCollider();
-
-                    return;
-                }
-
-                luggageHeld = null;
-                objectRigidbody = null;
-            }
+            best = luggage;
+            bestDistance = distance;
         }
+
+        return best;
+    }
+
+    private void TryGrab(Luggage candidateLuggage)
+    {
+        if (candidateLuggage == null || candidateLuggage.Body == null)
+            return;
+
+        objectRigidbody = candidateLuggage.Body;
+        luggageHeld = candidateLuggage;
+
+        // Force-drop all other grabbers (steal the luggage).
+        luggageHeld.DropAllGrabbers();
+        objectRigidbody.isKinematic = false;
+        animator.SetBool(AnimId.IsGrabbing, true);
+        luggageHeld.AddGrabber(this);
+        playerMovement.isGrabbing = true;
+        LightLuggageGrab();
+        EnableBridgeCollider();
     }
 
     private void Throw(float forwardForce, float upForce)
@@ -280,11 +260,11 @@ public class PlayerGrab : MonoBehaviour
             Vector3 throwDir = grabPoint.forward.normalized * forwardForce + Vector3.up * upForce;
             objectRigidbody.AddForce(throwDir, ForceMode.Impulse);
             StopThrowBuildUpAudio();
-            AudioManager.Instance?.PlaySFX("Player Throw throwonly");
+            AudioManager.Instance?.PlaySFX(Sfx.PlayerThrow);
 
             objectRigidbody = null;
             playerMovement.isGrabbing = false;
-            animator.SetBool("isGrabbing", false);
+            animator.SetBool(AnimId.IsGrabbing, false);
         }
     }
 
@@ -334,11 +314,11 @@ public class PlayerGrab : MonoBehaviour
 
         float elapsed = 0f;
 
-        while (elapsed < grabAlignDuration)
+        while (elapsed < GrabAlignDuration)
         {
             if (configurableJoint == null || luggageHeld == null) yield break;
 
-            float t = elapsed / grabAlignDuration;
+            float t = GrabAlignDuration > 0f ? elapsed / GrabAlignDuration : 1f;
             t = t * t * (3f - 2f * t); // smoothstep
 
             // Animate only yaw; pitch/roll correction is left to the angular spring drive.
@@ -406,10 +386,17 @@ public class PlayerGrab : MonoBehaviour
         configurableJoint.xMotion = ConfigurableJointMotion.Limited;
         configurableJoint.yMotion = ConfigurableJointMotion.Limited;
         configurableJoint.zMotion = ConfigurableJointMotion.Limited;
-        SoftJointLimit linearLimit = new SoftJointLimit { limit = 0.05f };
+        SoftJointLimit linearLimit = new SoftJointLimit
+        {
+            limit = grabConfig.LinearLimit
+        };
         configurableJoint.linearLimit = linearLimit;
 
-        SoftJointLimitSpring limitSpring = new SoftJointLimitSpring { spring = 500f, damper = 1000f };
+        SoftJointLimitSpring limitSpring = new SoftJointLimitSpring
+        {
+            spring = grabConfig.LinearLimitSpring,
+            damper = grabConfig.LinearLimitDamper
+        };
         configurableJoint.linearLimitSpring = limitSpring;
 
         configurableJoint.autoConfigureConnectedAnchor = false;
@@ -418,9 +405,9 @@ public class PlayerGrab : MonoBehaviour
 
         JointDrive fullDrive = new JointDrive
         {
-            positionSpring = 3000f,
-            positionDamper = 200f,
-            maximumForce = 5000f
+            positionSpring = grabConfig.PositionSpring,
+            positionDamper = grabConfig.PositionDamper,
+            maximumForce = grabConfig.PositionMaximumForce
         };
         configurableJoint.xDrive = fullDrive;
         configurableJoint.yDrive = fullDrive;
@@ -428,9 +415,9 @@ public class PlayerGrab : MonoBehaviour
 
         JointDrive angularDrive = new JointDrive
         {
-            positionSpring = 1000f,
-            positionDamper = 100f,
-            maximumForce = 4000f
+            positionSpring = grabConfig.AngularSpring,
+            positionDamper = grabConfig.AngularDamper,
+            maximumForce = grabConfig.AngularMaximumForce
         };
         configurableJoint.angularXDrive = angularDrive;
         configurableJoint.angularYZDrive = angularDrive;
@@ -445,11 +432,11 @@ public class PlayerGrab : MonoBehaviour
         configurableJoint.connectedMassScale = 1f;
 
         configurableJoint.projectionMode = JointProjectionMode.PositionAndRotation;
-        configurableJoint.projectionDistance = 0.05f;
-        configurableJoint.projectionAngle = 5f;
+        configurableJoint.projectionDistance = grabConfig.ProjectionDistance;
+        configurableJoint.projectionAngle = grabConfig.ProjectionAngle;
 
-        configurableJoint.breakForce = 10000;
-        configurableJoint.breakTorque = 2500f;
+        configurableJoint.breakForce = grabConfig.BreakForce;
+        configurableJoint.breakTorque = grabConfig.BreakTorque;
     }
 
     private void EnableBridgeCollider()
@@ -503,32 +490,27 @@ public class PlayerGrab : MonoBehaviour
 
         if (dist < 0.01f) return;
 
-        float totalLength = dist + bridgeExtraZ;
+        float totalLength = dist + BridgeExtraZ;
         // Shift midpoint back toward player by half of bridgeExtraZ so the collider extends behind the anchor
         Vector3 dirNorm = dir.normalized;
-        Vector3 midpoint = anchorPos + dirNorm * (dist * 0.5f - bridgeExtraZ * 0.5f);
-        midpoint.y = anchorPos.y + bridgeYOffset;
+        Vector3 midpoint = anchorPos + dirNorm * (dist * 0.5f - BridgeExtraZ * 0.5f);
+        midpoint.y = anchorPos.y + BridgeYOffset;
 
         bridgeObject.transform.position = midpoint;
         bridgeObject.transform.rotation = Quaternion.LookRotation(dirNorm);
-        bridgeBoxCollider.size = new Vector3(bridgeWidth, bridgeHeight, totalLength);
+        bridgeBoxCollider.size = new Vector3(BridgeWidth, BridgeHeight, totalLength);
         bridgeBoxCollider.center = Vector3.zero;
-    }
-
-    // Called by DesignSceneInput to bypass PlayerInput in the design scene
-    public void InjectGrabInput(bool grabDown, bool grabUp) => ProcessGrabInput(grabDown, grabUp);
-    public void InjectStationUse(bool pressed)
-    {
-        if (pressed) TryUseStation();
     }
 
     private void TryUseStation()
     {
         if (luggageHeld == null) return;
 
-        Collider[] hits = Physics.OverlapSphere(grabPoint.position, grabRadius);
-        foreach (var hit in hits)
+        int hitCount = Physics.OverlapSphereNonAlloc(grabPoint.position, GrabRadius, nearbyHits);
+        for (int i = 0; i < hitCount; i++)
         {
+            Collider hit = nearbyHits[i];
+            nearbyHits[i] = null;
             MachineStation station = hit.GetComponentInParent<MachineStation>();
             if (station == null || station.IsOccupied) continue;
             if (!station.CanAccept(luggageHeld)) continue;
@@ -561,28 +543,28 @@ public class PlayerGrab : MonoBehaviour
             hasShiftedCoM = false;
         }
 
-        if (configurableJoint != null)
+        DisableBridgeCollider();
+
+        if (luggageHeld != null)
         {
-            DisableBridgeCollider();
-
-            if (luggageHeld != null)
-            {
-                luggageHeld.RemoveGrabber(this);
-                luggageHeld = null;
-            }
-
-            Destroy(configurableJoint);
-            configurableJoint = null;
-            objectRigidbody = null;
-            playerMovement.isGrabbing = false;
-
-            animator.SetBool("isGrabbing", false);
+            luggageHeld.RemoveGrabber(this);
+            luggageHeld = null;
         }
+
+        if (configurableJoint != null)
+            Destroy(configurableJoint);
+
+        configurableJoint = null;
+        objectRigidbody = null;
+        if (playerMovement != null)
+            playerMovement.isGrabbing = false;
+        if (animator != null)
+            animator.SetBool(AnimId.IsGrabbing, false);
     }
 
     public int GetPlayerIndex()
     {
-        return playerIndex;
+        return playerInput != null ? playerInput.playerIndex : -1;
     }
 
     public Luggage GetHeldLuggage()
@@ -598,7 +580,7 @@ public class PlayerGrab : MonoBehaviour
     private void StartThrowBuildUpAudio()
     {
         StopThrowBuildUpAudio();
-        throwBuildUpAudioSource = AudioManager.Instance?.PlayLoopingSFX("Player Throw buildup");
+        throwBuildUpAudioSource = AudioManager.Instance?.PlayLoopingSFX(Sfx.PlayerThrowBuildup);
     }
 
     private void StopThrowBuildUpAudio()
@@ -613,10 +595,10 @@ public class PlayerGrab : MonoBehaviour
 
         // Draw grab detection sphere
         Gizmos.color = Color.cyan;
-        Gizmos.DrawWireSphere(grabPoint.position, grabRadius);
+        Gizmos.DrawWireSphere(grabPoint.position, GrabRadius);
 
         // Draw block raycast to nearest luggage in range
-        Collider[] nearby = Physics.OverlapSphere(grabPoint.position, grabRadius, grabbableLayer);
+        Collider[] nearby = Physics.OverlapSphere(grabPoint.position, GrabRadius, grabbableLayer);
         foreach (var hit in nearby)
         {
             Rigidbody rb = hit.attachedRigidbody;

@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-// Trigger plate that toggles its connected Gateways when stepped on (by players or
-// luggage, individually toggleable). In toggle mode the gateway stays flipped after
-// the plate is released; in momentary mode it flips back when the last object leaves.
+// Trigger plate that controls its connected Gateways when stepped on (by players or
+// luggage, individually toggleable). Toggle mode flips once per press; momentary mode
+// opens while occupied and closes when the last object leaves.
 public class GatewayPressurePlate : MonoBehaviour
 {
     [Header("Connected Gateways")]
@@ -20,14 +20,15 @@ public class GatewayPressurePlate : MonoBehaviour
     [SerializeField] private Color pressedColor = Color.green;
 
     private int objectsOnPlate = 0;
+    private MaterialPropertyBlock propertyBlock;
+
+    private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+    private static readonly int ColorId = Shader.PropertyToID("_Color");
 
     private void Start()
     {
         if (plateRenderer == null) plateRenderer = GetComponentInChildren<Renderer>();
-        if (plateRenderer != null)
-        {
-            plateRenderer.material.color = defaultColor;
-        }
+        SetPlateColor(defaultColor);
     }
 
     private void OnTriggerEnter(Collider other)
@@ -60,40 +61,49 @@ public class GatewayPressurePlate : MonoBehaviour
 
     private bool IsValidTrigger(Collider other)
     {
-        bool isPlayer = canPlayerTrigger && other.CompareTag("Player");
-        bool isLuggage = canLuggageTrigger && other.CompareTag("Luggage");
+        bool isPlayer = canPlayerTrigger && other.GetComponentInParent<PlayerMovement>() != null;
+        bool isLuggage = canLuggageTrigger && Luggage.TryGetFromCollider(other, out _);
         return isPlayer || isLuggage;
     }
 
     private void OnPlatePressed()
     {
-        if (plateRenderer != null)
-        {
-            plateRenderer.material.color = pressedColor;
-        }
+        SetPlateColor(pressedColor);
 
         foreach (Gateway gateway in connectedGateways)
         {
             if (gateway == null) continue;
 
-            gateway.Toggle();
+            if (isToggleMode)
+                gateway.Toggle();
+            else
+                gateway.Open();
         }
     }
 
     private void OnPlateReleased()
     {
-        if (plateRenderer != null)
-        {
-            plateRenderer.material.color = defaultColor;
-        }
+        SetPlateColor(defaultColor);
 
         if (!isToggleMode)
         {
             foreach (Gateway gateway in connectedGateways)
             {
                 if (gateway == null) continue;
-                gateway.Toggle();
+                gateway.Close();
             }
         }
+    }
+
+    private void SetPlateColor(Color color)
+    {
+        if (plateRenderer == null)
+            return;
+
+        propertyBlock ??= new MaterialPropertyBlock();
+        plateRenderer.GetPropertyBlock(propertyBlock);
+        propertyBlock.SetColor(BaseColorId, color);
+        propertyBlock.SetColor(ColorId, color);
+        plateRenderer.SetPropertyBlock(propertyBlock);
     }
 }

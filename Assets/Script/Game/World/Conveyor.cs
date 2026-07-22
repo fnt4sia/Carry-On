@@ -15,45 +15,55 @@ public class Conveyor : MonoBehaviour
 {
     private enum BeltShape { Straight, Turn }
 
+    [Header("Tuning")]
+    [SerializeField] private ConveyorTuning tuning;
+
     [Header("Belt")]
     [SerializeField] private BeltShape shape = BeltShape.Straight;
-    [SerializeField] private float moveSpeed = 2f;
-    [Tooltip("How fast luggage velocity bends toward the belt direction (m/s²). Higher = snappier, lower = wider drift.")]
-    [SerializeField] private float acceleration = 10f;
 
     [Header("Turn")]
     [Tooltip("Centre of the turn arc. Required for Turn shape — place at the corner's pivot.")]
     [SerializeField] private Transform turnPivot;
     [SerializeField] private bool clockwise = false;
-    [Tooltip("Radius of the belt centreline around the pivot. Cargo is gently pulled onto it so corners don't clip the rails.")]
-    [SerializeField] private float centerRadius = 3f;
-    [Tooltip("How strongly cargo is pulled back to the centreline (1/s).")]
-    [SerializeField] private float centeringGain = 1.5f;
+    private readonly List<CandidateState> candidates = new();
+    private readonly Dictionary<Luggage, CandidateState> candidateByLuggage = new();
 
-    [Tooltip("How fast cargo is rotated upright and aligned with the belt direction (1/s).")]
-    [SerializeField] private float uprightGain = 4f;
+    private class CandidateState
+    {
+        public Luggage Luggage;
+        public Rigidbody Rigidbody;
+        public Collider SurfaceCollider;
+        public readonly HashSet<Collider> TriggerContacts = new();
+    }
 
-    [Header("Surface Check")]
-    [Tooltip("Extra reach below a luggage's base for the on-surface raycast. Higher = more forgiving.")]
-    [SerializeField] private float surfaceCheckMargin = 0.25f;
+    private float MoveSpeed => tuning.MoveSpeed;
+    private float Acceleration => tuning.Acceleration;
+    private float UprightGain => tuning.UprightGain;
+    private float CenteringGain => tuning.CenteringGain;
+    private float CenterRadius => tuning.CenterRadius;
+    private float SurfaceCheckMargin => tuning.SurfaceCheckMargin;
 
-    private readonly List<Rigidbody> candidates = new();
+    private void Awake()
+    {
+        if (tuning != null)
+            return;
+
+        Debug.LogError($"{nameof(Conveyor)} '{name}' has no {nameof(ConveyorTuning)}.", this);
+        enabled = false;
+    }
 
     private void FixedUpdate()
     {
         for (int i = candidates.Count - 1; i >= 0; i--)
         {
-            Rigidbody rb = candidates[i];
+            CandidateState candidate = candidates[i];
+            Luggage luggage = candidate.Luggage;
+            Rigidbody rb = candidate.Rigidbody;
 
-            if (rb == null || !rb.gameObject.activeInHierarchy)
+            if (luggage == null || rb == null || !luggage.gameObject.activeInHierarchy)
             {
-                candidates.RemoveAt(i);
-                continue;
-            }
-
-            Luggage luggage = rb.GetComponent<Luggage>();
-            if (luggage == null)
-            {
+                if (!ReferenceEquals(luggage, null))
+                    candidateByLuggage.Remove(luggage);
                 candidates.RemoveAt(i);
                 continue;
             }
@@ -65,7 +75,7 @@ public class Conveyor : MonoBehaviour
             // Stations dock luggage kinematically — don't fight them.
             if (rb.isKinematic) continue;
 
-            if (!IsOnSurface(rb)) continue;
+            if (!IsOnSurface(candidate)) continue;
 
             Steer(rb);
         }
@@ -74,7 +84,7 @@ public class Conveyor : MonoBehaviour
     private void Steer(Rigidbody rb)
     {
         Vector3 beltDir = BeltDirectionAt(rb.position);
-        Vector3 target = beltDir * moveSpeed;
+        Vector3 target = beltDir * MoveSpeed;
 
         if (shape == BeltShape.Turn && turnPivot != null)
         {
@@ -85,14 +95,24 @@ public class Conveyor : MonoBehaviour
             float r = radial.magnitude;
             if (r > 0.1f)
             {
-                float centerError = centerRadius - r;
-                target += (radial / r) * Mathf.Clamp(centerError * centeringGain, -0.8f, 0.8f);
+                float centerError = CenterRadius - r;
+                target += (radial / r) * Mathf.Clamp(centerError * CenteringGain, -0.8f, 0.8f);
             }
+        }
+        else
+        {
+            // Keep cargo on the straight belt centreline so small collision impulses
+            // cannot leave it offset enough to catch a rail at the next turn.
+            Vector3 right = transform.right;
+            right.y = 0f;
+            right.Normalize();
+            float lateralOffset = Vector3.Dot(rb.position - transform.position, right);
+            target -= right * Mathf.Clamp(lateralOffset * CenteringGain, -0.8f, 0.8f);
         }
 
         Vector3 v = rb.linearVelocity;
         Vector3 flat = new Vector3(v.x, 0f, v.z);
-        flat = Vector3.MoveTowards(flat, target, acceleration * Time.fixedDeltaTime);
+        flat = Vector3.MoveTowards(flat, target, Acceleration * Time.fixedDeltaTime);
         rb.linearVelocity = new Vector3(flat.x, v.y, flat.z);
 
         // The deck is frictionless (steering replaces friction), so the belt owns
@@ -108,7 +128,7 @@ public class Conveyor : MonoBehaviour
 
             if (Mathf.Abs(angleDeg) > 0.5f && !float.IsNaN(axis.x))
             {
-                Vector3 angVel = axis.normalized * (angleDeg * Mathf.Deg2Rad * uprightGain);
+                Vector3 angVel = axis.normalized * (angleDeg * Mathf.Deg2Rad * UprightGain);
                 rb.angularVelocity = Vector3.ClampMagnitude(angVel, 6f);
             }
             else
@@ -139,11 +159,11 @@ public class Conveyor : MonoBehaviour
     }
 
     // True when a downward ray from the luggage's centre lands on this conveyor.
-    private bool IsOnSurface(Rigidbody rb)
+    private bool IsOnSurface(CandidateState candidate)
     {
-        Collider luggageCollider = rb.GetComponentInChildren<Collider>();
-        Vector3 origin = luggageCollider != null ? luggageCollider.bounds.center : rb.position;
-        float reach = (luggageCollider != null ? luggageCollider.bounds.extents.y : 0.5f) + surfaceCheckMargin;
+        Collider luggageCollider = candidate.SurfaceCollider;
+        Vector3 origin = luggageCollider != null ? luggageCollider.bounds.center : candidate.Rigidbody.position;
+        float reach = (luggageCollider != null ? luggageCollider.bounds.extents.y : 0.5f) + SurfaceCheckMargin;
 
         return Physics.Raycast(origin, Vector3.down, out RaycastHit hit, reach, ~0, QueryTriggerInteraction.Ignore)
             && hit.collider.transform.IsChildOf(transform);
@@ -154,20 +174,46 @@ public class Conveyor : MonoBehaviour
 
     private void Track(Collider other)
     {
-        if (!other.CompareTag("Luggage")) return;
+        if (!Luggage.TryGetFromCollider(other, out Luggage luggage))
+            return;
 
-        Rigidbody rb = other.GetComponentInParent<Rigidbody>();
-        if (rb != null && !candidates.Contains(rb))
-            candidates.Add(rb);
+        if (!candidateByLuggage.TryGetValue(luggage, out CandidateState candidate))
+        {
+            Rigidbody rb = luggage.Body;
+            if (rb == null)
+                return;
+
+            candidate = new CandidateState
+            {
+                Luggage = luggage,
+                Rigidbody = rb,
+                SurfaceCollider = luggage.SurfaceCollider
+            };
+            candidates.Add(candidate);
+            candidateByLuggage.Add(luggage, candidate);
+        }
+
+        candidate.TriggerContacts.Add(other);
     }
 
     private void OnTriggerExit(Collider other)
     {
-        if (!other.CompareTag("Luggage")) return;
+        if (!Luggage.TryGetFromCollider(other, out Luggage luggage)
+            || !candidateByLuggage.TryGetValue(luggage, out CandidateState candidate))
+            return;
 
-        Rigidbody rb = other.GetComponentInParent<Rigidbody>();
-        if (rb != null)
-            candidates.Remove(rb);
+        candidate.TriggerContacts.Remove(other);
+        if (candidate.TriggerContacts.Count > 0)
+            return;
+
+        candidateByLuggage.Remove(luggage);
+        candidates.Remove(candidate);
+    }
+
+    private void OnDisable()
+    {
+        candidates.Clear();
+        candidateByLuggage.Clear();
     }
 
     private void OnDrawGizmosSelected()

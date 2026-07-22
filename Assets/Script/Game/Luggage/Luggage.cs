@@ -2,34 +2,26 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-// Main luggage runtime. Owns behavior type (Normal / Sticky / Fragile / Bomb),
-// lifetime countdown, fragile collision break, bomb explosion, grabber tracking,
-// and the IsWashed / IsWrapped / IsScanned flags the delivery gate reads to score it.
+// Main luggage runtime. Owns behavior type (Normal / Sticky / Fragile), lifetime
+// countdown, fragile collision break, grabber tracking, and the IsWashed / IsWrapped
+// flags the delivery gate reads to score it.
 public class Luggage : MonoBehaviour
 {
+    private const float FallbackScenePlacedLifetime = 30f;
+
+    [Header("Tuning")]
+    [SerializeField] private LuggageTuning tuning;
+
     [SerializeField] private Outline outline;
 
     public LuggageBehaviorType behaviorType;
     [HideInInspector] public GameObject sourcePrefab;
 
-    [Header("Fragile Settings")]
-    [SerializeField] private float fragileBreakThreshold = 10f;
-
-    [Header("Bomb Explosion")]
-    [SerializeField] private float explosionRadius = 5f;
-    [SerializeField] private float explosionForce = 500f;
-
-    [Header("Collision Audio")]
-    [SerializeField, Min(0f)] private float minimumCollisionAudioSpeed = 1.5f;
-    [SerializeField, Min(0f)] private float mediumCollisionAudioSpeed = 4f;
-    [SerializeField, Min(0f)] private float hardCollisionAudioSpeed = 8f;
-    [SerializeField, Min(0f)] private float collisionAudioCooldown = 0.15f;
-
     private float lifetimeRemaining;
     private float lifetimeDuration;
-    private bool hasExploded;
     private bool isInStation;
     private bool hasExpired;
+    private bool isInitialized;
 
     private float fragileGrabImmunity;
     private float nextCollisionAudioTime;
@@ -38,12 +30,12 @@ public class Luggage : MonoBehaviour
 
     private List<PlayerGrab> grabbers = new List<PlayerGrab>();
     private PlayerGrab lastGrabber;
+    private Rigidbody cachedRigidbody;
+    private Collider cachedSurfaceCollider;
 
     public bool IsDelivered { get; set; }
     public bool IsWashed  { get; private set; }
     public bool IsWrapped { get; private set; }
-    public bool IsScanned { get; private set; }
-    public bool IsBomb => behaviorType == LuggageBehaviorType.Bomb;
     public bool RequiresWashing => initialBehaviorType == LuggageBehaviorType.Sticky;
     public bool RequiresWrapping => initialBehaviorType == LuggageBehaviorType.Fragile;
     public bool IsInStation => isInStation;
@@ -53,13 +45,34 @@ public class Luggage : MonoBehaviour
     public float LifetimeNormalized => lifetimeDuration > 0f
         ? Mathf.Clamp01(lifetimeRemaining / lifetimeDuration)
         : 0f;
+    public Rigidbody Body => cachedRigidbody;
+    public Collider SurfaceCollider => cachedSurfaceCollider;
+
+    private float FragileBreakThreshold => tuning.FragileBreakThreshold;
+    private float FragileGrabImmunityDuration => tuning.FragileGrabImmunity;
+    private float MinimumCollisionAudioSpeed => tuning.MinimumCollisionAudioSpeed;
+    private float MediumCollisionAudioSpeed => tuning.MediumCollisionAudioSpeed;
+    private float HardCollisionAudioSpeed => tuning.HardCollisionAudioSpeed;
+    private float CollisionAudioCooldown => tuning.CollisionAudioCooldown;
+
     private void Awake()
     {
+        if (tuning == null)
+        {
+            Debug.LogError($"{nameof(Luggage)} '{name}' has no {nameof(LuggageTuning)}.", this);
+            enabled = false;
+            return;
+        }
+
         initialBehaviorType = behaviorType;
+        CachePhysicsComponents();
     }
 
     private void Start()
     {
+        if (!isInitialized)
+            InitializeScenePlacedLuggage();
+
         if (outline != null) outline.enabled = false;
     }
 
@@ -68,17 +81,20 @@ public class Luggage : MonoBehaviour
         behaviorType = behavior;
         initialBehaviorType = behavior;
         sourcePrefab = prefabKey;
+        isInitialized = true;
         lifetimeRemaining = lifetime;
         lifetimeDuration = lifetime;
-        hasExploded = false;
         hasExpired = false;
         isInStation = false;
         IsDelivered = false;
         IsWashed = false;
         IsWrapped = false;
-        IsScanned = false;
         fragileGrabImmunity = 0f;
+        nextCollisionAudioTime = 0f;
         destinationGateNumber = 0;
+        grabbers.Clear();
+        lastGrabber = null;
+        CachePhysicsComponents();
         RefreshTimerDisplay();
     }
 
@@ -101,7 +117,7 @@ public class Luggage : MonoBehaviour
         if (behaviorType != LuggageBehaviorType.Fragile) return;
         if (IsWrapped) return;
         if (fragileGrabImmunity > 0f) return;
-        if (collision.impulse.magnitude > fragileBreakThreshold)
+        if (collision.impulse.magnitude > FragileBreakThreshold)
             BreakLuggage();
     }
 
@@ -116,20 +132,22 @@ public class Luggage : MonoBehaviour
             return;
 
         float collisionSpeed = collision.relativeVelocity.magnitude;
-        if (collisionSpeed < minimumCollisionAudioSpeed)
+        if (collisionSpeed < MinimumCollisionAudioSpeed)
             return;
 
-        nextCollisionAudioTime = Time.time + collisionAudioCooldown;
+        nextCollisionAudioTime = Time.time + CollisionAudioCooldown;
 
-        int clipIndex = collisionSpeed >= hardCollisionAudioSpeed
+        int clipIndex = collisionSpeed >= HardCollisionAudioSpeed
             ? 3
-            : collisionSpeed >= mediumCollisionAudioSpeed
+            : collisionSpeed >= MediumCollisionAudioSpeed
                 ? 2
                 : 1;
 
-        string surfacePrefix = IsWindowLikeCollision(collision) ? "window" : "ground";
-        string clipName = $"{surfacePrefix}Luggage Collision{clipIndex}";
-        float volume = Mathf.Lerp(0.35f, 1f, Mathf.InverseLerp(minimumCollisionAudioSpeed, hardCollisionAudioSpeed * 1.5f, collisionSpeed));
+        string clipName = Sfx.LuggageCollision(IsWindowLikeCollision(collision), clipIndex);
+        float volume = Mathf.Lerp(
+            0.35f,
+            1f,
+            Mathf.InverseLerp(MinimumCollisionAudioSpeed, HardCollisionAudioSpeed * 1.5f, collisionSpeed));
         AudioManager.Instance?.PlaySFX(clipName, volume);
     }
 
@@ -150,27 +168,9 @@ public class Luggage : MonoBehaviour
     {
         hasExpired = true;
 
-        if (GameManager.Instance != null)
-            GameManager.Instance.AddScore(GameManager.Instance.GetTimerExpiredPenalty());
-
-        if (IsBomb)
-            Explode();
-        else
-            DestroyLuggage();
-    }
-
-    private void Explode()
-    {
-        if (hasExploded) return;
-        hasExploded = true;
-
-        Collider[] cols = Physics.OverlapSphere(transform.position, explosionRadius);
-        foreach (var col in cols)
-        {
-            Rigidbody rb = col.attachedRigidbody;
-            if (rb != null && rb.gameObject != gameObject)
-                rb.AddExplosionForce(explosionForce, transform.position, explosionRadius, 1f, ForceMode.Impulse);
-        }
+        LevelConfig levelConfig = LevelContext.CurrentConfig;
+        if (levelConfig != null)
+            RoundScoreContext.TryApplyScore(levelConfig.scoreTimerExpired);
 
         DestroyLuggage();
     }
@@ -178,6 +178,11 @@ public class Luggage : MonoBehaviour
     public void DestroyLuggage()
     {
         DropAllGrabbers();
+
+        if (LuggageSpawner.Instance != null && LuggageSpawner.Instance.ReturnLuggage(this))
+            return;
+
+        Debug.LogWarning($"{nameof(Luggage)} '{name}' could not return to a pool and will be destroyed.", this);
         Destroy(gameObject);
     }
 
@@ -195,7 +200,7 @@ public class Luggage : MonoBehaviour
         if (!grabbers.Contains(playerGrab)) grabbers.Add(playerGrab);
         lastGrabber = playerGrab;
         if (behaviorType == LuggageBehaviorType.Fragile)
-            fragileGrabImmunity = 2f;
+            fragileGrabImmunity = FragileGrabImmunityDuration;
     }
 
     public PlayerGrab GetLastGrabber()
@@ -206,16 +211,6 @@ public class Luggage : MonoBehaviour
     public void RemoveGrabber(PlayerGrab playerGrab)
     {
         if (grabbers.Contains(playerGrab)) grabbers.Remove(playerGrab);
-    }
-
-    public int GetGrabberCount()
-    {
-        return grabbers.Count;
-    }
-
-    public List<PlayerGrab> GetGrabbers()
-    {
-        return new List<PlayerGrab>(grabbers);
     }
 
     public void SetInStation(bool value)
@@ -255,18 +250,6 @@ public class Luggage : MonoBehaviour
         return ReplaceWithPrefab(wrappedPrefab, markWashed: false, markWrapped: true);
     }
 
-    public void MarkScanned()
-    {
-        IsScanned = true;
-        Debug.Log($"[Scanner] Luggage scanned — {(IsBomb ? "BOMB DETECTED" : "safe")}");
-    }
-
-    public float GetMass()
-    {
-        Rigidbody rb = GetComponent<Rigidbody>();
-        return rb != null ? rb.mass : 0f;
-    }
-
     public bool GetIsGrabbed()
     {
         return grabbers.Count > 0;
@@ -277,25 +260,36 @@ public class Luggage : MonoBehaviour
         Transform originalParent = transform.parent;
         Vector3 originalWorldScale = transform.lossyScale;
 
-        GameObject replacementObject = Instantiate(
-            replacementPrefab,
-            transform.position,
-            transform.rotation);
+        Luggage replacement;
+        GameObject replacementObject;
+        if (LuggageSpawner.Instance != null)
+        {
+            replacement = LuggageSpawner.Instance.RentLuggage(
+                replacementPrefab,
+                transform.position,
+                transform.rotation);
+            replacementObject = replacement != null ? replacement.gameObject : null;
+        }
+        else
+        {
+            replacementObject = Instantiate(replacementPrefab, transform.position, transform.rotation);
+            replacement = replacementObject.GetComponent<Luggage>();
+        }
+
+        if (replacement == null)
+        {
+            Debug.LogError($"Replacement prefab {replacementPrefab.name} is missing {nameof(Luggage)}.");
+            if (replacementObject != null)
+                Destroy(replacementObject);
+            return this;
+        }
 
         replacementObject.transform.localScale = originalWorldScale;
         if (originalParent != null)
             replacementObject.transform.SetParent(originalParent, worldPositionStays: true);
 
-        Luggage replacement = replacementObject.GetComponent<Luggage>();
-        if (replacement == null)
-        {
-            Debug.LogError($"Replacement prefab {replacementPrefab.name} is missing {nameof(Luggage)}.");
-            Destroy(replacementObject);
-            return this;
-        }
-
-        Rigidbody oldRb = GetComponent<Rigidbody>();
-        Rigidbody newRb = replacement.GetComponent<Rigidbody>();
+        Rigidbody oldRb = cachedRigidbody;
+        Rigidbody newRb = replacement.Body;
 
         replacement.CopyRuntimeStateFrom(this, replacementPrefab, markWashed, markWrapped);
 
@@ -309,27 +303,95 @@ public class Luggage : MonoBehaviour
             }
         }
 
-        gameObject.SetActive(false);
-        Destroy(gameObject);
+        DestroyLuggage();
         return replacement;
     }
 
     private void CopyRuntimeStateFrom(Luggage source, GameObject replacementPrefab, bool markWashed, bool markWrapped)
     {
+        Luggage prefabDefinition = replacementPrefab.GetComponent<Luggage>();
+        behaviorType = prefabDefinition != null
+            ? prefabDefinition.behaviorType
+            : LuggageBehaviorType.Normal;
         initialBehaviorType = source.initialBehaviorType;
         sourcePrefab = replacementPrefab;
+        isInitialized = true;
         lifetimeRemaining = source.lifetimeRemaining;
         lifetimeDuration = source.lifetimeDuration;
-        hasExploded = source.hasExploded;
         hasExpired = source.hasExpired;
         isInStation = source.isInStation;
         IsDelivered = source.IsDelivered;
         IsWashed = source.IsWashed || markWashed;
         IsWrapped = source.IsWrapped || markWrapped;
-        IsScanned = source.IsScanned;
+        fragileGrabImmunity = source.fragileGrabImmunity;
+        nextCollisionAudioTime = source.nextCollisionAudioTime;
+        grabbers.Clear();
         lastGrabber = source.lastGrabber;
         destinationGateNumber = source.destinationGateNumber;
+        CachePhysicsComponents();
         RefreshTimerDisplay();
+    }
+
+    private void InitializeScenePlacedLuggage()
+    {
+        float lifetime = FallbackScenePlacedLifetime;
+
+        if (LuggageSpawner.Instance != null
+            && LuggageSpawner.Instance.TryGetConfiguredLifetime(out float configuredLifetime))
+        {
+            lifetime = configuredLifetime;
+        }
+        else if (LevelContext.TryGetConfig(out LevelConfig levelConfig))
+        {
+            lifetime = levelConfig.luggageLifetime;
+        }
+        else
+        {
+            Debug.LogWarning(
+                $"{nameof(Luggage)} '{name}' was placed in a scene without level tuning; "
+                + $"using a {FallbackScenePlacedLifetime:0.#} second lifetime.",
+                this);
+        }
+
+        Initialize(behaviorType, Mathf.Max(0.1f, lifetime), prefabKey: null);
+    }
+
+    private void CachePhysicsComponents()
+    {
+        if (cachedRigidbody == null)
+            cachedRigidbody = GetComponent<Rigidbody>();
+
+        if (cachedSurfaceCollider == null)
+        {
+            Collider[] colliders = GetComponentsInChildren<Collider>();
+            for (int i = 0; i < colliders.Length; i++)
+            {
+                if (!colliders[i].isTrigger)
+                {
+                    cachedSurfaceCollider = colliders[i];
+                    break;
+                }
+            }
+
+            if (cachedSurfaceCollider == null && colliders.Length > 0)
+                cachedSurfaceCollider = colliders[0];
+        }
+    }
+
+    public static bool TryGetFromCollider(Collider collider, out Luggage luggage)
+    {
+        luggage = null;
+        if (collider == null)
+            return false;
+
+        Rigidbody attachedBody = collider.attachedRigidbody;
+        if (attachedBody != null)
+            luggage = attachedBody.GetComponentInParent<Luggage>();
+
+        if (luggage == null)
+            luggage = collider.GetComponentInParent<Luggage>();
+
+        return luggage != null;
     }
 
     private void RefreshTimerDisplay()

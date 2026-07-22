@@ -7,7 +7,6 @@ using UnityEngine.InputSystem;
 // bounding-box size of all player positions.
 public class MultiplayerCamera : MonoBehaviour
 {
-    [SerializeField] private Camera mainCamera;
     [SerializeField] private float smoothTime;
     [SerializeField] private float zoomLimiter;
     [SerializeField] private float yMinimum;

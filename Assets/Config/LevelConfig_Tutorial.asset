@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1f8186d497b8b436e9308ccb7c9ddeae, type: 3}
+  m_Name: LevelConfig_Tutorial
+  m_EditorClassIdentifier: Assembly-CSharp::LevelConfig
+  levelId: tutorial
+  sceneName: Stage Tutorial
+  displayName: Training Day
+  description: Practice grabbing, washing, and delivering without heavy pressure.
+  unlockedByDefault: 1
+  nextLevel: {fileID: 11400000, guid: 33c3b7f5bf113437aafd465088effc9d, type: 2}
+  gameTime: 180
+  star1Score: 20
+  star2Score: 40
+  star3Score: 60
+  luggagePrefabs:
+  - {fileID: 2657728768583679652, guid: 3ff59be8ddf8948129c2020ea3ca360c, type: 3}
+  - {fileID: 7318264214933058454, guid: 918e7b0e7e18340caa11355807c50fc4, type: 3}
+  luggageLifetime: 45
+  waveDelay: 12
+  luggagePerWave: 3
+  intraWaveInterval: 2.5
+  scoreCorrectDelivery: 10
+  scoreMissingProcess: -5
+  scoreTimerExpired: -5
+  scoreWrongGateDelivery: -5

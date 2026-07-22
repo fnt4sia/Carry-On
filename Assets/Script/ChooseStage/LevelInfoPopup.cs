@@ -34,8 +34,14 @@ public class LevelInfoPopup : MonoBehaviour
         if (node == null || node == current) return;
         current = node;
 
-        if (titleText != null) titleText.text = node.levelName;
-        if (descriptionText != null) descriptionText.text = node.description;
+        if (titleText != null)
+            titleText.text = node.IsUnlocked ? node.DisplayName : $"{node.DisplayName} — Locked";
+        if (descriptionText != null)
+        {
+            descriptionText.text = node.IsUnlocked
+                ? $"{node.Description}\nBest: {node.BestStars}/3 stars"
+                : "Complete the previous stage to unlock this level.";
+        }
 
         Animate(shownAnchoredPos, 1f);
     }

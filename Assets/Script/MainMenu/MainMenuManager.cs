@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 // Lobby controller. Opens on a "press to start" gate with the camera looking away; the
@@ -293,7 +292,7 @@ public class MainMenuManager : MonoBehaviour
         // Need at least one joined player, otherwise the stage would have no characters.
         if (joinedPlayers.Count < 1)
         {
-            AudioManager.Instance?.PlaySFX("wrong");
+            AudioManager.Instance?.PlaySFX(Sfx.Wrong);
             return;
         }
 
@@ -303,7 +302,7 @@ public class MainMenuManager : MonoBehaviour
         foreach (var player in joinedPlayers)
             FreezeForLobby(player, false);
 
-        SceneManager.LoadScene("ChooseStage");
+        SceneLoader.LoadStageSelect();
     }
 
     public void OnClickOptions()
@@ -319,6 +318,6 @@ public class MainMenuManager : MonoBehaviour
 
     private static void PlayButtonSelectSfx()
     {
-        AudioManager.Instance?.PlaySFX("Button Select");
+        AudioManager.Instance?.PlaySFX(Sfx.ButtonSelect);
     }
 }

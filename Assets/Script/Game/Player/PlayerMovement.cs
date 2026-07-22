@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -11,22 +12,16 @@ public class PlayerMovement : MonoBehaviour
 {
     public bool isGrabbing;
 
+    [Header("Tuning")]
+    [SerializeField] private PlayerConfig playerConfig;
+
     [SerializeField] private Rigidbody playerRb;
-    [SerializeField] private float movementSpeedNormal;
-    [SerializeField] private float rotationSpeed;
-    [SerializeField] private float grabRotationSpeedMultiplier = 0.6f;
-    [SerializeField] private float lerpSpeed;
+
+    [Header("Bubble VFX")]
     [SerializeField] private GameObject bubblePrefab;
-    [SerializeField] private float bubbleSpawnInterval;
+    [SerializeField, Min(0.01f)] private float bubbleSpawnInterval = 0.04f;
     [SerializeField] private Vector3 bubbleOffsetRange;
     [SerializeField] private Animator animator;
-
-    [Header("Dash")]
-    [SerializeField] private float dashSpeedMultiplier = 2.5f;
-    [SerializeField] private float dashDuration;
-    [SerializeField] private float dashCooldown;
-
-    [SerializeField] private int playerIndex;
 
     private PlayerGrab playerGrab;
     private PlayerInput playerInput;
@@ -41,13 +36,48 @@ public class PlayerMovement : MonoBehaviour
     private Vector3 movementDirection;
     private Vector3 currentVelocity;
     private bool isMoving;
-    private DesignSceneInput designInput;
+
+    private readonly List<BubbleVisual> activeBubbles = new();
+    private readonly Stack<BubbleVisual> pooledBubbles = new();
+    private MaterialPropertyBlock bubblePropertyBlock;
+    private float bubbleSpawnTimer;
+
+    private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+    private static readonly int ColorId = Shader.PropertyToID("_Color");
+
+    private class BubbleVisual
+    {
+        public GameObject GameObject;
+        public Transform Transform;
+        public Renderer Renderer;
+        public Vector3 PrefabScale;
+        public Vector3 StartPosition;
+        public Vector3 EndPosition;
+        public Color BaseColor;
+        public float Elapsed;
+    }
+
+    private float MovementSpeedNormal => playerConfig.MovementSpeedNormal;
+    private float RotationSpeed => playerConfig.RotationSpeed;
+    private float GrabRotationSpeedMultiplier => playerConfig.GrabRotationSpeedMultiplier;
+    private float MovementLerpSpeed => playerConfig.LerpSpeed;
+    private float DashSpeedMultiplier => playerConfig.DashSpeedMultiplier;
+    private float DashDuration => playerConfig.DashDuration;
+    private float DashCooldown => playerConfig.DashCooldown;
 
     private void Awake()
     {
+        if (playerConfig == null)
+        {
+            Debug.LogError($"{nameof(PlayerMovement)} '{name}' has no {nameof(PlayerConfig)}.", this);
+            enabled = false;
+            return;
+        }
+
+        bubblePropertyBlock = new MaterialPropertyBlock();
         playerInput = GetComponent<PlayerInput>();
-        moveAction = playerInput.actions["Move"];
-        dashAction = playerInput.actions["Dash"];
+        moveAction = playerInput.actions.FindAction("Player/Move", throwIfNotFound: true);
+        dashAction = playerInput.actions.FindAction("Player/Dash", throwIfNotFound: true);
         playerGrab = GetComponent<PlayerGrab>();
     }
 
@@ -59,13 +89,45 @@ public class PlayerMovement : MonoBehaviour
     private void OnDisable()
     {
         SceneManager.sceneLoaded -= OnSceneLoaded;
+        ReleaseAllBubbles();
     }
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
+        ResetRuntimeState();
         var cam = FindAnyObjectByType<Camera>();
         if (cam != null) cameraTransform = cam.transform;
-        designInput = FindFirstObjectByType<DesignSceneInput>();
+        RemoveDestroyedBubbles();
+    }
+
+    public void ResetRuntimeState()
+    {
+        StopAllCoroutines();
+        playerGrab?.Drop(forceRelease: true);
+
+        moveInput = Vector2.zero;
+        movementDirection = Vector3.zero;
+        currentVelocity = Vector3.zero;
+        isMoving = false;
+        isDashing = false;
+        isGrabbing = false;
+        lastDashTime = -10f;
+        bubbleSpawnTimer = 0f;
+
+        if (playerRb != null)
+        {
+            playerRb.linearVelocity = Vector3.zero;
+            playerRb.angularVelocity = Vector3.zero;
+        }
+
+        if (animator != null)
+        {
+            animator.SetBool(AnimId.IsMoving, false);
+            animator.SetBool(AnimId.IsDashing, false);
+            animator.SetBool(AnimId.IsGrabbing, false);
+        }
+
+        ReleaseAllBubbles();
     }
 
     private static bool IsGameplayScene() => GameManager.Instance != null;
@@ -74,19 +136,17 @@ public class PlayerMovement : MonoBehaviour
     {
         var cam = FindAnyObjectByType<Camera>();
         if (cam != null) cameraTransform = cam.transform;
-        designInput = FindFirstObjectByType<DesignSceneInput>();
-        StartCoroutine(SpawnBubblesCoroutine());
     }
 
     void Update()
     {
+        UpdateBubbleEffects();
+
         if (!IsGameplayScene()) return;
         if (cameraTransform == null) return;
-        if (designInput != null) return;
-
         moveInput = moveAction.ReadValue<Vector2>();
 
-        if (dashAction.WasPressedThisFrame() && !isDashing && Time.time >= lastDashTime + dashCooldown)
+        if (dashAction.WasPressedThisFrame() && !isDashing && Time.time >= lastDashTime + DashCooldown)
             StartCoroutine(DashCoroutine());
 
         Vector3 forward = cameraTransform.forward;
@@ -102,9 +162,9 @@ public class PlayerMovement : MonoBehaviour
     {
         if (!IsGameplayScene()) return;
 
-        float speed = movementSpeedNormal * (isDashing ? dashSpeedMultiplier : 1f);
+        float speed = MovementSpeedNormal * (isDashing ? DashSpeedMultiplier : 1f);
         Vector3 targetVelocity = movementDirection * speed;
-        currentVelocity = Vector3.Lerp(currentVelocity, targetVelocity, lerpSpeed);
+        currentVelocity = Vector3.Lerp(currentVelocity, targetVelocity, MovementLerpSpeed);
         Vector3 moveDelta = new Vector3(currentVelocity.x, 0, currentVelocity.z) * Time.fixedDeltaTime;
 
         bool isHolding = isGrabbing && playerGrab != null;
@@ -125,11 +185,11 @@ public class PlayerMovement : MonoBehaviour
 
         // Rotate to face movement direction
         bool isTryingToMove = movementDirection.sqrMagnitude > 0.1f;
-        animator.SetBool("isMoving", isTryingToMove);
+        animator.SetBool(AnimId.IsMoving, isTryingToMove);
         if (isTryingToMove)
         {
             Vector3 flatDir = new Vector3(movementDirection.x, 0, movementDirection.z).normalized;
-            float rotSpeed = isGrabbing ? rotationSpeed * grabRotationSpeedMultiplier : rotationSpeed;
+            float rotSpeed = isGrabbing ? RotationSpeed * GrabRotationSpeedMultiplier : RotationSpeed;
             transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(flatDir), rotSpeed * Time.fixedDeltaTime);
         }
 
@@ -144,7 +204,7 @@ public class PlayerMovement : MonoBehaviour
     // Sweeps `body` along moveDelta and strips out the into-wall component if it would
     // hit a static or heavier collider, so the teleport-based move can't push through it.
     // Lightweight dynamic objects (cones, decorations) are ignored — let physics push them.
-    // Trigger colliders (pressure plates, scanner/sink zones) are ignored — they must
+    // Trigger colliders (pressure plates, sink zones) are ignored — they must
     // never block movement even though the project has queriesHitTriggers enabled.
     private void ClampMoveDeltaAgainstWalls(Rigidbody body, ref Vector3 moveDelta)
     {
@@ -167,80 +227,163 @@ public class PlayerMovement : MonoBehaviour
         if (velIntoWall > 0f) currentVelocity += wallNormal * velIntoWall;
     }
 
-    // Called by DesignSceneInput to bypass PlayerInput in the design scene
-    public void InjectInput(Vector2 move, bool dashPressed)
-    {
-        if (dashPressed && !isDashing && Time.time >= lastDashTime + dashCooldown)
-            StartCoroutine(DashCoroutine());
-
-        Vector3 forward = cameraTransform != null ? cameraTransform.forward : Vector3.forward;
-        Vector3 right   = cameraTransform != null ? cameraTransform.right   : Vector3.right;
-        forward.y = 0; right.y = 0;
-        forward.Normalize(); right.Normalize();
-        movementDirection = (move.x * right + move.y * forward).normalized;
-        isMoving = movementDirection.sqrMagnitude > 0.1f;
-    }
-
     private IEnumerator DashCoroutine()
     {
         isDashing = true;
         lastDashTime = Time.time;
-        animator.SetBool("isDashing", true);
-        AudioManager.Instance?.PlaySFX("Player Dash");
+        animator.SetBool(AnimId.IsDashing, true);
+        AudioManager.Instance?.PlaySFX(Sfx.PlayerDash);
 
-        yield return new WaitForSeconds(dashDuration);
+        yield return new WaitForSeconds(DashDuration);
 
-        animator.SetBool("isDashing", false);
+        animator.SetBool(AnimId.IsDashing, false);
         isDashing = false;
     }
 
-    IEnumerator SpawnBubblesCoroutine()
+    private void UpdateBubbleEffects()
     {
-        while (true)
-        {
-            if (isMoving)
-            {
-                Vector3 offset = new Vector3(
-                    Random.Range(-bubbleOffsetRange.x, bubbleOffsetRange.x),
-                    Random.Range(-bubbleOffsetRange.y, bubbleOffsetRange.y),
-                    Random.Range(-bubbleOffsetRange.z, bubbleOffsetRange.z));
+        const float duration = 0.5f;
 
-                Vector3 spawnPos = (transform.position + new Vector3(0, -0.6f, 0)) + offset;
-                GameObject bubble = Instantiate(bubblePrefab, spawnPos, Quaternion.identity);
-                StartCoroutine(AnimateBubble(bubble));
+        for (int i = activeBubbles.Count - 1; i >= 0; i--)
+        {
+            BubbleVisual bubble = activeBubbles[i];
+            if (bubble.GameObject == null)
+            {
+                activeBubbles.RemoveAt(i);
+                continue;
             }
 
-            yield return new WaitForSeconds(bubbleSpawnInterval);
+            bubble.Elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(bubble.Elapsed / duration);
+            bubble.Transform.position = Vector3.Lerp(bubble.StartPosition, bubble.EndPosition, t);
+            bubble.Transform.localScale = Vector3.Lerp(bubble.PrefabScale, bubble.PrefabScale * 0.75f, t);
+            SetBubbleColor(bubble.Renderer, new Color(
+                bubble.BaseColor.r,
+                bubble.BaseColor.g,
+                bubble.BaseColor.b,
+                bubble.BaseColor.a * (1f - t)));
+
+            if (t >= 1f)
+                ReleaseBubbleAt(i);
+        }
+
+        if (!isMoving || bubblePrefab == null)
+        {
+            bubbleSpawnTimer = 0f;
+            return;
+        }
+
+        bubbleSpawnTimer -= Time.deltaTime;
+        if (bubbleSpawnTimer > 0f)
+            return;
+
+        bubbleSpawnTimer = Mathf.Max(0.01f, bubbleSpawnInterval);
+        SpawnBubble();
+    }
+
+    private void SpawnBubble()
+    {
+        BubbleVisual bubble = AcquireBubble();
+        if (bubble == null)
+            return;
+
+        Vector3 offset = new(
+            Random.Range(-bubbleOffsetRange.x, bubbleOffsetRange.x),
+            Random.Range(-bubbleOffsetRange.y, bubbleOffsetRange.y),
+            Random.Range(-bubbleOffsetRange.z, bubbleOffsetRange.z));
+
+        bubble.StartPosition = transform.position + new Vector3(0f, -0.6f, 0f) + offset;
+        bubble.EndPosition = bubble.StartPosition + new Vector3(0f, 0.4f, 0f);
+        bubble.Elapsed = 0f;
+        bubble.Transform.SetPositionAndRotation(bubble.StartPosition, Quaternion.identity);
+        bubble.Transform.localScale = bubble.PrefabScale;
+        bubble.GameObject.SetActive(true);
+        SetBubbleColor(bubble.Renderer, bubble.BaseColor);
+        activeBubbles.Add(bubble);
+    }
+
+    private BubbleVisual AcquireBubble()
+    {
+        while (pooledBubbles.Count > 0)
+        {
+            BubbleVisual pooled = pooledBubbles.Pop();
+            if (pooled.GameObject != null)
+                return pooled;
+        }
+
+        GameObject instance = Instantiate(bubblePrefab);
+        Renderer bubbleRenderer = instance.GetComponentInChildren<Renderer>();
+        return new BubbleVisual
+        {
+            GameObject = instance,
+            Transform = instance.transform,
+            Renderer = bubbleRenderer,
+            PrefabScale = instance.transform.localScale,
+            BaseColor = ReadSharedColor(bubbleRenderer)
+        };
+    }
+
+    private void ReleaseBubbleAt(int index)
+    {
+        BubbleVisual bubble = activeBubbles[index];
+        activeBubbles.RemoveAt(index);
+
+        if (bubble.GameObject == null)
+            return;
+
+        if (bubble.Renderer != null)
+            bubble.Renderer.SetPropertyBlock(null);
+        bubble.GameObject.SetActive(false);
+        pooledBubbles.Push(bubble);
+    }
+
+    private void ReleaseAllBubbles()
+    {
+        for (int i = activeBubbles.Count - 1; i >= 0; i--)
+            ReleaseBubbleAt(i);
+    }
+
+    private void RemoveDestroyedBubbles()
+    {
+        for (int i = activeBubbles.Count - 1; i >= 0; i--)
+        {
+            if (activeBubbles[i].GameObject == null)
+                activeBubbles.RemoveAt(i);
         }
     }
 
-    IEnumerator AnimateBubble(GameObject bubble)
+    private void SetBubbleColor(Renderer bubbleRenderer, Color color)
     {
-        float duration = 0.5f;
-        float elapsed = 0f;
+        if (bubbleRenderer == null)
+            return;
 
-        Vector3 startPos = bubble.transform.position;
-        Vector3 endPos = startPos + new Vector3(0, 0.4f, 0);
+        bubblePropertyBlock.Clear();
+        bubblePropertyBlock.SetColor(BaseColorId, color);
+        bubblePropertyBlock.SetColor(ColorId, color);
+        bubbleRenderer.SetPropertyBlock(bubblePropertyBlock);
+    }
 
-        Vector3 startScale = bubble.transform.localScale;
-        Vector3 endScale = startScale * 0.75f;
+    private static Color ReadSharedColor(Renderer bubbleRenderer)
+    {
+        Material material = bubbleRenderer != null ? bubbleRenderer.sharedMaterial : null;
+        if (material == null)
+            return Color.white;
+        if (material.HasProperty(BaseColorId))
+            return material.GetColor(BaseColorId);
+        if (material.HasProperty(ColorId))
+            return material.GetColor(ColorId);
+        return Color.white;
+    }
 
-        Renderer renderer = bubble.GetComponent<Renderer>();
-        Material mat = renderer.material;
-        Color startColor = mat.color;
-
-        while (elapsed < duration)
+    private void OnDestroy()
+    {
+        ReleaseAllBubbles();
+        while (pooledBubbles.Count > 0)
         {
-            float t = elapsed / duration;
-            bubble.transform.position = Vector3.Lerp(startPos, endPos, t);
-            bubble.transform.localScale = Vector3.Lerp(startScale, endScale, t);
-            mat.color = new Color(startColor.r, startColor.g, startColor.b, Mathf.Lerp(1f, 0f, t));
-
-            elapsed += Time.deltaTime;
-            yield return null;
+            BubbleVisual bubble = pooledBubbles.Pop();
+            if (bubble.GameObject != null)
+                Destroy(bubble.GameObject);
         }
-
-        Destroy(bubble);
     }
 
 }
