@@ -18,6 +18,12 @@ A keyboard scheme is free when no current player uses its scheme name; a gamepad
 
 `PlayerSystem` bootstraps from `Assets/Resources/Runtime/PlayerSystem.prefab`, rejects duplicate instances through `SingletonBehaviour`, and persists across scenes. Always use `PlayerSystem.Instance.Manager` rather than finding a manager in the scene.
 
+> **Invisible by design.** `PlayerSystem` — like `AudioManager`, `SceneLoader`, and `ProgressionService` — is created *before the scene loads* (via `RuntimeInitializeOnLoadMethod` + `Resources.Load`), so it never appears in any scene hierarchy. To edit one, open its prefab in `Assets/Resources/Runtime/`, not the scene.
+
+## Which body spawns (Character Prefab)
+
+Every player spawns as the prefab in `PlayerSystem`'s **Character Prefab** field (on `Assets/Prefab/Manager/PlayerSystem.prefab`). `PlayerSystem` copies it into `PlayerInputManager.playerPrefab` at startup, before any join. Use this field — not the manager's own *Player Prefab* field, which Unity hides while Join Behavior = *Manual*. To swap the body, see [how-to: change the character](../howto/change-character.md).
+
 ## Shared input asset
 
 `Assets/InputAction/GameInput.inputactions` is the single action source:

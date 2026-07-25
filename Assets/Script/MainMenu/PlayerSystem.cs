@@ -28,6 +28,11 @@ public class PlayerSystem : SingletonBehaviour<PlayerSystem>
 
     [SerializeField] private string lobbySceneName = "MainMenu";
 
+    [Header("Character")]
+    [SerializeField, Tooltip("Body prefab spawned for every joined player. Set this " +
+        "instead of the PlayerInputManager's hidden Player Prefab field.")]
+    private GameObject characterPrefab;
+
     private PlayerInputManager manager;
     private bool joinAllowed;
 
@@ -56,6 +61,11 @@ public class PlayerSystem : SingletonBehaviour<PlayerSystem>
     protected override void OnSingletonAwake()
     {
         manager = GetComponent<PlayerInputManager>();
+
+        // Visible override for the manager's hidden Player Prefab field (hidden because
+        // Join Behavior = Manual). Runs before any JoinPlayer call, so every spawn uses it.
+        if (characterPrefab != null)
+            manager.playerPrefab = characterPrefab;
 
         SceneManager.sceneLoaded += OnSceneLoaded;
         ApplyJoinState(SceneManager.GetActiveScene().name);

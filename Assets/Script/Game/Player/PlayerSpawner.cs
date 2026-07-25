@@ -1,6 +1,9 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+// This only POSITIONS players; it never creates them. Players are created by PlayerSystem
+// (MainMenu/PlayerSystem.cs) + Unity's PlayerInputManager, and persist across scenes.
+//
 // Place this in every stage scene. Add up to 4 child GameObjects named "SpawnPoint_1"
 // through "SpawnPoint_4" and assign them to the spawnPoints array. On Start it moves
 // each persisted player to their matching spawn position.

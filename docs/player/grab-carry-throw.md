@@ -8,7 +8,7 @@ One Grab action handles pickup, hold-to-charge throw, and quick drop. UseStation
 
 `Physics.OverlapSphereNonAlloc` searches the configured luggage layer around `grabPoint` using one shared 32-collider buffer; a ray to the rigidbody center rejects targets hidden by blocking geometry. Logic then resolves the nearest valid `Luggage` component and skips in-station items.
 
-Pickup force-drops existing grabbers before attaching, so one player holds an item at a time. `lastGrabber` persists after release for delivery attribution. `GetPlayerIndex` reads the attached `PlayerInput.playerIndex`, not a serialized clone value.
+Pickup force-drops existing grabber s before attaching, so one player holds an item at a time. `lastGrabber` persists after release for delivery attribution. `GetPlayerIndex` reads the attached `PlayerInput.playerIndex`, not a serialized clone value.
 
 ## Carry setup
 
