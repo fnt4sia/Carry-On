@@ -1,6 +1,6 @@
 # DesignScene testing
 
-**Script:** `MainMenu/DebugAutoJoin.cs` — **Scene:** `Assets/Scenes/Level/DesignScene.unity`
+**Script:** `MainMenu/DebugAutoJoin.cs` — **Scene:** `Assets/Scenes/Stages/DesignScene.unity`
 
 DesignScene is an editor-only sandbox outside Build Settings. It contains a normal `LevelContext` using `LevelConfig_Design`, the reusable game/spawner prefabs, four player spawn points, a washer, a wrapper, and `DebugAutoJoin`.
 

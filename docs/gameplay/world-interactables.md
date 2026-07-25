@@ -1,18 +1,22 @@
 # World interactables and hazards
 
-**Scripts:** `Game/World/Gateway.cs`, `GatewayPressurePlate.cs`, `RotatingPlatform.cs`, `RotatingPlatformPressurePlate.cs`, `OneWayDoor.cs`, `PoolHazard.cs`
+**Scripts:** `Game/World/Gateway.cs`, `PressurePlate.cs`, `RotatingPlatform.cs`, `OneWayDoor.cs`, `PoolHazard.cs`
 
-## Gateway and pressure plate
+## Pressure plate
 
-`Gateway` exposes `Open`, `Close`, and `Toggle`, driving the cached `AnimId.IsOpen` animator parameter. A `GatewayPressurePlate` can control several gateways.
+One `PressurePlate` drives every "step here to actuate something" prop. The plate owns its connections: it holds a `connectedGateways` list and a `connectedPlatforms` list, both multi-target. The targets never point back at the plate, so wiring lives in one place — the plate.
 
-The plate counts valid contacts so multi-collider objects do not release it early. Toggle mode keeps the new door state after release; momentary mode explicitly opens while occupied and closes when the final contact leaves. Player/luggage filters determine what can trigger it. Plate tinting uses a `MaterialPropertyBlock`, avoiding per-instance material clones.
+On press (first valid contact) it toggles/opens its gateways and reverses its platforms; on release (last contact leaves) it closes gateways in momentary mode (toggle mode keeps the door state). The plate counts valid contacts so multi-collider objects do not release it early. `isToggleMode` applies to gateways only; platforms just reverse each press. Player/luggage filters determine what can trigger it. Plate tinting uses a `MaterialPropertyBlock`, avoiding per-instance material clones.
 
-Connected gateway lists are per-level wiring and should remain scene-instance overrides.
+Connection lists are per-level wiring and should remain scene-instance overrides. Edit shared plate values (colors, filters, collider, mesh) in Prefab Mode, not from a scene instance, and never use "Apply All" from an instance — that would push one level's wiring into the prefab.
+
+## Gateway
+
+`Gateway` exposes `Open`, `Close`, and `Toggle`, driving the cached `AnimId.IsOpen` animator parameter. It is normally driven by a `PressurePlate`.
 
 ## Rotating platform
 
-The platform rotates its body in `FixedUpdate` and can carry registered player/luggage riders around its pivot. `carryRiders` enables positional transport; `rotateRiders` additionally rotates rider orientation. A linked pressure plate reverses direction on the first valid contact and resets only its visual on release.
+The platform rotates its body in `FixedUpdate` and can carry registered player/luggage riders around its pivot. `carryRiders` enables positional transport; `rotateRiders` additionally rotates rider orientation. It exposes `ReverseDirection`/`SetClockwise` for a `PressurePlate` to call; the plate owns that connection, so the platform keeps no reference back.
 
 Rider identity uses the relevant component, with tags only as an optional fast path. Multiple collider contacts are counted per rider.
 

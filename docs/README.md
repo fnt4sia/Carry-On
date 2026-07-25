@@ -2,6 +2,16 @@
 
 This is the entry point for the Unity project. Open the smallest topic that matches the work; do not load the entire folder by default. Code and serialized Unity assets are the source of truth. These docs were reconciled with the refactored project on 2026-07-14.
 
+## How-to (designer recipes)
+
+Start here to *change* something without reading code — a map of where every knob lives, plus step-by-step cards.
+
+- [How-to index — "where things live"](howto/README.md)
+- [Change the character body](howto/change-character.md)
+- [Tune player feel (move / dash / grab / throw)](howto/tune-player-feel.md)
+- [Tune a level (timer / waves / scoring / luggage)](howto/tune-a-level.md)
+- [Test a scene in isolation](howto/test-a-scene.md)
+
 ## Core
 
 - [Project overview](core/project-overview.md) — pitch, stack, repository layout, scenes, and runtime flow.

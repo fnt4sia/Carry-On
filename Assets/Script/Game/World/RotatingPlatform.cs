@@ -3,7 +3,8 @@ using UnityEngine;
 
 // Rotates a platform body and carries players/luggage standing inside its rider zone.
 // The rider zone is a child trigger collider under the same Rigidbody.
-// Pressure plates can call ReverseDirection to flip clockwise/counter-clockwise.
+// A PressurePlate calls ReverseDirection to flip clockwise/counter-clockwise; the plate
+// owns that connection, so the platform keeps no reference back to it.
 [DisallowMultipleComponent]
 public class RotatingPlatform : MonoBehaviour
 {
@@ -11,9 +12,6 @@ public class RotatingPlatform : MonoBehaviour
     [SerializeField] private Transform rotatingBody;
     [SerializeField, Min(0f)] private float rotationSpeed = 35f;
     [SerializeField] private bool clockwise = true;
-
-    [Header("Pressure Plates")]
-    [SerializeField] private List<RotatingPlatformPressurePlate> pressurePlates = new List<RotatingPlatformPressurePlate>();
 
     [Header("Riders")]
     [SerializeField] private bool carryRiders = true;
@@ -49,16 +47,6 @@ public class RotatingPlatform : MonoBehaviour
             platformRigidbody = GetComponent<Rigidbody>();
     }
 
-    private void OnEnable()
-    {
-        AssignPressurePlates();
-    }
-
-    private void Start()
-    {
-        AssignPressurePlates();
-    }
-
     private void FixedUpdate()
     {
         if (rotatingBody == null || Mathf.Approximately(rotationSpeed, 0f))
@@ -88,29 +76,6 @@ public class RotatingPlatform : MonoBehaviour
     public void SetClockwise(bool value)
     {
         clockwise = value;
-    }
-
-    public void AddPressurePlate(RotatingPlatformPressurePlate pressurePlate)
-    {
-        if (pressurePlate == null)
-            return;
-
-        if (!pressurePlates.Contains(pressurePlate))
-            pressurePlates.Add(pressurePlate);
-
-        pressurePlate.SetConnectedPlatform(this);
-    }
-
-    private void AssignPressurePlates()
-    {
-        for (int i = pressurePlates.Count - 1; i >= 0; i--)
-        {
-            RotatingPlatformPressurePlate pressurePlate = pressurePlates[i];
-            if (pressurePlate == null)
-                continue;
-
-            pressurePlate.SetConnectedPlatform(this);
-        }
     }
 
     private void OnTriggerEnter(Collider other)
