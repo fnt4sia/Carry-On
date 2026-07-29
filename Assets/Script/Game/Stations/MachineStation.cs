@@ -15,9 +15,6 @@ public enum StationPhase
 /// </summary>
 public abstract class MachineStation : MonoBehaviour
 {
-    [Header("Tuning")]
-    [SerializeField] private StationTuning stationTuning;
-
     [Header("Station")]
     [Tooltip("Where luggage snaps when placed.")]
     [SerializeField] protected Transform snapTransform;
@@ -31,9 +28,22 @@ public abstract class MachineStation : MonoBehaviour
     [SerializeField, Min(0.05f)] private float processDuration = 1.5f;
     [SerializeField, Min(0f)] private float readyDuration = 0.75f;
 
+    [Header("Code-Driven Travel")]
+    [Tooltip("Point under the machine roof that placed luggage slides to. Empty keeps it at the snap point.")]
+    [SerializeField] private Transform intakeTransform;
+    [Tooltip("Where the finished luggage starts its trip out. Empty reuses the intake point.")]
+    [SerializeField] private Transform releaseTransform;
+    [Tooltip("Where finished luggage is handed back. Empty leaves it where it was processed.")]
+    [SerializeField] private Transform outputTransform;
+    [SerializeField, Min(0f)] private float intakeDuration = 0.5f;
+
     [Header("Output Clearance")]
     [SerializeField] private bool shoveBlockingLuggageOnPlace = true;
     [SerializeField] private Transform obstacleCheckTransform;
+    [SerializeField] private Vector3 obstacleCheckHalfExtents = new(1.5f, 1f, 1.5f);
+    [SerializeField, Min(0f)] private float obstacleShoveImpulse = 5f;
+    [SerializeField, Min(0f)] private float obstacleShoveUpImpulse = 1.5f;
+    [SerializeField, Min(0f)] private float obstacleShoveRandomness = 0.65f;
 
     protected Luggage currentLuggage;
     protected bool isProcessing;
@@ -46,25 +56,19 @@ public abstract class MachineStation : MonoBehaviour
 
     public bool IsOccupied => phase != StationPhase.Idle;
     public bool IsProcessing => phase == StationPhase.Processing;
+    public StationPhase Phase => phase;
 
-    private Vector3 ObstacleCheckHalfExtents => stationTuning.ObstacleCheckHalfExtents;
-    private float ObstacleShoveImpulse => stationTuning.ObstacleShoveImpulse;
-    private float ObstacleShoveUpImpulse => stationTuning.ObstacleShoveUpImpulse;
-    private float ObstacleShoveRandomness => stationTuning.ObstacleShoveRandomness;
+    // Kept as a property because Vector3 has no Min attribute and a negative half-extent
+    // silently makes the overlap box empty.
+    private Vector3 ObstacleCheckHalfExtents => new(
+        Mathf.Max(0f, obstacleCheckHalfExtents.x),
+        Mathf.Max(0f, obstacleCheckHalfExtents.y),
+        Mathf.Max(0f, obstacleCheckHalfExtents.z));
 
     public abstract bool CanAccept(Luggage luggage);
     protected abstract Luggage OnProcessComplete(Luggage luggage);
     protected virtual void OnLuggagePlaced(Luggage luggage) { }
     protected virtual void OnStationReset() { }
-
-    private void Awake()
-    {
-        if (stationTuning != null)
-            return;
-
-        Debug.LogError($"{GetType().Name} '{name}' has no {nameof(StationTuning)}.", this);
-        enabled = false;
-    }
 
     public bool TryPlace(Luggage luggage)
     {
@@ -101,8 +105,10 @@ public abstract class MachineStation : MonoBehaviour
         phase = StationPhase.Processing;
         OnLuggagePlaced(luggage);
 
-        if (machineAnimator != null)
-            machineAnimator.SetBool(AnimId.IsTriggered, true);
+        // For animation-driven machines the flag is the whole lifecycle, so it goes up the moment
+        // the bag is placed. Timed machines raise it later, once the bag is actually inside.
+        if (animationDriven)
+            SetAnimatorTriggered(true);
 
         if (!animationDriven || machineAnimator == null)
             StartCoroutine(AutomaticProcess());
@@ -134,11 +140,16 @@ public abstract class MachineStation : MonoBehaviour
         finishedLuggage.SetInStation(false);
         currentLuggage = null;
         isProcessing = false;
-        if (machineAnimator != null)
-            machineAnimator.SetBool(AnimId.IsTriggered, false);
+        SetAnimatorTriggered(false);
 
         phase = StationPhase.Idle;
         OnStationReset();
+    }
+
+    private void SetAnimatorTriggered(bool value)
+    {
+        if (machineAnimator != null)
+            machineAnimator.SetBool(AnimId.IsTriggered, value);
     }
 
     private void LateUpdate()
@@ -152,13 +163,59 @@ public abstract class MachineStation : MonoBehaviour
 
     private IEnumerator AutomaticProcess()
     {
+        if (intakeTransform != null)
+            yield return TravelTo(intakeTransform, intakeDuration);
+
+        // The machine only runs while the bag is behind the curtain: it starts once the bag is
+        // all the way in and stops before it is handed back out.
+        SetAnimatorTriggered(true);
         yield return new WaitForSeconds(processDuration);
+        SetAnimatorTriggered(false);
+
         AnimEvent_OnDoorClosed();
 
-        if (readyDuration > 0f)
+        // The bag goes in on the entry lane and comes back out on the exit lane. Both points sit
+        // under the machine roof behind the curtains, so this hard cut is never on screen.
+        if (releaseTransform != null && currentLuggage != null)
+        {
+            currentLuggage.transform.SetPositionAndRotation(
+                releaseTransform.position, releaseTransform.rotation);
+        }
+
+        if (outputTransform != null)
+            yield return TravelTo(outputTransform, readyDuration);
+        else if (readyDuration > 0f)
             yield return new WaitForSeconds(readyDuration);
 
         AnimEvent_OnOutputComplete();
+    }
+
+    // Slides the held luggage to an anchor. Machines whose art has no tray to ride drive the
+    // trip through the machine from here instead of from an animation clip.
+    // AnimEvent_OnDoorClosed swaps currentLuggage for a fresh object at the same pose, so this
+    // re-reads currentLuggage every frame rather than caching the transform.
+    private IEnumerator TravelTo(Transform destination, float duration)
+    {
+        if (currentLuggage == null)
+            yield break;
+
+        Vector3 startPosition = currentLuggage.transform.position;
+        Quaternion startRotation = currentLuggage.transform.rotation;
+
+        for (float elapsed = 0f; elapsed < duration; elapsed += Time.deltaTime)
+        {
+            if (currentLuggage == null)
+                yield break;
+
+            float t = Mathf.Clamp01(elapsed / duration);
+            currentLuggage.transform.SetPositionAndRotation(
+                Vector3.Lerp(startPosition, destination.position, t),
+                Quaternion.Slerp(startRotation, destination.rotation, t));
+            yield return null;
+        }
+
+        if (currentLuggage != null)
+            currentLuggage.transform.SetPositionAndRotation(destination.position, destination.rotation);
     }
 
     private void ShoveBlockingLuggage(Luggage incomingLuggage)
@@ -214,7 +271,7 @@ public abstract class MachineStation : MonoBehaviour
                 shoveDirection = new Vector3(randomFlatDirection.x, 0f, randomFlatDirection.y);
             }
 
-            Vector2 randomFlatOffset = UnityEngine.Random.insideUnitCircle * ObstacleShoveRandomness;
+            Vector2 randomFlatOffset = UnityEngine.Random.insideUnitCircle * obstacleShoveRandomness;
             shoveDirection = (
                 shoveDirection.normalized
                 + new Vector3(randomFlatOffset.x, 0f, randomFlatOffset.y)).normalized;
@@ -222,10 +279,10 @@ public abstract class MachineStation : MonoBehaviour
                 shoveDirection = transform.forward;
 
             blockingRb.AddForce(
-                shoveDirection * ObstacleShoveImpulse + Vector3.up * ObstacleShoveUpImpulse,
+                shoveDirection * obstacleShoveImpulse + Vector3.up * obstacleShoveUpImpulse,
                 ForceMode.Impulse);
             blockingRb.AddTorque(
-                UnityEngine.Random.onUnitSphere * ObstacleShoveImpulse,
+                UnityEngine.Random.onUnitSphere * obstacleShoveImpulse,
                 ForceMode.Impulse);
         }
 

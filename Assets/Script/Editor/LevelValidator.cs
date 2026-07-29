@@ -9,8 +9,8 @@ namespace CarryOn.EditorTools
 {
     /// <summary>
     /// Checks the things that are easy to forget when authoring a level: missing config,
-    /// stations that do not match the luggage the level actually spawns, unwired tuning
-    /// assets, and conveyor seam rules (same uniform scale, same deck height).
+    /// stations that do not match the luggage the level actually spawns, zeroed belt
+    /// speeds, and conveyor seam rules (same uniform scale, same deck height).
     ///
     /// Menu: Carry On > Validate Open Scene / Validate All Build Scenes.
     /// Findings are logged with the offending object as context, so clicking the log
@@ -196,14 +196,28 @@ namespace CarryOn.EditorTools
             {
                 SerializedObject so = new(station);
 
-                if (so.FindProperty("stationTuning")?.objectReferenceValue == null)
-                    report.Error($"{station.name}: no StationTuning assigned.", station);
-
                 if (so.FindProperty("snapTransform")?.objectReferenceValue == null)
                     report.Error($"{station.name}: no snapTransform — luggage has nowhere to dock.", station);
 
-                if (so.FindProperty("sliderTransform")?.objectReferenceValue == null)
-                    report.Error($"{station.name}: no sliderTransform.", station);
+                // A station carries its luggage one of two ways: riding an animated slider, or
+                // walking the intake/output anchors in code. Having neither leaves the bag parked
+                // on the snap point for the whole cycle; having both makes them fight in LateUpdate.
+                bool hasSlider = so.FindProperty("sliderTransform")?.objectReferenceValue != null;
+                bool hasAnchorWalk = so.FindProperty("intakeTransform")?.objectReferenceValue != null
+                    || so.FindProperty("outputTransform")?.objectReferenceValue != null;
+
+                if (!hasSlider && !hasAnchorWalk)
+                {
+                    report.Error(
+                        $"{station.name}: no sliderTransform and no intake/output anchors — " +
+                        "the bag never moves through the machine.", station);
+                }
+                else if (hasSlider && hasAnchorWalk)
+                {
+                    report.Error(
+                        $"{station.name}: has both a sliderTransform and intake/output anchors — " +
+                        "the slider follow in LateUpdate will fight the anchor walk. Pick one.", station);
+                }
 
                 bool animationDriven = so.FindProperty("animationDriven")?.boolValue ?? true;
                 if (animationDriven && so.FindProperty("machineAnimator")?.objectReferenceValue == null)
@@ -244,8 +258,10 @@ namespace CarryOn.EditorTools
             {
                 SerializedObject so = new(conveyor);
 
-                if (so.FindProperty("tuning")?.objectReferenceValue == null)
-                    report.Error($"{conveyor.name}: no ConveyorTuning assigned — the belt will not steer.", conveyor);
+                // Belt speed lives on the prefab now, so the failure to catch is a zeroed
+                // value rather than an unassigned asset.
+                if (so.FindProperty("moveSpeed")?.floatValue <= 0f)
+                    report.Error($"{conveyor.name}: moveSpeed is 0 — the belt will not move luggage.", conveyor);
 
                 // Turn pieces steer around a pivot; without it they fall back to straight.
                 bool isTurn = so.FindProperty("shape")?.enumValueIndex == 1;

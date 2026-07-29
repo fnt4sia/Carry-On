@@ -79,7 +79,9 @@ public class LuggageTimerDisplay : MonoBehaviour
     private void UpdateTimer()
     {
         int second = Mathf.CeilToInt(luggage.LifetimeRemaining);
-        bool visible = second > 0 && !luggage.IsDelivered;
+        // The countdown is frozen while the bag is inside a station, so the readout would
+        // sit there showing a number that never moves. Hide it until the bag is grabbable again.
+        bool visible = second > 0 && !luggage.IsDelivered && !luggage.IsInStation;
         if (visualRoot.gameObject.activeSelf != visible)
             visualRoot.gameObject.SetActive(visible);
         if (!visible)

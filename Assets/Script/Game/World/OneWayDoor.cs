@@ -2,8 +2,9 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-// Automatic one-way door. The trigger collider should sit only on the allowed
-// approach side, so players coming from the blocked side cannot open it.
+// Automatic one-way door. The trigger spans both sides of the doorway, but only
+// players standing on the allowed side can open it — anyone approaching from the
+// blocked side is ignored and the leaves stay shut in their face.
 [DisallowMultipleComponent]
 public class OneWayDoor : MonoBehaviour
 {
@@ -16,7 +17,10 @@ public class OneWayDoor : MonoBehaviour
     [SerializeField] private string openParameter = "IsOpen";
 
     [Header("One-Way Check")]
+    // Local-space direction of the side players are allowed to open from.
     [SerializeField] private Vector3 allowedEntryLocalDirection = Vector3.forward;
+    // How far past the door plane a player must stand before they count as
+    // being on the allowed side. Keep this bigger than half the leaf thickness.
     [SerializeField, Min(0f)] private float allowedSideCenterOffset = 0.1f;
 
     private int playersInSensor;
@@ -24,6 +28,8 @@ public class OneWayDoor : MonoBehaviour
     private bool isOpen;
     private Coroutine closeRoutine;
     private readonly HashSet<Collider> acceptedPlayerColliders = new HashSet<Collider>();
+
+    public bool IsOpen => isOpen;
 
     private void Reset()
     {
@@ -44,6 +50,22 @@ public class OneWayDoor : MonoBehaviour
     }
 
     private void OnTriggerEnter(Collider other)
+    {
+        TryAccept(other);
+    }
+
+    // A fast player can already be past the door plane on the frame they enter the
+    // trigger, so keep re-testing anyone we have not accepted yet. Someone parked on
+    // the blocked side simply never passes the test.
+    private void OnTriggerStay(Collider other)
+    {
+        if (acceptedPlayerColliders.Contains(other))
+            return;
+
+        TryAccept(other);
+    }
+
+    private void TryAccept(Collider other)
     {
         if (!IsPlayer(other))
             return;
@@ -142,4 +164,29 @@ public class OneWayDoor : MonoBehaviour
 
         return other.transform.position;
     }
+
+#if UNITY_EDITOR
+    // Green arrow marks the side players may open from; red marks the blocked side.
+    private void OnDrawGizmosSelected()
+    {
+        Vector3 localDirection = allowedEntryLocalDirection.sqrMagnitude > 0f
+            ? allowedEntryLocalDirection.normalized
+            : Vector3.forward;
+
+        BoxCollider trigger = GetComponent<BoxCollider>();
+        float reach = trigger != null
+            ? Vector3.Scale(trigger.size, localDirection).magnitude * 0.5f
+            : 2f;
+
+        Vector3 origin = transform.TransformPoint(trigger != null ? trigger.center : Vector3.zero);
+        Vector3 worldDirection = transform.TransformDirection(localDirection).normalized;
+
+        Gizmos.color = Color.green;
+        Gizmos.DrawLine(origin, origin + worldDirection * reach);
+        Gizmos.DrawSphere(origin + worldDirection * reach, 0.25f);
+
+        Gizmos.color = Color.red;
+        Gizmos.DrawLine(origin, origin - worldDirection * reach);
+    }
+#endif
 }

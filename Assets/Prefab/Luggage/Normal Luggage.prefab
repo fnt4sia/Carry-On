@@ -155,7 +155,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6cca250da79c6ed41ba1986a64075422, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Luggage
-  tuning: {fileID: 11400000, guid: ccb127dab8cc14ac18a44447464902b1, type: 2}
+  fragileBreakThreshold: 300
+  fragileGrabImmunityDuration: 2
+  minimumCollisionAudioSpeed: 1.5
+  mediumCollisionAudioSpeed: 4
+  hardCollisionAudioSpeed: 8
+  collisionAudioCooldown: 0.15
   outline: {fileID: 2128439685666133631}
   behaviorType: 0
   sourcePrefab: {fileID: 0}

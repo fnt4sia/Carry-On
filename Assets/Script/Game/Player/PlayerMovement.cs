@@ -12,8 +12,16 @@ public class PlayerMovement : MonoBehaviour
 {
     public bool isGrabbing;
 
-    [Header("Tuning")]
-    [SerializeField] private PlayerConfig playerConfig;
+    [Header("Movement")]
+    [SerializeField, Min(0f)] private float movementSpeedNormal = 10f;
+    [SerializeField, Min(0f)] private float rotationSpeed = 4f;
+    [SerializeField, Min(0f)] private float grabRotationSpeedMultiplier = 1f;
+    [SerializeField, Range(0f, 1f)] private float movementLerpSpeed = 0.15f;
+
+    [Header("Dash")]
+    [SerializeField, Min(1f)] private float dashSpeedMultiplier = 2f;
+    [SerializeField, Min(0f)] private float dashDuration = 0.15f;
+    [SerializeField, Min(0f)] private float dashCooldown = 1f;
 
     [SerializeField] private Rigidbody playerRb;
 
@@ -21,6 +29,10 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private GameObject bubblePrefab;
     [SerializeField, Min(0.01f)] private float bubbleSpawnInterval = 0.04f;
     [SerializeField] private Vector3 bubbleOffsetRange;
+    // Where the bubbles leave the ground, relative to the body's pivot. Bodies put their
+    // pivot in different places (Ramp Agent at the waist, Annie at the feet), so this is
+    // per-prefab rather than shared tuning.
+    [SerializeField] private Vector3 bubbleSpawnOffset = new(0f, -0.6f, 0f);
     [SerializeField] private Animator animator;
 
     private PlayerGrab playerGrab;
@@ -57,23 +69,8 @@ public class PlayerMovement : MonoBehaviour
         public float Elapsed;
     }
 
-    private float MovementSpeedNormal => playerConfig.MovementSpeedNormal;
-    private float RotationSpeed => playerConfig.RotationSpeed;
-    private float GrabRotationSpeedMultiplier => playerConfig.GrabRotationSpeedMultiplier;
-    private float MovementLerpSpeed => playerConfig.LerpSpeed;
-    private float DashSpeedMultiplier => playerConfig.DashSpeedMultiplier;
-    private float DashDuration => playerConfig.DashDuration;
-    private float DashCooldown => playerConfig.DashCooldown;
-
     private void Awake()
     {
-        if (playerConfig == null)
-        {
-            Debug.LogError($"{nameof(PlayerMovement)} '{name}' has no {nameof(PlayerConfig)}.", this);
-            enabled = false;
-            return;
-        }
-
         bubblePropertyBlock = new MaterialPropertyBlock();
         playerInput = GetComponent<PlayerInput>();
         moveAction = playerInput.actions.FindAction("Player/Move", throwIfNotFound: true);
@@ -125,6 +122,7 @@ public class PlayerMovement : MonoBehaviour
             animator.SetBool(AnimId.IsMoving, false);
             animator.SetBool(AnimId.IsDashing, false);
             animator.SetBool(AnimId.IsGrabbing, false);
+            animator.SetBool(AnimId.IsThrowing, false);
         }
 
         ReleaseAllBubbles();
@@ -146,7 +144,7 @@ public class PlayerMovement : MonoBehaviour
         if (cameraTransform == null) return;
         moveInput = moveAction.ReadValue<Vector2>();
 
-        if (dashAction.WasPressedThisFrame() && !isDashing && Time.time >= lastDashTime + DashCooldown)
+        if (dashAction.WasPressedThisFrame() && !isDashing && Time.time >= lastDashTime + dashCooldown)
             StartCoroutine(DashCoroutine());
 
         Vector3 forward = cameraTransform.forward;
@@ -162,9 +160,9 @@ public class PlayerMovement : MonoBehaviour
     {
         if (!IsGameplayScene()) return;
 
-        float speed = MovementSpeedNormal * (isDashing ? DashSpeedMultiplier : 1f);
+        float speed = movementSpeedNormal * (isDashing ? dashSpeedMultiplier : 1f);
         Vector3 targetVelocity = movementDirection * speed;
-        currentVelocity = Vector3.Lerp(currentVelocity, targetVelocity, MovementLerpSpeed);
+        currentVelocity = Vector3.Lerp(currentVelocity, targetVelocity, movementLerpSpeed);
         Vector3 moveDelta = new Vector3(currentVelocity.x, 0, currentVelocity.z) * Time.fixedDeltaTime;
 
         bool isHolding = isGrabbing && playerGrab != null;
@@ -189,7 +187,7 @@ public class PlayerMovement : MonoBehaviour
         if (isTryingToMove)
         {
             Vector3 flatDir = new Vector3(movementDirection.x, 0, movementDirection.z).normalized;
-            float rotSpeed = isGrabbing ? RotationSpeed * GrabRotationSpeedMultiplier : RotationSpeed;
+            float rotSpeed = isGrabbing ? rotationSpeed * grabRotationSpeedMultiplier : rotationSpeed;
             transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(flatDir), rotSpeed * Time.fixedDeltaTime);
         }
 
@@ -234,7 +232,7 @@ public class PlayerMovement : MonoBehaviour
         animator.SetBool(AnimId.IsDashing, true);
         AudioManager.Instance?.PlaySFX(Sfx.PlayerDash);
 
-        yield return new WaitForSeconds(DashDuration);
+        yield return new WaitForSeconds(dashDuration);
 
         animator.SetBool(AnimId.IsDashing, false);
         isDashing = false;
@@ -292,7 +290,7 @@ public class PlayerMovement : MonoBehaviour
             Random.Range(-bubbleOffsetRange.y, bubbleOffsetRange.y),
             Random.Range(-bubbleOffsetRange.z, bubbleOffsetRange.z));
 
-        bubble.StartPosition = transform.position + new Vector3(0f, -0.6f, 0f) + offset;
+        bubble.StartPosition = transform.position + bubbleSpawnOffset + offset;
         bubble.EndPosition = bubble.StartPosition + new Vector3(0f, 0.4f, 0f);
         bubble.Elapsed = 0f;
         bubble.Transform.SetPositionAndRotation(bubble.StartPosition, Quaternion.identity);

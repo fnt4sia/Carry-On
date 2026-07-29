@@ -16,7 +16,15 @@ public class Conveyor : MonoBehaviour
     private enum BeltShape { Straight, Turn }
 
     [Header("Tuning")]
-    [SerializeField] private ConveyorTuning tuning;
+    [SerializeField, Min(0f)] private float moveSpeed = 5f;
+    [Tooltip("How fast luggage velocity bends toward the belt direction (m/s²).")]
+    [SerializeField, Min(0f)] private float acceleration = 18f;
+    [Tooltip("How fast cargo is rotated upright and aligned with the belt direction (1/s).")]
+    [SerializeField, Min(0f)] private float uprightGain = 4f;
+    [Tooltip("How strongly turn cargo is pulled back to the centreline (1/s).")]
+    [SerializeField, Min(0f)] private float centeringGain = 1.5f;
+    [SerializeField, Min(0f)] private float centerRadius = 3f;
+    [SerializeField, Min(0f)] private float surfaceCheckMargin = 0.25f;
 
     [Header("Belt")]
     [SerializeField] private BeltShape shape = BeltShape.Straight;
@@ -34,22 +42,6 @@ public class Conveyor : MonoBehaviour
         public Rigidbody Rigidbody;
         public Collider SurfaceCollider;
         public readonly HashSet<Collider> TriggerContacts = new();
-    }
-
-    private float MoveSpeed => tuning.MoveSpeed;
-    private float Acceleration => tuning.Acceleration;
-    private float UprightGain => tuning.UprightGain;
-    private float CenteringGain => tuning.CenteringGain;
-    private float CenterRadius => tuning.CenterRadius;
-    private float SurfaceCheckMargin => tuning.SurfaceCheckMargin;
-
-    private void Awake()
-    {
-        if (tuning != null)
-            return;
-
-        Debug.LogError($"{nameof(Conveyor)} '{name}' has no {nameof(ConveyorTuning)}.", this);
-        enabled = false;
     }
 
     private void FixedUpdate()
@@ -84,7 +76,7 @@ public class Conveyor : MonoBehaviour
     private void Steer(Rigidbody rb)
     {
         Vector3 beltDir = BeltDirectionAt(rb.position);
-        Vector3 target = beltDir * MoveSpeed;
+        Vector3 target = beltDir * moveSpeed;
 
         if (shape == BeltShape.Turn && turnPivot != null)
         {
@@ -95,8 +87,8 @@ public class Conveyor : MonoBehaviour
             float r = radial.magnitude;
             if (r > 0.1f)
             {
-                float centerError = CenterRadius - r;
-                target += (radial / r) * Mathf.Clamp(centerError * CenteringGain, -0.8f, 0.8f);
+                float centerError = centerRadius - r;
+                target += (radial / r) * Mathf.Clamp(centerError * centeringGain, -0.8f, 0.8f);
             }
         }
         else
@@ -107,12 +99,12 @@ public class Conveyor : MonoBehaviour
             right.y = 0f;
             right.Normalize();
             float lateralOffset = Vector3.Dot(rb.position - transform.position, right);
-            target -= right * Mathf.Clamp(lateralOffset * CenteringGain, -0.8f, 0.8f);
+            target -= right * Mathf.Clamp(lateralOffset * centeringGain, -0.8f, 0.8f);
         }
 
         Vector3 v = rb.linearVelocity;
         Vector3 flat = new Vector3(v.x, 0f, v.z);
-        flat = Vector3.MoveTowards(flat, target, Acceleration * Time.fixedDeltaTime);
+        flat = Vector3.MoveTowards(flat, target, acceleration * Time.fixedDeltaTime);
         rb.linearVelocity = new Vector3(flat.x, v.y, flat.z);
 
         // The deck is frictionless (steering replaces friction), so the belt owns
@@ -128,7 +120,7 @@ public class Conveyor : MonoBehaviour
 
             if (Mathf.Abs(angleDeg) > 0.5f && !float.IsNaN(axis.x))
             {
-                Vector3 angVel = axis.normalized * (angleDeg * Mathf.Deg2Rad * UprightGain);
+                Vector3 angVel = axis.normalized * (angleDeg * Mathf.Deg2Rad * uprightGain);
                 rb.angularVelocity = Vector3.ClampMagnitude(angVel, 6f);
             }
             else
@@ -163,7 +155,7 @@ public class Conveyor : MonoBehaviour
     {
         Collider luggageCollider = candidate.SurfaceCollider;
         Vector3 origin = luggageCollider != null ? luggageCollider.bounds.center : candidate.Rigidbody.position;
-        float reach = (luggageCollider != null ? luggageCollider.bounds.extents.y : 0.5f) + SurfaceCheckMargin;
+        float reach = (luggageCollider != null ? luggageCollider.bounds.extents.y : 0.5f) + surfaceCheckMargin;
 
         return Physics.Raycast(origin, Vector3.down, out RaycastHit hit, reach, ~0, QueryTriggerInteraction.Ignore)
             && hit.collider.transform.IsChildOf(transform);

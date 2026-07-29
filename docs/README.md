@@ -1,54 +1,160 @@
-# Carry On technical documentation
+# Carry On — technical documentation
 
-This is the entry point for the Unity project. Open the smallest topic that matches the work; do not load the entire folder by default. Code and serialized Unity assets are the source of truth. These docs were reconciled with the refactored project on 2026-07-14.
+Carry On is a chaotic 1–4 player local co-op airport baggage-handling game by Unbounded Souls.
+The loop: luggage arrives in waves, players identify and process it, deliver it to the correct
+gate before it expires, then earn a score and up to three stars.
 
-## How-to (designer recipes)
+These docs are organised by **mechanic** — one file per thing the game actually does. Open the
+one that matches your task; don't load the folder. Code and serialized Unity assets are the
+source of truth. If a doc disagrees with the code, the code wins and the doc gets fixed in the
+same pass.
 
-Start here to *change* something without reading code — a map of where every knob lives, plus step-by-step cards.
+## Mechanics
 
-- [How-to index — "where things live"](howto/README.md)
-- [Change the character body](howto/change-character.md)
-- [Tune player feel (move / dash / grab / throw)](howto/tune-player-feel.md)
-- [Tune a level (timer / waves / scoring / luggage)](howto/tune-a-level.md)
-- [Test a scene in isolation](howto/test-a-scene.md)
+| Doc | Covers |
+|---|---|
+| [Player](mechanics/player.md) | joining, spawning, movement, dash, grab / carry / throw, hand IK, the Annie animator |
+| [Luggage](mechanics/luggage.md) | behaviour types, washing and wrapping, lifetime, waves, pooling, the timer UI |
+| [Conveyors](mechanics/conveyors.md) | belt steering, straight and turn pieces, seam rules, the two-collider design |
+| [Stations](mechanics/stations.md) | washer and wrapper lifecycle, placement, output clearance |
+| [Delivery and scoring](mechanics/delivery-and-scoring.md) | gates, scoring priority, round flow, results |
+| [Hazards and props](mechanics/hazards-and-props.md) | pressure plates, gateways, rotating platforms, one-way doors, water |
 
-## Core
+## Supporting
 
-- [Project overview](core/project-overview.md) — pitch, stack, repository layout, scenes, and runtime flow.
-- [Architecture and services](core/architecture-and-services.md) — assembly boundaries, singletons, level context, events, and dependencies.
-- [Asset and prefab guidelines](core/asset-and-prefab-guidelines.md) — what belongs in prefabs, tuning assets, level configs, and scene overrides.
+| Doc | Covers |
+|---|---|
+| [Levels](levels.md) | `LevelConfig` fields, current balance, authoring checklist, the level validator |
+| [UI](ui.md) | main menu / lobby, stage select, in-game HUD |
+| [Services](services.md) | audio, camera, scene loading, save and progression |
 
-## Gameplay
+## Stack
 
-- [Luggage](gameplay/luggage.md)
-- [Conveyors](gameplay/conveyors.md)
-- [Delivery gates](gameplay/delivery-gates.md)
-- [Machine stations](gameplay/machine-stations.md)
-- [World interactables](gameplay/world-interactables.md)
+- Unity `6000.3.14f1`, URP.
+- New Input System, one shared `GameInput.inputactions`, `PlayerInputManager` for local join.
+- Physics-driven luggage, a `ConfigurableJoint` carry, velocity-steering conveyors.
+- `LevelConfig` ScriptableObjects for per-level rules. Feel and balance are serialized on the
+  prefab that uses them.
+- **No automated tests anywhere in the project.** The [level validator](levels.md#level-validator)
+  and playtesting are the entire safety net.
 
-## Player and UI
+## Repository layout
 
-- [Join and spawn](player/join-and-spawn.md)
-- [Movement and dash](player/movement-and-dash.md)
-- [Grab, carry, and throw](player/grab-carry-throw.md)
-- [Main menu](ui/main-menu.md)
-- [Game HUD](ui/game-hud.md)
-- [Stage-select UI](ui/stage-select-ui.md)
+```text
+Assets/
+  Script/
+    Game/Core/       shared runtime foundation, round controller, level context
+    Game/Scoring/    plain C# score and result rules
+    Game/Services/   scene loading, progression persistence
+    Game/UI/         HUD presenter
+    Game/{Player,Luggage,Stations,World}/
+    MainMenu/        persistent player join and lobby
+    ChooseStage/     map token, nodes, popup
+    Editor/          level validator (editor-only, excluded from builds)
+  Config/            LevelConfig assets
+  Prefab/            Character, Decoration, Environment, Luggage, Manager, Map, Station, UI
+  Resources/Runtime/ persistent service bootstrap prefabs
+  Scenes/{Menu,Stages}/
+  _Deprecated/       quarantined unused assets, safe to delete
+```
 
-## Levels and systems
+Every script compiles into Unity's single default assembly, `Assembly-CSharp`. There are **no
+`.asmdef` or `.asmref` files** — an earlier `CarryOn.Core` / `CarryOn.Game` / `CarryOn.Menu`
+split was removed on purpose to keep the project simple. Don't add them back without asking.
+Scripts under `Assets/Script/Editor/` are still excluded from builds, which comes free from
+Unity's `Editor/` folder-name rule rather than from any config file.
 
-- [Level configuration](levels/level-configuration.md)
-- [Stage select](levels/stage-select.md)
-- [Level authoring](levels/level-authoring.md)
-- [Round and scoring](systems/round-and-scoring.md)
-- [Audio](systems/audio.md)
-- [Camera](systems/camera.md)
-- [Scene loading](systems/scene-loading.md)
-- [Save and progression](systems/save-and-progression.md)
+## Scenes
 
-## Development
+Build Settings contains **two scenes**, both menus:
 
-- [Design-scene testing](development/design-scene-testing.md)
-- [Level validator](development/level-validator.md) — `Carry On ▸ Validate…`, catches unwired levels and conveyor seam errors.
+| Index | Scene |
+|---:|---|
+| 0 | `Menu/MainMenu` |
+| 1 | `Menu/ChooseStage` |
 
-When a system changes, update its focused doc in the same pass. Keep high-level routing here and detailed behavior in one canonical topic; link instead of copying sections between files.
+`Stages/DesignScene` (mechanic sandbox) and `Stages/Test` (decoration staging) exist but are
+editor-only. The per-stage scenes `Stage_1..4` and `Stage Tutorial` were deleted in the July 2026
+DesignScene consolidation, so **no gameplay scene currently ships**. Their `LevelConfig` assets
+outlived them — see [levels](levels.md#dangling-configs).
+
+```text
+MainMenu -> ChooseStage -> gameplay stage -> next stage or ChooseStage
+    ^                              |
+    +----------- lobby ------------+
+```
+
+All transitions go through the persistent async `SceneLoader`. Gameplay code should never call
+`SceneManager.LoadScene` directly. Joined `PlayerInput` objects persist across the whole flow;
+stage select deactivates them and each gameplay scene's `PlayerSpawner` repositions them.
+
+## How the pieces own each other
+
+Three ideas hold the project together:
+
+1. **A prefab owns its own behaviour and its own children.** Edit the prefab once; every copy
+   updates.
+2. **Feel and balance live on the prefab that uses them**, as serialized fields with sane
+   defaults in the script. `Assets/Config/Tuning/` and its five tuning ScriptableObject types
+   were removed in July 2026 — the values moved onto the prefabs unchanged. Don't reintroduce
+   them. Values are still never retyped per scene instance: edit the prefab, not the copy.
+3. **Each gameplay scene has exactly one `LevelContext`**, and it picks that scene's
+   `LevelConfig`. A prefab never carries its own level rules; it *asks* `LevelContext` for them.
+   This is why editing one prefab can't overwrite every stage with Stage 1's values.
+
+### Service lifetimes
+
+`SingletonBehaviour<T>` standardises duplicate rejection, `Instance` cleanup, and persistence.
+
+| Service | Lifetime | Created by |
+|---|---|---|
+| `PlayerSystem` | persistent | `Resources/Runtime/PlayerSystem.prefab`, before scene load |
+| `AudioManager` | persistent | `Resources/Runtime/AudioManager.prefab`, before scene load |
+| `SceneLoader` | persistent | `Resources/Runtime/SceneLoader.prefab`, code-built fallback |
+| `ProgressionService` | persistent | code bootstrap, before scene load |
+| `LevelContext` | one scene | authored once per gameplay scene |
+| `GameManager` | one round | reusable gameplay prefab instance |
+| `LuggageSpawner` / `PlayerSpawner` | one level | reusable scene prefab / component |
+
+Persistent services are created **before any scene loads**, so they never appear in a hierarchy.
+To edit one, open its prefab under `Assets/Resources/Runtime/`. Reach them through their
+`Instance` / static API; never serialize a drag-and-drop reference from a reusable prefab to a
+scene service.
+
+### Dependency direction
+
+Nothing enforces this now that the assembly split is gone — it's a convention you keep by hand:
+
+```text
+Core (shared infra, no scene/UI deps)
+  ^                    ^
+Game (gameplay)     Menu (MainMenu, ChooseStage)
+```
+
+`Game/Core/`, `Game/Scoring/`, and `Game/Services/` shouldn't reach into gameplay types like
+`Luggage` or `Gate`. Gameplay and menu code shouldn't reach into each other. If a rule can be
+plain C#, keep it free of scene and UI dependencies — that's what makes `ScoreBoard` and
+`ScoringRules` reviewable by reading them.
+
+### Where a value belongs
+
+| Kind | Goes in | Examples |
+|---|---|---|
+| Shared logic and child wiring | base prefab | colliders, animator, HUD texts, machine children |
+| Feel and balance | serialized field on the component, edited on its prefab | player speed, grab joint, belt speed, station shove |
+| Per-level rules and content | `LevelConfig` | timer, stars, luggage pool, waves, scoring, next level |
+| Which config a scene uses | scene `LevelContext` | one per gameplay scene |
+| Placement and identity | scene override | transform, gate number, turn direction, connected gateways |
+| Replaceable art | visual child or nested prefab | machine shell, luggage timer, loading screen |
+
+Use a prefab variant for a deliberate reusable family (a fast conveyor, a two-door gateway).
+Don't retype values on a scene instance to make one object different unless that difference is
+intentional content. When a field moves from a prefab into a config asset, revert the stale
+override explicitly — nothing detects override drift, including the validator.
+
+## Tags and layers
+
+Logic identifies luggage by its `Luggage` component, never by tag. Layers only narrow physics
+queries. Custom layers: `Water` (4), `Luggage` (6), `Player` (7), `GrabbedLuggage` (8),
+`Wall` (9), `WorldUI` (10). `WorldUI` is required for the world-space luggage timer and any
+station overlay.

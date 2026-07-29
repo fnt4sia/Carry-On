@@ -5,20 +5,31 @@ using UnityEngine;
 // The rider zone is a child trigger collider under the same Rigidbody.
 // A PressurePlate calls ReverseDirection to flip clockwise/counter-clockwise; the plate
 // owns that connection, so the platform keeps no reference back to it.
+//
+// Riders are re-discovered every FixedUpdate by overlapping the rider zone rather than by
+// counting OnTriggerEnter/Exit pairs. A missed exit — a collider disabled while standing on
+// the platform, a teleport, a grab that swaps colliders — used to leave a rider registered
+// forever, and because the carry maths is relative to the pivot, the further that ghost rider
+// walked away the faster the platform flung them. Re-querying each step cannot drift.
 [DisallowMultipleComponent]
 public class RotatingPlatform : MonoBehaviour
 {
     [Header("Rotation")]
     [SerializeField] private Transform rotatingBody;
-    [SerializeField, Min(0f)] private float rotationSpeed = 35f;
+    // Degrees per second. Tip speed is this times the platform's radius, so a long beam gets
+    // fast at the ends — keep it well under the player's 10 u/s walk speed or riders can't stand.
+    [SerializeField, Min(0f)] private float rotationSpeed = 10f;
     [SerializeField] private bool clockwise = true;
 
     [Header("Riders")]
     [SerializeField] private bool carryRiders = true;
     [SerializeField] private bool rotateRiders = true;
+    // Trigger volume that defines "standing on the platform". Auto-found if left empty.
+    [SerializeField] private Collider riderZone;
 
     private readonly Dictionary<Transform, RiderState> riders = new Dictionary<Transform, RiderState>();
     private Rigidbody platformRigidbody;
+    private int refreshStamp;
 
     private class RiderState
     {
@@ -30,12 +41,14 @@ public class RotatingPlatform : MonoBehaviour
 
         public Transform Transform { get; }
         public Rigidbody Rigidbody { get; }
-        public int ContactCount { get; set; }
+        public int Stamp { get; set; }
+        public Vector3 CarryVelocity { get; set; }
     }
 
     private void Reset()
     {
         rotatingBody = transform;
+        riderZone = FindRiderZone();
     }
 
     private void Awake()
@@ -45,6 +58,20 @@ public class RotatingPlatform : MonoBehaviour
 
         if (rotatingBody == transform)
             platformRigidbody = GetComponent<Rigidbody>();
+
+        if (riderZone == null)
+            riderZone = FindRiderZone();
+    }
+
+    private Collider FindRiderZone()
+    {
+        foreach (Collider candidate in GetComponentsInChildren<Collider>(true))
+        {
+            if (candidate.isTrigger)
+                return candidate;
+        }
+
+        return null;
     }
 
     private void FixedUpdate()
@@ -65,7 +92,14 @@ public class RotatingPlatform : MonoBehaviour
             rotatingBody.rotation = nextRotation;
 
         if (carryRiders)
+        {
+            RefreshRiders();
             MoveRiders(pivot, rotationDelta);
+        }
+        else if (riders.Count > 0)
+        {
+            ReleaseAllRiders();
+        }
     }
 
     public void ReverseDirection()
@@ -78,49 +112,80 @@ public class RotatingPlatform : MonoBehaviour
         clockwise = value;
     }
 
-    private void OnTriggerEnter(Collider other)
+    // Rebuilds the rider set from what is actually overlapping the zone right now. Anything
+    // that was a rider last step but is not in the overlap has left, so it gets released.
+    private void RefreshRiders()
     {
-        RegisterRider(other);
-    }
-
-    private void OnTriggerExit(Collider other)
-    {
-        UnregisterRider(other);
-    }
-
-    private void RegisterRider(Collider other)
-    {
-        if (!carryRiders || !IsCarryable(other))
+        if (riderZone == null)
             return;
 
-        Transform riderTransform = ResolveRiderTransform(other, out Rigidbody riderRigidbody);
-        if (riderTransform == null || rotatingBody == null)
-            return;
+        refreshStamp++;
 
-        if (riderTransform == rotatingBody || riderTransform.IsChildOf(rotatingBody))
-            return;
+        Vector3 centre = riderZone.bounds.center;
+        Quaternion rotation = riderZone.transform.rotation;
+        Vector3 halfExtents = GetZoneHalfExtents();
 
-        if (!riders.TryGetValue(riderTransform, out RiderState state))
+        int count = OverlapRiderZone(centre, halfExtents, rotation);
+        for (int i = 0; i < count; i++)
         {
-            state = new RiderState(riderTransform, riderRigidbody);
-            riders.Add(riderTransform, state);
+            Collider other = s_Overlaps[i];
+            if (other == null || !IsCarryable(other))
+                continue;
+
+            Transform riderTransform = ResolveRiderTransform(other, out Rigidbody riderRigidbody);
+            if (riderTransform == null)
+                continue;
+
+            if (riderTransform == rotatingBody || riderTransform.IsChildOf(rotatingBody))
+                continue;
+
+            if (!riders.TryGetValue(riderTransform, out RiderState state))
+            {
+                state = new RiderState(riderTransform, riderRigidbody);
+                riders.Add(riderTransform, state);
+            }
+
+            state.Stamp = refreshStamp;
         }
 
-        state.ContactCount++;
+        s_StaleRiders.Clear();
+
+        foreach (KeyValuePair<Transform, RiderState> pair in riders)
+        {
+            RiderState state = pair.Value;
+            if (state.Stamp != refreshStamp || state.Transform == null || !state.Transform.gameObject.activeInHierarchy)
+                s_StaleRiders.Add(pair.Key);
+        }
+
+        for (int i = 0; i < s_StaleRiders.Count; i++)
+        {
+            if (riders.TryGetValue(s_StaleRiders[i], out RiderState state))
+                ReleaseRider(state);
+
+            riders.Remove(s_StaleRiders[i]);
+        }
     }
 
-    private void UnregisterRider(Collider other)
+    private Vector3 GetZoneHalfExtents()
     {
-        Transform riderTransform = ResolveRiderTransform(other, out _);
-        if (riderTransform == null)
-            return;
+        if (riderZone is BoxCollider box)
+            return Vector3.Scale(box.size, box.transform.lossyScale) * 0.5f;
 
-        if (!riders.TryGetValue(riderTransform, out RiderState state))
-            return;
+        // Non-box zones fall back to their world bounds, which is generous but still bounded.
+        return riderZone.bounds.extents;
+    }
 
-        state.ContactCount = Mathf.Max(0, state.ContactCount - 1);
-        if (state.ContactCount == 0)
-            riders.Remove(riderTransform);
+    private static int OverlapRiderZone(Vector3 centre, Vector3 halfExtents, Quaternion rotation)
+    {
+        while (true)
+        {
+            int count = Physics.OverlapBoxNonAlloc(centre, halfExtents, s_Overlaps, rotation, ~0, QueryTriggerInteraction.Ignore);
+            if (count < s_Overlaps.Length)
+                return count;
+
+            // The buffer filled up, so the result may be truncated — grow it and ask again.
+            s_Overlaps = new Collider[s_Overlaps.Length * 2];
+        }
     }
 
     private void MoveRiders(Vector3 pivot, Quaternion rotationDelta)
@@ -128,22 +193,18 @@ public class RotatingPlatform : MonoBehaviour
         if (riders.Count == 0)
             return;
 
-        s_StaleRiders.Clear();
-
         foreach (KeyValuePair<Transform, RiderState> pair in riders)
         {
             RiderState state = pair.Value;
             Transform riderTransform = state.Transform;
 
-            if (riderTransform == null || !riderTransform.gameObject.activeInHierarchy)
-            {
-                s_StaleRiders.Add(pair.Key);
-                continue;
-            }
-
             Rigidbody riderRigidbody = state.Rigidbody;
             Vector3 currentPosition = riderRigidbody != null ? riderRigidbody.position : riderTransform.position;
             Vector3 nextPosition = pivot + rotationDelta * (currentPosition - pivot);
+
+            // Remember what this step's carry is worth as a velocity, so stepping off can
+            // hand it back instead of leaving the rider with the platform's speed.
+            state.CarryVelocity = (nextPosition - currentPosition) / Time.fixedDeltaTime;
 
             if (riderRigidbody != null)
             {
@@ -160,11 +221,41 @@ public class RotatingPlatform : MonoBehaviour
                     riderTransform.rotation = rotationDelta * riderTransform.rotation;
             }
         }
-
-        for (int i = 0; i < s_StaleRiders.Count; i++)
-            riders.Remove(s_StaleRiders[i]);
     }
 
+    // MovePosition leaves the carry motion baked into a dynamic rider's velocity. Take back
+    // exactly what the last step added, so walking off the platform does not shove the player.
+    private void ReleaseRider(RiderState state)
+    {
+        Rigidbody body = state.Rigidbody;
+        if (body == null || body.isKinematic)
+            return;
+
+        Vector3 carry = state.CarryVelocity;
+        carry.y = 0f;
+        if (carry.sqrMagnitude <= 0f)
+            return;
+
+        Vector3 velocity = body.linearVelocity;
+        Vector3 horizontal = new Vector3(velocity.x, 0f, velocity.z);
+        Vector3 corrected = horizontal - carry;
+
+        // Only ever slow the rider down; never let the correction become a push of its own.
+        if (corrected.sqrMagnitude > horizontal.sqrMagnitude)
+            return;
+
+        body.linearVelocity = new Vector3(corrected.x, velocity.y, corrected.z);
+    }
+
+    private void ReleaseAllRiders()
+    {
+        foreach (KeyValuePair<Transform, RiderState> pair in riders)
+            ReleaseRider(pair.Value);
+
+        riders.Clear();
+    }
+
+    private static Collider[] s_Overlaps = new Collider[64];
     private static readonly List<Transform> s_StaleRiders = new List<Transform>();
 
     private static bool IsCarryable(Collider other)

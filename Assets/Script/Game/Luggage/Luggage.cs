@@ -9,8 +9,15 @@ public class Luggage : MonoBehaviour
 {
     private const float FallbackScenePlacedLifetime = 30f;
 
-    [Header("Tuning")]
-    [SerializeField] private LuggageTuning tuning;
+    [Header("Fragile")]
+    [SerializeField, Min(0f)] private float fragileBreakThreshold = 300f;
+    [SerializeField, Min(0f)] private float fragileGrabImmunityDuration = 2f;
+
+    [Header("Collision Audio")]
+    [SerializeField, Min(0f)] private float minimumCollisionAudioSpeed = 1.5f;
+    [SerializeField, Min(0f)] private float mediumCollisionAudioSpeed = 4f;
+    [SerializeField, Min(0f)] private float hardCollisionAudioSpeed = 8f;
+    [SerializeField, Min(0f)] private float collisionAudioCooldown = 0.15f;
 
     [SerializeField] private Outline outline;
 
@@ -48,22 +55,13 @@ public class Luggage : MonoBehaviour
     public Rigidbody Body => cachedRigidbody;
     public Collider SurfaceCollider => cachedSurfaceCollider;
 
-    private float FragileBreakThreshold => tuning.FragileBreakThreshold;
-    private float FragileGrabImmunityDuration => tuning.FragileGrabImmunity;
-    private float MinimumCollisionAudioSpeed => tuning.MinimumCollisionAudioSpeed;
-    private float MediumCollisionAudioSpeed => tuning.MediumCollisionAudioSpeed;
-    private float HardCollisionAudioSpeed => tuning.HardCollisionAudioSpeed;
-    private float CollisionAudioCooldown => tuning.CollisionAudioCooldown;
+    // Kept as properties so the three collision-audio thresholds stay ordered even if the
+    // inspector values are typed out of order.
+    private float MediumCollisionAudioSpeed => Mathf.Max(minimumCollisionAudioSpeed, mediumCollisionAudioSpeed);
+    private float HardCollisionAudioSpeed => Mathf.Max(MediumCollisionAudioSpeed, hardCollisionAudioSpeed);
 
     private void Awake()
     {
-        if (tuning == null)
-        {
-            Debug.LogError($"{nameof(Luggage)} '{name}' has no {nameof(LuggageTuning)}.", this);
-            enabled = false;
-            return;
-        }
-
         initialBehaviorType = behaviorType;
         CachePhysicsComponents();
     }
@@ -117,7 +115,7 @@ public class Luggage : MonoBehaviour
         if (behaviorType != LuggageBehaviorType.Fragile) return;
         if (IsWrapped) return;
         if (fragileGrabImmunity > 0f) return;
-        if (collision.impulse.magnitude > FragileBreakThreshold)
+        if (collision.impulse.magnitude > fragileBreakThreshold)
             BreakLuggage();
     }
 
@@ -132,10 +130,10 @@ public class Luggage : MonoBehaviour
             return;
 
         float collisionSpeed = collision.relativeVelocity.magnitude;
-        if (collisionSpeed < MinimumCollisionAudioSpeed)
+        if (collisionSpeed < minimumCollisionAudioSpeed)
             return;
 
-        nextCollisionAudioTime = Time.time + CollisionAudioCooldown;
+        nextCollisionAudioTime = Time.time + collisionAudioCooldown;
 
         int clipIndex = collisionSpeed >= HardCollisionAudioSpeed
             ? 3
@@ -147,7 +145,7 @@ public class Luggage : MonoBehaviour
         float volume = Mathf.Lerp(
             0.35f,
             1f,
-            Mathf.InverseLerp(MinimumCollisionAudioSpeed, HardCollisionAudioSpeed * 1.5f, collisionSpeed));
+            Mathf.InverseLerp(minimumCollisionAudioSpeed, HardCollisionAudioSpeed * 1.5f, collisionSpeed));
         AudioManager.Instance?.PlaySFX(clipName, volume);
     }
 
@@ -200,7 +198,7 @@ public class Luggage : MonoBehaviour
         if (!grabbers.Contains(playerGrab)) grabbers.Add(playerGrab);
         lastGrabber = playerGrab;
         if (behaviorType == LuggageBehaviorType.Fragile)
-            fragileGrabImmunity = FragileGrabImmunityDuration;
+            fragileGrabImmunity = fragileGrabImmunityDuration;
     }
 
     public PlayerGrab GetLastGrabber()

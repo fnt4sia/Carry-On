@@ -8,8 +8,44 @@ using UnityEngine.InputSystem;
 // the carry alignment, handles throw-charge timing, and routes placement into stations.
 public class PlayerGrab : MonoBehaviour
 {
-    [Header("Tuning")]
-    [SerializeField] private GrabConfig grabConfig;
+    [Header("Detection and Alignment")]
+    [SerializeField, Min(0f)] private float grabRadius = 1.4f;
+    [SerializeField, Min(0f)] private float grabAlignDuration = 1.25f;
+
+    [Header("Throw")]
+    [SerializeField, Min(0f)] private float throwMinHoldTime = 0.25f;
+    [SerializeField, Min(0f)] private float throwMaxHoldTime = 1.5f;
+    [SerializeField, Min(0f)] private float throwMinForce = 200f;
+    [SerializeField, Min(0f)] private float throwMaxForce = 800f;
+    [SerializeField, Min(0f)] private float throwMinUpForce = 100f;
+    [SerializeField, Min(0f)] private float throwMaxUpForce = 400f;
+
+    [Header("Bridge Collider")]
+    [SerializeField, Min(0f)] private float bridgeWidth = 2f;
+    [SerializeField, Min(0f)] private float bridgeHeight = 2f;
+    [SerializeField] private float bridgeYOffset = 1f;
+    [SerializeField, Min(0f)] private float bridgeExtraZ = 1f;
+
+    // These all configure the carry ConfigurableJoint. The "joint" prefix keeps them from
+    // colliding with the local JointDrive / SoftJointLimit builders in CreateGrabJoint.
+    [Header("Joint Limits")]
+    [SerializeField, Min(0f)] private float jointLinearLimit = 0.05f;
+    [SerializeField, Min(0f)] private float jointLinearLimitSpring = 500f;
+    [SerializeField, Min(0f)] private float jointLinearLimitDamper = 1000f;
+
+    [Header("Joint Drives")]
+    [SerializeField, Min(0f)] private float jointPositionSpring = 3000f;
+    [SerializeField, Min(0f)] private float jointPositionDamper = 200f;
+    [SerializeField, Min(0f)] private float jointPositionMaximumForce = 5000f;
+    [SerializeField, Min(0f)] private float jointAngularSpring = 1000f;
+    [SerializeField, Min(0f)] private float jointAngularDamper = 100f;
+    [SerializeField, Min(0f)] private float jointAngularMaximumForce = 4000f;
+
+    [Header("Joint Projection and Break")]
+    [SerializeField, Min(0f)] private float jointProjectionDistance = 0.05f;
+    [SerializeField, Min(0f)] private float jointProjectionAngle = 5f;
+    [SerializeField, Min(0f)] private float jointBreakForce = 10000f;
+    [SerializeField, Min(0f)] private float jointBreakTorque = 2500f;
 
     [SerializeField] private Transform grabPoint;
     [SerializeField] private Transform grabAnchor;
@@ -26,13 +62,13 @@ public class PlayerGrab : MonoBehaviour
     [SerializeField] private float ArrowMaxZPos = 4f;
     [SerializeField] private float ArrowHeight = 2.0f;
 
-    [Header("Bridge Collider")]
     private PlayerInput playerInput;
     private InputAction grabAction;
     private InputAction useStationAction;
 
     private bool isGrabInputHeld;
     private float grabInputHoldTime;
+    private bool throwChargeStarted;
     private AudioSource throwBuildUpAudioSource;
 
     private ConfigurableJoint configurableJoint;
@@ -50,18 +86,16 @@ public class PlayerGrab : MonoBehaviour
     private Vector3 originalCenterOfMass;
     private bool hasShiftedCoM;
 
-    private float GrabRadius => grabConfig.GrabRadius;
-    private float GrabAlignDuration => grabConfig.GrabAlignDuration;
-    private float ThrowMinHoldTime => grabConfig.ThrowMinHoldTime;
-    private float ThrowMaxHoldTime => grabConfig.ThrowMaxHoldTime;
-    private float ThrowMinForce => grabConfig.ThrowMinForce;
-    private float ThrowMaxForce => grabConfig.ThrowMaxForce;
-    private float ThrowMinUpForce => grabConfig.ThrowMinUpForce;
-    private float ThrowMaxUpForce => grabConfig.ThrowMaxUpForce;
-    private float BridgeWidth => grabConfig.BridgeWidth;
-    private float BridgeHeight => grabConfig.BridgeHeight;
-    private float BridgeYOffset => grabConfig.BridgeYOffset;
-    private float BridgeExtraZ => grabConfig.BridgeExtraZ;
+    // True while a throw is actually charging: Grab held past the drop window with a case
+    // in hand. PlayerHandIK reads this to let the wind-up clip show through the torso
+    // instead of holding the carry pose.
+    public bool IsChargingThrow => throwChargeStarted && luggageHeld != null;
+
+    // Kept as properties so a max typed below its min still yields a usable range rather
+    // than a negative one.
+    private float ThrowMaxHoldTime => Mathf.Max(throwMinHoldTime, throwMaxHoldTime);
+    private float ThrowMaxForce => Mathf.Max(throwMinForce, throwMaxForce);
+    private float ThrowMaxUpForce => Mathf.Max(throwMinUpForce, throwMaxUpForce);
 
     private void OnDisable()
     {
@@ -70,13 +104,6 @@ public class PlayerGrab : MonoBehaviour
 
     private void Awake()
     {
-        if (grabConfig == null)
-        {
-            Debug.LogError($"{nameof(PlayerGrab)} '{name}' has no {nameof(GrabConfig)}.", this);
-            enabled = false;
-            return;
-        }
-
         playerInput = GetComponent<PlayerInput>();
         grabAction = playerInput.actions.FindAction("Player/Grab", throwIfNotFound: true);
         useStationAction = playerInput.actions.FindAction("Player/UseStation", throwIfNotFound: true);
@@ -99,19 +126,31 @@ public class PlayerGrab : MonoBehaviour
         if (useStationAction.WasPressedThisFrame())
             TryUseStation();
 
-        // Arrow charge visual (runs in all scenes)
-        if (isGrabInputHeld && objectRigidbody != null)
-        {
-            float t = Mathf.Clamp01(grabInputHoldTime / Mathf.Max(0.01f, ThrowMaxHoldTime));
-            float arrowScale = Mathf.Lerp(ArrowMinScale, ArrowMaxScale, t);
-            Arrow.transform.localScale = new Vector3(arrowScale, arrowScale, arrowScale);
-
-            float arrowZPos = Mathf.Lerp(ArrowMinZPos, ArrowMaxZPos, t);
-            Arrow.transform.localPosition = new Vector3(0, ArrowHeight, arrowZPos);
-        }
+        // Arrow charge visual (runs in all scenes). Arrow is optional: a body prefab
+        // without one must not break grabbing, so guard instead of dereferencing.
+        if (Arrow != null && throwChargeStarted && objectRigidbody != null)
+            UpdateArrowChargeVisual();
 
         if (isGrabInputHeld)
+        {
             grabInputHoldTime += Time.deltaTime;
+
+            // Charge feedback (buildup SFX, throw pose, arrow) waits until the press has
+            // outlived the drop window, so a quick tap reads as a plain drop with no wind-up.
+            if (!throwChargeStarted && luggageHeld != null && grabInputHoldTime >= throwMinHoldTime)
+            {
+                throwChargeStarted = true;
+                StartThrowBuildUpAudio();
+                animator.SetBool(AnimId.IsThrowing, true);
+                if (Arrow)
+                {
+                    // Scale before showing, or the arrow renders one frame at whatever
+                    // stale scale it was left with (the prefab authors it big).
+                    UpdateArrowChargeVisual();
+                    Arrow.SetActive(true);
+                }
+            }
+        }
 
         UpdateOutline(luggageHeld == null ? candidate : null);
 
@@ -127,21 +166,20 @@ public class PlayerGrab : MonoBehaviour
             {
                 isGrabInputHeld = true;
                 grabInputHoldTime = 0f;
-                StartThrowBuildUpAudio();
-                if (Arrow) Arrow.SetActive(true);
             }
         }
 
         if (grabUp && objectRigidbody != null && isGrabInputHeld)
         {
-            if (Arrow) Arrow.SetActive(false);
-
-            if (grabInputHoldTime >= ThrowMinHoldTime)
+            if (throwChargeStarted)
             {
-                float clampedHoldTime = Mathf.Clamp(grabInputHoldTime, ThrowMinHoldTime, ThrowMaxHoldTime);
-                float holdRange = Mathf.Max(0.01f, ThrowMaxHoldTime - ThrowMinHoldTime);
-                float t = (clampedHoldTime - ThrowMinHoldTime) / holdRange;
-                Throw(Mathf.Lerp(ThrowMinForce, ThrowMaxForce, t), Mathf.Lerp(ThrowMinUpForce, ThrowMaxUpForce, t));
+                animator.SetBool(AnimId.IsThrowing, false);
+                if (Arrow) Arrow.SetActive(false);
+
+                float clampedHoldTime = Mathf.Clamp(grabInputHoldTime, throwMinHoldTime, ThrowMaxHoldTime);
+                float holdRange = Mathf.Max(0.01f, ThrowMaxHoldTime - throwMinHoldTime);
+                float t = (clampedHoldTime - throwMinHoldTime) / holdRange;
+                Throw(Mathf.Lerp(throwMinForce, ThrowMaxForce, t), Mathf.Lerp(throwMinUpForce, ThrowMaxUpForce, t));
             }
             else
             {
@@ -149,6 +187,7 @@ public class PlayerGrab : MonoBehaviour
             }
 
             isGrabInputHeld = false;
+            throwChargeStarted = false;
         }
 
         if (grabDown && objectRigidbody == null)
@@ -173,7 +212,7 @@ public class PlayerGrab : MonoBehaviour
     {
         int hitCount = Physics.OverlapSphereNonAlloc(
             grabPoint.position,
-            GrabRadius,
+            grabRadius,
             nearbyHits,
             grabbableLayer,
             QueryTriggerInteraction.Collide);
@@ -239,6 +278,7 @@ public class PlayerGrab : MonoBehaviour
                     isGrabInputHeld = false;
                     grabInputHoldTime = 0f;
                     StopThrowBuildUpAudio();
+                    animator.SetBool(AnimId.IsThrowing, false);
                     if (Arrow) Arrow.SetActive(false);
                     return;
                 }
@@ -314,11 +354,11 @@ public class PlayerGrab : MonoBehaviour
 
         float elapsed = 0f;
 
-        while (elapsed < GrabAlignDuration)
+        while (elapsed < grabAlignDuration)
         {
             if (configurableJoint == null || luggageHeld == null) yield break;
 
-            float t = GrabAlignDuration > 0f ? elapsed / GrabAlignDuration : 1f;
+            float t = grabAlignDuration > 0f ? elapsed / grabAlignDuration : 1f;
             t = t * t * (3f - 2f * t); // smoothstep
 
             // Animate only yaw; pitch/roll correction is left to the angular spring drive.
@@ -388,26 +428,29 @@ public class PlayerGrab : MonoBehaviour
         configurableJoint.zMotion = ConfigurableJointMotion.Limited;
         SoftJointLimit linearLimit = new SoftJointLimit
         {
-            limit = grabConfig.LinearLimit
+            limit = jointLinearLimit
         };
         configurableJoint.linearLimit = linearLimit;
 
         SoftJointLimitSpring limitSpring = new SoftJointLimitSpring
         {
-            spring = grabConfig.LinearLimitSpring,
-            damper = grabConfig.LinearLimitDamper
+            spring = jointLinearLimitSpring,
+            damper = jointLinearLimitDamper
         };
         configurableJoint.linearLimitSpring = limitSpring;
 
         configurableJoint.autoConfigureConnectedAnchor = false;
         configurableJoint.connectedAnchor = localGrabPoint;
-        configurableJoint.anchor = grabAnchor.localPosition;
+        // anchor is in the joint's own local space (the joint lives on grabPoint), so
+        // convert grabAnchor into that space. Using grabAnchor.localPosition directly
+        // would be root-space and get multiplied by grabPoint's scale.
+        configurableJoint.anchor = grabPoint.InverseTransformPoint(grabAnchor.position);
 
         JointDrive fullDrive = new JointDrive
         {
-            positionSpring = grabConfig.PositionSpring,
-            positionDamper = grabConfig.PositionDamper,
-            maximumForce = grabConfig.PositionMaximumForce
+            positionSpring = jointPositionSpring,
+            positionDamper = jointPositionDamper,
+            maximumForce = jointPositionMaximumForce
         };
         configurableJoint.xDrive = fullDrive;
         configurableJoint.yDrive = fullDrive;
@@ -415,9 +458,9 @@ public class PlayerGrab : MonoBehaviour
 
         JointDrive angularDrive = new JointDrive
         {
-            positionSpring = grabConfig.AngularSpring,
-            positionDamper = grabConfig.AngularDamper,
-            maximumForce = grabConfig.AngularMaximumForce
+            positionSpring = jointAngularSpring,
+            positionDamper = jointAngularDamper,
+            maximumForce = jointAngularMaximumForce
         };
         configurableJoint.angularXDrive = angularDrive;
         configurableJoint.angularYZDrive = angularDrive;
@@ -432,11 +475,11 @@ public class PlayerGrab : MonoBehaviour
         configurableJoint.connectedMassScale = 1f;
 
         configurableJoint.projectionMode = JointProjectionMode.PositionAndRotation;
-        configurableJoint.projectionDistance = grabConfig.ProjectionDistance;
-        configurableJoint.projectionAngle = grabConfig.ProjectionAngle;
+        configurableJoint.projectionDistance = jointProjectionDistance;
+        configurableJoint.projectionAngle = jointProjectionAngle;
 
-        configurableJoint.breakForce = grabConfig.BreakForce;
-        configurableJoint.breakTorque = grabConfig.BreakTorque;
+        configurableJoint.breakForce = jointBreakForce;
+        configurableJoint.breakTorque = jointBreakTorque;
     }
 
     private void EnableBridgeCollider()
@@ -490,23 +533,37 @@ public class PlayerGrab : MonoBehaviour
 
         if (dist < 0.01f) return;
 
-        float totalLength = dist + BridgeExtraZ;
+        float totalLength = dist + bridgeExtraZ;
         // Shift midpoint back toward player by half of bridgeExtraZ so the collider extends behind the anchor
         Vector3 dirNorm = dir.normalized;
-        Vector3 midpoint = anchorPos + dirNorm * (dist * 0.5f - BridgeExtraZ * 0.5f);
-        midpoint.y = anchorPos.y + BridgeYOffset;
+        Vector3 midpoint = anchorPos + dirNorm * (dist * 0.5f - bridgeExtraZ * 0.5f);
+        midpoint.y = anchorPos.y + bridgeYOffset;
 
         bridgeObject.transform.position = midpoint;
         bridgeObject.transform.rotation = Quaternion.LookRotation(dirNorm);
-        bridgeBoxCollider.size = new Vector3(BridgeWidth, BridgeHeight, totalLength);
+        bridgeBoxCollider.size = new Vector3(bridgeWidth, bridgeHeight, totalLength);
         bridgeBoxCollider.center = Vector3.zero;
+    }
+
+    // Grows the arrow and pushes it out over the same min→max hold window the throw force
+    // uses, so it appears at ArrowMinScale the moment the charge starts and peaks with it.
+    private void UpdateArrowChargeVisual()
+    {
+        float holdRange = Mathf.Max(0.01f, ThrowMaxHoldTime - throwMinHoldTime);
+        float t = Mathf.Clamp01((grabInputHoldTime - throwMinHoldTime) / holdRange);
+
+        float arrowScale = Mathf.Lerp(ArrowMinScale, ArrowMaxScale, t);
+        Arrow.transform.localScale = new Vector3(arrowScale, arrowScale, arrowScale);
+
+        float arrowZPos = Mathf.Lerp(ArrowMinZPos, ArrowMaxZPos, t);
+        Arrow.transform.localPosition = new Vector3(0, ArrowHeight, arrowZPos);
     }
 
     private void TryUseStation()
     {
         if (luggageHeld == null) return;
 
-        int hitCount = Physics.OverlapSphereNonAlloc(grabPoint.position, GrabRadius, nearbyHits);
+        int hitCount = Physics.OverlapSphereNonAlloc(grabPoint.position, grabRadius, nearbyHits);
         for (int i = 0; i < hitCount; i++)
         {
             Collider hit = nearbyHits[i];
@@ -536,6 +593,7 @@ public class PlayerGrab : MonoBehaviour
 
         grabInputHoldTime = 0f;
         isGrabInputHeld = false;
+        throwChargeStarted = false;
 
         if (objectRigidbody != null && hasShiftedCoM)
         {
@@ -559,7 +617,10 @@ public class PlayerGrab : MonoBehaviour
         if (playerMovement != null)
             playerMovement.isGrabbing = false;
         if (animator != null)
+        {
             animator.SetBool(AnimId.IsGrabbing, false);
+            animator.SetBool(AnimId.IsThrowing, false);
+        }
     }
 
     public int GetPlayerIndex()
@@ -595,10 +656,10 @@ public class PlayerGrab : MonoBehaviour
 
         // Draw grab detection sphere
         Gizmos.color = Color.cyan;
-        Gizmos.DrawWireSphere(grabPoint.position, GrabRadius);
+        Gizmos.DrawWireSphere(grabPoint.position, grabRadius);
 
         // Draw block raycast to nearest luggage in range
-        Collider[] nearby = Physics.OverlapSphere(grabPoint.position, GrabRadius, grabbableLayer);
+        Collider[] nearby = Physics.OverlapSphere(grabPoint.position, grabRadius, grabbableLayer);
         foreach (var hit in nearby)
         {
             Rigidbody rb = hit.attachedRigidbody;
