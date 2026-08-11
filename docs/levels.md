@@ -42,20 +42,27 @@ are unlocked by default; the rest unlock through the `nextLevel` chain.
 
 ## Dangling configs
 
-**Five of the six configs point at scenes that no longer exist.** `Stage_1..4` and
-`Stage Tutorial` were deleted in the July 2026 DesignScene consolidation, but their config assets
-were kept:
+`Stage_1..4` and `Stage Tutorial` were deleted in the July 2026 DesignScene consolidation but
+their config assets were kept, so most of them still name scenes that do not exist:
 
 | Config | `sceneName` | Scene exists? |
 |---|---|---|
-| `LevelConfig_Design` | `DesignScene` | yes (editor-only, not in Build Settings) |
+| `LevelConfig_Design` | `DesignScene` | yes, **and now in Build Settings** |
+| `LevelConfig_Stage1` | `DesignScene` | yes — **repointed August 2026** so Stage 1 is playable |
 | `LevelConfig_Tutorial` | `Stage Tutorial` | **no** |
-| `LevelConfig_Stage1..4` | `Stage_1` … `Stage_4` | **no** |
+| `LevelConfig_Stage2..4` | `Stage_2` … `Stage_4` | **no** |
 
-So no gameplay scene ships today, and the stage-select chain routes to scenes that can't load.
-The configs are still the right place for the balance curve above — treat them as the surviving
-design record, and fix `sceneName` when the stage scenes are rebuilt. `SceneLoader` validates a
-target against Build Settings before loading, so a bad route fails loudly rather than hanging.
+`SceneLoader` validates a target against Build Settings before loading, so a bad route fails
+loudly rather than hanging. That is why `DesignScene` had to be **added to Build Settings** — the
+config alone is not enough.
+
+**Stage 1 is a temporary alias, not a real stage.** It loads `DesignScene`, and `DesignScene`'s
+own `LevelContext` points at `LevelConfig_Design` — so the round runs Design's timer, waves and
+scoring, *not* Stage 1's. The node's config only supplies the scene name and the stage-select
+copy. Point that `LevelContext` at `LevelConfig_Stage1` if Stage 1 should actually play by its
+own numbers.
+
+`Stage2..4` still route nowhere, so the `nextLevel` chain dead-ends after Stage 1.
 
 ## Authoring a level
 

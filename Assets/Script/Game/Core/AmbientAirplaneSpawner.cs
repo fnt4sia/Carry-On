@@ -1,68 +1,139 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Low-frequency decorative airplane loop. Reuses one instance and remains entirely
-/// separate from round rules so its prototype art can be swapped on the prefab.
+/// Decorative airplane traffic. Waits a random cooldown, picks a random prefab from the
+/// fleet, and flies it from the spawn anchor to the destination anchor at a random speed.
+///
+/// Pure set dressing — it owns no round rules, so the lobby and gameplay scenes both use
+/// it. Gameplay scenes leave <c>requireActiveRound</c> on so planes only fly during a
+/// round; menus turn it off because there is no GameManager there.
 /// </summary>
 public class AmbientAirplaneSpawner : MonoBehaviour
 {
-    [SerializeField] private GameObject airplanePrefab;
+    [Header("Fleet")]
+    [SerializeField, Tooltip("One is picked at random per flight.")]
+    private GameObject[] airplanePrefabs;
+
+    [Header("Path")]
     [SerializeField] private Transform spawnPoint;
     [SerializeField] private Transform destinationPoint;
-    [SerializeField, Min(0.1f)] private float checkInterval = 1f;
-    [SerializeField, Range(0f, 1f)] private float spawnChancePerCheck = 1f / 14f;
-    [SerializeField] private Vector2 speedRange = new(10f, 40f);
+    [SerializeField, Tooltip("Turn the plane to face the way it is travelling. Off keeps the spawn anchor's rotation.")]
+    private bool faceTravelDirection = true;
 
-    private GameObject pooledAirplane;
+    [Header("Timing")]
+    [SerializeField, Min(0f), Tooltip("Quiet period before the first flight.")]
+    private float initialDelay = 2f;
+    [SerializeField, Tooltip("Random cooldown between flights, in seconds.")]
+    private Vector2 spawnDelayRange = new(8f, 20f);
+    [SerializeField, Tooltip("Random world units per second for each flight.")]
+    private Vector2 speedRange = new(10f, 40f);
+    [SerializeField, Min(1), Tooltip("How many planes may be in the air at once.")]
+    private int maxConcurrent = 1;
+
+    [Header("Gating")]
+    [SerializeField, Tooltip("Gameplay: fly only while a round is running. Menus: leave this off.")]
+    private bool requireActiveRound = true;
+
+    // One idle stack per prefab, so a Pesawat1 is never reused as a Pesawat2.
+    private readonly Dictionary<GameObject, Stack<GameObject>> idle = new();
+    private int inFlight;
+
+    private bool RoundRunning =>
+        GameManager.Instance != null
+        && GameManager.Instance.IsRoundStarted
+        && !GameManager.Instance.IsRoundEnded;
 
     private void Awake()
     {
-        if (spawnPoint != null && destinationPoint != null)
+        if (spawnPoint != null && destinationPoint != null && HasFleet())
             return;
 
-        Debug.LogError($"{nameof(AmbientAirplaneSpawner)} '{name}' needs path anchors.", this);
+        Debug.LogError($"{nameof(AmbientAirplaneSpawner)} '{name}' needs both path anchors and at least one prefab.", this);
         enabled = false;
     }
 
+    private bool HasFleet()
+    {
+        if (airplanePrefabs == null) return false;
+        foreach (var p in airplanePrefabs)
+            if (p != null) return true;
+        return false;
+    }
+
+    private void OnDisable() => inFlight = 0;
+
     private IEnumerator Start()
     {
-        while (enabled)
+        yield return new WaitForSeconds(initialDelay);
+
+        while (true)
         {
-            yield return new WaitForSeconds(checkInterval);
-            if (GameManager.Instance == null || !GameManager.Instance.IsRoundStarted || GameManager.Instance.IsRoundEnded)
-                continue;
-            if (Random.value > spawnChancePerCheck)
-                continue;
+            yield return new WaitForSeconds(Random.Range(spawnDelayRange.x, spawnDelayRange.y));
 
-            GameObject airplane = GetAirplane();
-            if (airplane == null)
-                continue;
+            if (requireActiveRound && !RoundRunning) continue;
+            if (inFlight >= maxConcurrent) continue;
 
-            float speed = Random.Range(speedRange.x, speedRange.y);
-            while (airplane.activeSelf && Vector3.Distance(airplane.transform.position, destinationPoint.position) > 0.1f)
-            {
-                airplane.transform.position = Vector3.MoveTowards(
-                    airplane.transform.position,
-                    destinationPoint.position,
-                    speed * Time.deltaTime);
-                yield return null;
-            }
-
-            airplane.SetActive(false);
+            StartCoroutine(Fly());
         }
     }
 
-    private GameObject GetAirplane()
+    private IEnumerator Fly()
     {
-        if (airplanePrefab == null)
-            return null;
+        GameObject prefab = PickPrefab();
+        if (prefab == null) yield break;
 
-        if (pooledAirplane == null)
-            pooledAirplane = Instantiate(airplanePrefab, transform);
+        GameObject plane = Take(prefab);
+        inFlight++;
 
-        pooledAirplane.transform.SetPositionAndRotation(spawnPoint.position, spawnPoint.rotation);
-        pooledAirplane.SetActive(true);
-        return pooledAirplane;
+        Vector3 from = spawnPoint.position;
+        Vector3 to = destinationPoint.position;
+        Vector3 heading = to - from;
+
+        plane.transform.SetPositionAndRotation(
+            from,
+            faceTravelDirection && heading.sqrMagnitude > 0.0001f
+                ? Quaternion.LookRotation(heading.normalized, Vector3.up)
+                : spawnPoint.rotation);
+        plane.SetActive(true);
+
+        float speed = Random.Range(speedRange.x, speedRange.y);
+        while (plane.transform.position != to)
+        {
+            plane.transform.position = Vector3.MoveTowards(
+                plane.transform.position, to, speed * Time.deltaTime);
+            yield return null;
+        }
+
+        Release(prefab, plane);
+        inFlight--;
+    }
+
+    private GameObject PickPrefab()
+    {
+        // Skip empty slots so a half-filled array in the inspector still works.
+        var candidates = new List<GameObject>(airplanePrefabs.Length);
+        foreach (var p in airplanePrefabs)
+            if (p != null) candidates.Add(p);
+
+        return candidates.Count == 0 ? null : candidates[Random.Range(0, candidates.Count)];
+    }
+
+    private GameObject Take(GameObject prefab)
+    {
+        if (idle.TryGetValue(prefab, out var stack) && stack.Count > 0)
+            return stack.Pop();
+
+        return Instantiate(prefab, transform);
+    }
+
+    private void Release(GameObject prefab, GameObject plane)
+    {
+        plane.SetActive(false);
+
+        if (!idle.TryGetValue(prefab, out var stack))
+            idle[prefab] = stack = new Stack<GameObject>();
+        stack.Push(plane);
     }
 }

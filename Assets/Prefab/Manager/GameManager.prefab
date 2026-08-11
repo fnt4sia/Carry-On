@@ -93,13 +93,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 00ebfa1b8033845939e63a1a044aee0a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CarryOn.Core::AmbientAirplaneSpawner
-  airplanePrefab: {fileID: 4551419139393154460, guid: 5327798688a91244baf2d303cc218401,
-    type: 3}
+  airplanePrefabs:
+  - {fileID: 4551419139393154460, guid: 5327798688a91244baf2d303cc218401, type: 3}
   spawnPoint: {fileID: 7297899451641129078}
   destinationPoint: {fileID: 3257006506246159905}
-  checkInterval: 1
-  spawnChancePerCheck: 0.071428575
+  faceTravelDirection: 0
+  initialDelay: 2
+  spawnDelayRange: {x: 8, y: 20}
   speedRange: {x: 10, y: 40}
+  maxConcurrent: 1
+  requireActiveRound: 1
 --- !u!1 &2211627627128348878
 GameObject:
   m_ObjectHideFlags: 0

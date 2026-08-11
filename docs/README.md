@@ -66,17 +66,20 @@ Unity's `Editor/` folder-name rule rather than from any config file.
 
 ## Scenes
 
-Build Settings contains **two scenes**, both menus:
+Build Settings contains **three scenes**:
 
 | Index | Scene |
 |---:|---|
 | 0 | `Menu/MainMenu` |
 | 1 | `Menu/ChooseStage` |
+| 2 | `Stages/DesignScene` |
 
-`Stages/DesignScene` (mechanic sandbox) and `Stages/Test` (decoration staging) exist but are
-editor-only. The per-stage scenes `Stage_1..4` and `Stage Tutorial` were deleted in the July 2026
-DesignScene consolidation, so **no gameplay scene currently ships**. Their `LevelConfig` assets
-outlived them — see [levels](levels.md#dangling-configs).
+`DesignScene` is the mechanic sandbox and, since August 2026, doubles as Stage 1 —
+`LevelConfig_Stage1` was repointed at it so the stage-select chain has somewhere to go.
+`Stages/Test` (decoration staging) and `Stages/Level1` (work-in-progress layout) are editor-only.
+The per-stage scenes `Stage_1..4` and `Stage Tutorial` were deleted in the July 2026 DesignScene
+consolidation; their `LevelConfig` assets outlived them — see
+[levels](levels.md#dangling-configs).
 
 ```text
 MainMenu -> ChooseStage -> gameplay stage -> next stage or ChooseStage

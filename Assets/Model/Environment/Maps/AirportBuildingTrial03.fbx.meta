@@ -3,7 +3,32 @@ guid: 1e848a28e734f491eafc65bf4f6243c5
 ModelImporter:
   serializedVersion: 24200
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Texture2D
+      assembly: UnityEngine.CoreModule
+      name: LuggageNormal1
+    second: {fileID: 2800000, guid: 871acebe4f7ae4522a8cb633cadad5ec, type: 3}
+  - first:
+      type: UnityEngine:Texture2D
+      assembly: UnityEngine.CoreModule
+      name: MachineDoor
+    second: {fileID: 2800000, guid: b9d0aba680a384e5c9216ef63f39740c, type: 3}
+  - first:
+      type: UnityEngine:Texture2D
+      assembly: UnityEngine.CoreModule
+      name: WashingMachine1
+    second: {fileID: 2800000, guid: 125960be1852443f7a4a32c8cf75685a, type: 3}
+  - first:
+      type: UnityEngine:Texture2D
+      assembly: UnityEngine.CoreModule
+      name: WashingSlider
+    second: {fileID: 2800000, guid: 21937901c5cb1424cb9f89975635260a, type: 3}
+  - first:
+      type: UnityEngine:Texture2D
+      assembly: UnityEngine.CoreModule
+      name: carry on color palate
+    second: {fileID: 2800000, guid: 901bfbeffcd1c4f81b58034aa8b0be56, type: 3}
   materials:
     materialImportMode: 2
     materialName: 0

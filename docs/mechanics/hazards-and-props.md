@@ -1,6 +1,7 @@
 # Hazards and props
 
-**Scripts:** `Game/World/{PressurePlate, Gateway, RotatingPlatform, OneWayDoor, PoolHazard}.cs`
+**Scripts:** `Game/World/{PressurePlate, Gateway, RotatingPlatform, OneWayDoor, PoolHazard}.cs`,
+`Game/Core/AmbientAirplaneSpawner.cs`
 
 Reusable logic prefabs. Shared behaviour (colliders, visuals, animation) belongs in Prefab Mode;
 what each instance is *connected to* is per-level scene data.
@@ -98,3 +99,47 @@ Water force-drops the player, disables it, waits the configured delay, then call
 `PlayerSpawner.MovePlayerToSpawn` and re-enables it. A fallback respawn point is used only when
 no spawner exists. Put a `LuggageSink` beneath water and void areas so dropped bags are recycled
 too — the hazard handles players, not cargo.
+
+## Ambient airplanes
+
+**Script:** `Game/Core/AmbientAirplaneSpawner.cs`
+
+Pure set dressing — decorative traffic that flies a prefab from one anchor to another and owns
+no round rules, so the lobby and gameplay scenes share one component.
+
+Each cycle it waits `initialDelay`, then loops: wait a random `spawnDelayRange` cooldown, pick a
+random entry from `airplanePrefabs` (null slots are skipped, so a half-filled array still works),
+and fly it from `spawnPoint` to `destinationPoint` at a random `speedRange` speed. Up to
+`maxConcurrent` flights overlap; each runs its own coroutine. Instances are pooled in one idle
+stack **per prefab**, so a Pesawat1 is never reused as a Pesawat2.
+
+`faceTravelDirection` turns the plane down the path with `LookRotation`; off keeps the spawn
+anchor's rotation, which is what the GameManager copy relies on.
+
+`requireActiveRound` is the one thing that differs between the two users:
+
+| Where | Setting | Why |
+|---|---|---|
+| `GameManager.prefab` | **on** | planes only fly while a round is running |
+| `MainMenu` → `AmbientPlanes` | **off** | the lobby has no `GameManager` at all |
+
+Leaving it on in a menu is the failure mode to watch for — `RoundRunning` is false forever, so
+nothing ever spawns and there is no error to tell you why.
+
+### MainMenu setup
+
+`AmbientPlanes` holds the component plus its two anchors. The path runs down `Runway2`
+(centre `x 248.6`, 122.85 wide, 1212 long, top surface `y −2.94`):
+
+| | |
+|---|---|
+| `PlaneSpawnPoint` | `(248.6, 1.24, 420)` |
+| `PlaneExitPoint` | `(248.6, 1.24, −520)` |
+
+`y 1.24` puts the wheels on the runway — `Airplane.prefab`'s pivot sits 4.18 above its lowest
+point. Both anchors are off-screen (the view's edges are about `z +248` and `z −358`), so planes
+enter and leave cleanly. 940 units at 70–130 u/s is a 7–13 s crossing.
+
+Only `Airplane.prefab` is in the fleet. `Pesawat1` and `Pesawat2` are 4–5× larger at scale 1
+(262 and 169 units long against Airplane's 53, and Pesawat1's 206-unit wingspan is wider than the
+runway) — they need scaled prefab variants before they can be mixed in.
