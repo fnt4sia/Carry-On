@@ -21,6 +21,10 @@ public class Luggage : MonoBehaviour
 
     [SerializeField] private Outline outline;
 
+    [Header("Tutorial / Menu")]
+    [Tooltip("Menu and tutorial luggage: hides the timer UI and never expires or despawns on its own.")]
+    public bool isTutorialLuggage;
+
     public LuggageBehaviorType behaviorType;
     [HideInInspector] public GameObject sourcePrefab;
 
@@ -101,7 +105,7 @@ public class Luggage : MonoBehaviour
         if (fragileGrabImmunity > 0f)
             fragileGrabImmunity -= Time.deltaTime;
 
-        if (isInStation || hasExpired || IsDelivered) return;
+        if (isTutorialLuggage || isInStation || hasExpired || IsDelivered) return;
 
         lifetimeRemaining -= Time.deltaTime;
         if (lifetimeRemaining <= 0f)
@@ -112,6 +116,7 @@ public class Luggage : MonoBehaviour
     {
         PlayCollisionAudio(collision);
 
+        if (isTutorialLuggage) return;
         if (behaviorType != LuggageBehaviorType.Fragile) return;
         if (IsWrapped) return;
         if (fragileGrabImmunity > 0f) return;
@@ -312,6 +317,7 @@ public class Luggage : MonoBehaviour
             ? prefabDefinition.behaviorType
             : LuggageBehaviorType.Normal;
         initialBehaviorType = source.initialBehaviorType;
+        isTutorialLuggage = source.isTutorialLuggage;
         sourcePrefab = replacementPrefab;
         isInitialized = true;
         lifetimeRemaining = source.lifetimeRemaining;
@@ -343,7 +349,7 @@ public class Luggage : MonoBehaviour
         {
             lifetime = levelConfig.luggageLifetime;
         }
-        else
+        else if (!isTutorialLuggage)
         {
             Debug.LogWarning(
                 $"{nameof(Luggage)} '{name}' was placed in a scene without level tuning; "

@@ -9,6 +9,12 @@ public class LuggageSpawner : SingletonBehaviour<LuggageSpawner>
 {
     private LevelConfig levelConfig;
 
+    [Header("Fallback (no LevelConfig, e.g. menus)")]
+    [Tooltip("Used when the scene has no LevelContext. Spawns these prefabs on a fixed interval " +
+        "as tutorial luggage (no timer UI, never expires).")]
+    [SerializeField] private List<GameObject> fallbackLuggagePrefabs = new();
+    [SerializeField, Min(0.1f)] private float fallbackSpawnInterval = 4f;
+
     private Vector3 spawnPosition;
     private Quaternion spawnRotation;
 
@@ -29,6 +35,12 @@ public class LuggageSpawner : SingletonBehaviour<LuggageSpawner>
 
         if (levelConfig == null)
         {
+            if (fallbackLuggagePrefabs.Count > 0)
+            {
+                StartCoroutine(FallbackLoop());
+                return;
+            }
+
             Debug.LogError($"{nameof(LuggageSpawner)} on {name} has no {nameof(LevelConfig)} assigned.");
             enabled = false;
             return;
@@ -58,6 +70,17 @@ public class LuggageSpawner : SingletonBehaviour<LuggageSpawner>
         }
     }
 
+    // Menu/tutorial mode: no LevelConfig, so spawn forever on a plain interval.
+    private IEnumerator FallbackLoop()
+    {
+        WaitForSeconds wait = new(fallbackSpawnInterval);
+        while (true)
+        {
+            yield return wait;
+            SpawnOne(fallbackLuggagePrefabs);
+        }
+    }
+
     private void SpawnOne(List<GameObject> prefabs)
     {
         GameObject prefab = prefabs[Random.Range(0, prefabs.Count)];
@@ -72,7 +95,9 @@ public class LuggageSpawner : SingletonBehaviour<LuggageSpawner>
         Luggage luggage = RentLuggage(prefab, spawnPosition, spawnRotation);
         if (luggage == null) return;
 
-        luggage.Initialize(prefabLuggage.behaviorType, levelConfig.luggageLifetime, prefab);
+        float lifetime = levelConfig != null ? levelConfig.luggageLifetime : 0f;
+        luggage.Initialize(prefabLuggage.behaviorType, lifetime, prefab);
+        luggage.isTutorialLuggage = levelConfig == null;
         AssignDestinationGateIfNeeded(luggage);
     }
 
