@@ -31,6 +31,7 @@ public class LuggageVisualEffects : MonoBehaviour
     private Rigidbody luggageRb;
     private bool wasGrabbedLastFrame;
     private bool wasThrown;
+    private bool tutorialVisualsApplied;
     private float baseStartSizeMin;
     private float baseStartSizeMax;
     private float baseTrailTime;
@@ -53,8 +54,24 @@ public class LuggageVisualEffects : MonoBehaviour
             baseTrailTime = grabTrail.time;
     }
 
+    private void OnEnable()
+    {
+        // A pooled bag replays its playOnAwake particles every time it is re-enabled,
+        // so the tutorial silencing has to run again on each rent.
+        tutorialVisualsApplied = false;
+    }
+
     private void Update()
     {
+        // Menu / tutorial bags are scenery: no smoke, no throw trail. The flag is set by
+        // the spawner after Awake has already run, so it is applied here instead.
+        if (luggage.isTutorialLuggage)
+        {
+            if (!tutorialVisualsApplied)
+                SilenceEffectsForTutorial();
+            return;
+        }
+
         bool isGrabbedNow = luggage.GetIsGrabbed();
 
         if (!wasGrabbedLastFrame && isGrabbedNow)
@@ -86,6 +103,7 @@ public class LuggageVisualEffects : MonoBehaviour
 
     private void OnCollisionEnter(Collision collision)
     {
+        if (luggage.isTutorialLuggage) return;
         if (!wasThrown) return;
         if (Time.time < nextHitParticleTime) return;
 
@@ -94,6 +112,22 @@ public class LuggageVisualEffects : MonoBehaviour
 
         nextHitParticleTime = Time.time + hitParticleCooldown;
         PlayHitParticle(collision, force);
+    }
+
+    private void SilenceEffectsForTutorial()
+    {
+        tutorialVisualsApplied = true;
+        wasGrabbedLastFrame = false;
+        wasThrown = false;
+        SetTrailActive(false);
+
+        foreach (ParticleSystem particle in hitParticle)
+        {
+            if (particle == null) continue;
+            ParticleSystem.MainModule main = particle.main;
+            main.playOnAwake = false;
+            particle.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        }
     }
 
     private void SetTrailActive(bool active)

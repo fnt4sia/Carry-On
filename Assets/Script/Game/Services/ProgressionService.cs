@@ -6,9 +6,14 @@ using UnityEngine;
 /// <summary>
 /// Persistent star/unlock save service. The JSON format uses lists rather than a
 /// Dictionary so it remains compatible with Unity's built-in JsonUtility.
+///
+/// Progress lives in one of <see cref="SlotCount"/> save slots, one file each. Only the
+/// active slot is held in memory; the lobby's save list reads the others straight off disk.
 /// </summary>
 public class ProgressionService : SingletonBehaviour<ProgressionService>
 {
+    public const int SlotCount = 4;
+
     [Serializable]
     private class SaveData
     {
@@ -25,8 +30,24 @@ public class ProgressionService : SingletonBehaviour<ProgressionService>
         public bool unlocked;
     }
 
+    /// <summary>What the save list needs to draw one row. Read-only view, never written back.</summary>
+    public class SlotSummary
+    {
+        public int Slot;
+        public bool Exists;
+        public int LevelsPlayed;
+        public int TotalStars;
+    }
+
     private SaveData saveData;
-    private string SavePath => Path.Combine(Application.persistentDataPath, "carry-on-save.json");
+
+    /// <summary>Slot the running game reads and writes. Survives scene loads with the service.</summary>
+    public int ActiveSlot { get; private set; } = 1;
+
+    private string SavePath => PathForSlot(ActiveSlot);
+
+    private static string PathForSlot(int slot)
+        => Path.Combine(Application.persistentDataPath, $"carry-on-save-{slot}.json");
 
     protected override bool PersistAcrossScenes => true;
 
@@ -85,6 +106,69 @@ public class ProgressionService : SingletonBehaviour<ProgressionService>
         saveData = new SaveData();
         Save();
         ProgressChanged?.Invoke();
+    }
+
+    // ---- Save slots ----
+
+    /// <summary>Switch to an existing slot and read it in. Missing file just means empty progress.</summary>
+    public void UseSlot(int slot)
+    {
+        ActiveSlot = Mathf.Clamp(slot, 1, SlotCount);
+        Load();
+        ProgressChanged?.Invoke();
+    }
+
+    /// <summary>Switch to a slot and wipe it. Writes immediately, so the slot exists from here on.</summary>
+    public void StartNewGame(int slot)
+    {
+        ActiveSlot = Mathf.Clamp(slot, 1, SlotCount);
+        saveData = new SaveData();
+        Save();
+        ProgressChanged?.Invoke();
+    }
+
+    public static bool SlotHasData(int slot) => File.Exists(PathForSlot(slot));
+
+    /// <summary>
+    /// One summary per slot, in slot order, for the lobby's save list. Reads every slot file
+    /// from disk rather than the loaded slot, so the list shows all saves and not just this one.
+    /// </summary>
+    public static SlotSummary[] ReadSlotSummaries()
+    {
+        var summaries = new SlotSummary[SlotCount];
+
+        for (int i = 0; i < SlotCount; i++)
+        {
+            int slot = i + 1;
+            summaries[i] = new SlotSummary { Slot = slot };
+
+            string path = PathForSlot(slot);
+            if (!File.Exists(path))
+                continue;
+
+            try
+            {
+                SaveData data = JsonUtility.FromJson<SaveData>(File.ReadAllText(path));
+                summaries[i].Exists = true;
+                if (data?.levels == null)
+                    continue;
+
+                foreach (LevelProgress level in data.levels)
+                {
+                    summaries[i].LevelsPlayed++;
+                    summaries[i].TotalStars += level.bestStars;
+                }
+            }
+            catch (Exception exception)
+            {
+                // A corrupt file still counts as an occupied slot — offering it as empty would
+                // let New Game silently overwrite something the player may want to recover.
+                summaries[i].Exists = true;
+                Debug.LogWarning($"Save slot {slot} could not be read.\n{exception.Message}");
+            }
+        }
+
+        return summaries;
     }
 
     private void Load()

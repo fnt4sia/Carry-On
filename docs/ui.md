@@ -1,6 +1,7 @@
 # UI
 
-**Scripts:** `MainMenu/{MainMenuManager, InputModeManager, BoardMenuRow, UIPulse, PlayerSlotView}.cs`,
+**Scripts:** `MainMenu/{MainMenuManager, InputModeManager, BoardMenuRow, UIPulse, CameraFocus}.cs`
+(`PlayerSlotView.cs` is kept but no longer used by any scene),
 `ChooseStage/{MapMover, LevelNode, LevelInfoPopup}.cs`, `Game/UI/GameHUD.cs`
 
 **Every UI element is authored in the scene or in a prefab — never built in code.** No
@@ -14,66 +15,137 @@ offsets that die on an aspect-ratio change.
 **Scene:** `Assets/Scenes/Menu/MainMenu.unity`
 
 There is **no screen-space canvas and no camera movement**. One fixed `Main Camera` pose frames
-both the departure board and the character lineup, and the entire menu is a world-space canvas
-drawn onto the board's screen. The old `Canvas`, `StartView`, and `MenuView` objects were deleted
+both the menu banner and the character lineup, and the entire menu is a world-space canvas drawn
+onto the banner's poster face. The old `Canvas`, `StartView`, and `MenuView` objects were deleted
 in the August 2026 board-menu rebuild, along with the per-player `PlayerUI.prefab` cards.
 
-`DepartureBoard/BoardCanvas` is a World Space canvas parented to the board, sized to the dark
-screen quad of `DepartureBoard.fbx` (27.6 × 16.0 world units) and floated just in front of it so
-it clears the plane icon baked into the mesh:
+> **The menu moved off `DepartureBoard` in August 2026.** The board carried the first version of
+> this menu; it is gone from the scene and `DepartureBoard.prefab` is referenced by nothing. The
+> layout below is a portrait re-fit of the same design, not a new one.
+
+### The banner canvas
+
+Scene root **`MenuBanner`** — the second `StandingBanner` copy, **unpacked** from
+`StandingBanner.prefab` so its menu can't be wiped by a *Revert All* on a decoration prefab. The
+other `StandingBanner` under `MenuEnvironment/Interior/Decor` is still plain decor.
+
+The canvas is sized to the banner's printed poster, which had to be measured off the mesh — the
+model's own bounds include the base plate and the frame lip, so they are the wrong rect:
+
+| Mesh plane (banner-local) | `x` | Extent |
+|---|---|---|
+| Base plate | `−0.2760` | bottom only, 4 verts |
+| **Frame lip** | `−0.1070` | `Y −0.763…0.953`, `Z ±0.610` |
+| **Poster face** | `−0.0890` | `Y −0.742…0.932`, `Z ±0.588` — 1044 verts |
+
+The poster is **portrait**: `1.1755 × 1.6736` local, and the banner's own scale is `4`, so
+`4.702 × 6.695` world. Canvas settings that follow from that:
 
 | | |
 |---|---|
-| localPosition | `(0.05, 9.265, 0.125)` — board-local, screen plane is `x = 0.11` |
-| localRotation | `(0, 90, 0)` — puts canvas `+Z` into the board, so `+X` reads screen-right |
-| localScale | `0.01`, with `sizeDelta (3067, 1777)` |
+| localPosition | `(−0.094, 0.0952, 0)` — `x` sits 0.005 proud of the poster but *behind* the frame lip, so the menu reads as printed into the banner rather than floating off it; `y` is the poster's own centre, which is **not** 0 |
+| localRotation | `(0, 90, 0)` — puts canvas `+Z` onto the banner's `−X`, the face the lobby camera looks at |
+| localScale | `0.001`, with `sizeDelta (1175, 1674)` → `4.700 × 6.696` world |
 | `worldCamera` | `Main Camera` — required, or the `GraphicRaycaster` can't take mouse clicks |
 
-The board has two states, toggled by `MainMenuManager`. `Content/Title` is always on.
+`Backdrop` is a plain dark `(0.055, 0.075, 0.115)` Image at **full alpha**, inset 25 px so the
+poster's frame still shows around it. It has to be opaque: the printed artwork underneath is a
+bright blue-and-teal poster, and even at alpha 0.94 it bled through badly enough to hurt the text.
+
+`Content` insets 70 px horizontally and 55 vertically → a `1035 × 1564` working area.
+
+The banner has two states, toggled by `MainMenuManager`. `Content/Title` is always on.
 
 - **Before anyone joins** — `Content/JoinPrompt` shows `Press Space / (A) to Join`, breathing
   between alpha 0.3 and 1 on a 1.6 s cycle via a `CanvasGroup` + `UIPulse`. `UIPulse` runs on
   unscaled time so it keeps going at `timeScale` 0.
 - **After the first join** — `Content/MenuRoot` reveals the column headers and the four rows.
-  The free-device hint lives on the player list panel, not the board.
+  `JoinPrompt` and `MenuRoot` deliberately **share one rect** (`1330` tall at `y −234`): they are
+  two faces of the same slot, so moving one means moving the other.
 
-> **`DepartureBoard` is a prefab instance** (`Assets/Prefab/Decoration/DepartureBoard.prefab`),
-> and `BoardCanvas` is inside it. Unity **silently refuses** `SetParent` on a child of a prefab
-> instance — the console says *"Setting the parent of a transform which resides in a Prefab
-> instance is not possible"* and the object simply stays put. To move or delete anything under
-> `BoardCanvas`, edit the prefab asset; restructuring it from the scene will not work.
+There is **no join hint** — it was cut deliberately in August 2026, and `RefreshJoinHint` went
+with it. `PlayerSystem.FreeGamepadCount()` is now unused but kept; it is what a future hint would
+need.
 
-### The grid is painted, not drawn
+### Views and the camera lean
 
-**Do not add Image rules or dividers to this canvas.** Every line — the thick bar under the
-title, the four row rules, the two column dividers — is already baked into
-`Assets/Material/Individual Assets/Group 292.png`, the 644×407 texture on the screen quad. So is
-the plane icon left of DEPARTURES (that one is a separate mesh quad, submesh 2). The UI is laid
-out *onto* those lines.
+`MainMenuManager.ShowView` is the single place that decides what the banner shows. Four states,
+all on the one canvas — opening a panel is only ever `SetActive` plus a camera move:
 
-The quad's UVs run `u 0→1` across board-local `z 15.46 → −15.21` and `v 0→1` across
-`y 0.38 → 18.15`, which maps to canvas units as:
+| View | Shown | Camera |
+|---|---|---|
+| `JoinGate` | `JoinPrompt` | home |
+| `Menu` | `MenuRoot` | home |
+| `Saves` | `SavesPanel` | leaned in |
+| `Settings` | `SettingsPanel` | leaned in |
+
+`SavesPanel` and `SettingsPanel` occupy **exactly the rect `MenuRoot` uses** (`1330` tall at
+`y −234`), so `Title` stays put across every view. Players can still join while a panel is open.
+
+`CameraFocus` (on `Main Camera`) swings between the authored lobby pose and `MenuFocusPose`. The
+home pose is captured at `Awake`, never typed in twice; the close-up is the scene object, so
+**re-frame the zoom by moving `MenuFocusPose`, not by editing code.** It was placed by measuring,
+not by eye:
 
 ```text
-canvasX = -1533.5 + u * 3067        canvasY = -888.5 + v * 1777
+distance = (posterHeight / fill) * 0.5 / tan(fov/2)
+         = (6.696 / 0.82) * 0.5 / tan(30°)  =  7.072
 ```
 
-Measured landmarks, in canvas units — anchor to these:
+placed along `−banner.right` from the canvas centre, looking back down `+banner.right` — which
+puts the poster at viewport `y 0.090…0.910`, dead centre, with the line of sight clear.
 
-| Landmark | Value |
-|---|---|
-| Grid box, left / right | `X −1402.5` / `1402.5` (so `Content` insets 131 each side) |
-| Thick bar under title | `Y 392.9 … 423.5` |
-| Row rules | `Y 170.3`, `−61.1`, `−296.9`, `−528.3` |
-| Grid bottom (dividers end) | `Y −781.5` |
-| Column dividers | `X −685.8` and `638.2` → fractions `0.25551` and `0.72752` |
+State is one `0…1` blend driven by `MoveTowards`, not a tween to a destination: interrupting a
+move part-way reverses it from where it is, and the camera can never end up off its two poses.
+It runs on **unscaled** time so the lean still plays if the lobby is ever paused.
 
-Because the painted cells are not equal (231.4 / 235.8 / 231.4 / 253.2), the `Rows`
-`VerticalLayoutGroup` runs at spacing 0 with `childForceExpandHeight` **off**, and each row
-instance carries a `LayoutElement.preferredHeight` for its own cell. They sum to exactly 951.8.
+> **Verified:** both end poses are exact, and every view/handler transition. **Not verified:** the
+> intermediate frames of the lean — an unfocused Editor doesn't run the player loop, so the whole
+> 0.55 s move collapses into one enormous-`deltaTime` frame. Eyeball the motion with the Game view
+> focused.
 
-The strip below the grid is unusable — the board's bezel geometry clips it — which is why the
-join hint sits beside the title instead.
+### Save and settings panels
+
+Both are built from the same `BoardMenuRow.prefab` as the main menu, so the save list is a
+departures list too. Rows are wired in the scene: each slot row passes its **slot number as the
+button's int argument** to `OnClickSlot`, and every panel's `Row_Back` calls `OnClickBack`.
+
+New Game and Load Game open the *same* `SavesPanel` — four slot rows plus Back. The only
+difference is `savesTitle` text and one bool:
+
+| | New Game | Load Game |
+|---|---|---|
+| Empty slot | pressable, reads `EMPTY` | **not** pressable, reads `NO DATA` |
+| Filled slot | pressable — **overwrites** it | pressable, loads it |
+| All slots empty | all four pressable | nothing pressable; Back is the only way out |
+
+What a slot actually stores, and what it deliberately does not, is in
+[services](services.md#save-and-progression) — read that before building anything on top of it.
+
+Locking is `Button.interactable`, set **before** `SetContent` so the refresh picks idle vs locked
+wording off it. That is the whole reason `BoardMenuRow.lockedStatus` exists — no new code was
+needed for the disabled state, just `EMPTY` / `NO DATA` authored on the slot rows.
+
+Gamepad navigation must never start on a locked row, so `ShowView` asks
+`FirstSelectableSaveRow()` for the default instead of a fixed field: first interactable slot,
+falling back to `savesBackRow` when every slot is locked.
+
+Slot rows are the one place row wording is not authored — `BoardMenuRow.SetContent` fills them
+from `ProgressionService.ReadSlotSummaries()` on every open, so a save written last round shows
+up. The column assignment is forced by width, not taste: **`"SLOT 1"` measures 242 px and the
+FLIGHT column is 224**, so the slot name lives in DESTINATION (483 px) and FLIGHT carries a short
+`SV01`-style code mirroring the menu's `C0110`. Worst case measured: `12 STARS` at 204/255.
+
+> **`Awake` does not run on an inactive GameObject.** `BoardMenuRow` caches its idle text colours
+> once, and these rows live inside panels that start switched off — so filling the save list
+> before the panel was ever shown read those colours as `default(Color)`, transparent black, and
+> painted the text **invisible until hovered** (hover uses `activeTextColor`, which was fine).
+> Caching is now lazy via `EnsureCached()`, called from `Awake`, `OnEnable` **and** `SetContent`,
+> so call order can't bite again. Anything else that touches a row before first activation must
+> go through a method that calls it.
+
+`SettingsPanel` is deliberately a title, a placeholder line and a back row — the panel and its
+plumbing exist so adding a real control is a scene edit.
 
 Joined characters are arranged in a centred row, frozen with kinematic rigidbodies, facing the
 camera. Starting with zero players is rejected with the wrong-action SFX.
@@ -85,78 +157,113 @@ immediately activating whatever row is selected.
 
 ### Board rows
 
-Each row is an instance of `Assets/Prefab/UI/BoardMenuRow.prefab` under a `VerticalLayoutGroup`.
-Flight code, destination, `Button.interactable`, and the `onClick` target are scene overrides:
+Each row is an instance of `Assets/Prefab/UI/BoardMenuRow.prefab` under a `VerticalLayoutGroup`
+(spacing 0, `childForceExpandHeight` off, `LayoutElement.preferredHeight 235` per row → 940 for
+four). Flight code, destination, `Button.interactable`, and the `onClick` target are scene
+overrides:
 
 | Row | Flight | Destination | Handler | Does |
 |---|---|---|---|---|
-| `Row_NewGame` | C0110 | NEW GAME | `OnClickNewGame` | loads stage select |
-| `Row_LoadGame` | C0111 | LOAD GAME | `OnClickLoadGame` | nothing yet |
-| `Row_Settings` | C0112 | SETTINGS | `OnClickSettings` | nothing yet |
+| `Row_NewGame` | C0110 | NEW GAME | `OnClickNewGame` | opens the save list, wipe-on-pick |
+| `Row_LoadGame` | C0111 | LOAD GAME | `OnClickLoadGame` | opens the save list, load-on-pick |
+| `Row_Settings` | C0112 | SETTINGS | `OnClickSettings` | opens the settings panel |
 | `Row_Exit` | C0113 | EXIT | `OnClickExit` | quits |
 
-All four are `interactable` and look identical — Load Game and Settings highlight and click like
-any other row, their handlers are just empty bodies waiting for a destination. Nothing reads
-`DELAYED` any more; `BoardMenuRow.lockedStatus` is dormant until some row is disabled again.
+All four are `interactable` and look identical. Only Exit acts directly; the other three open a
+panel. Nothing reads `DELAYED` any more; `BoardMenuRow.lockedStatus` is dormant until some row is
+disabled again.
+
+Every handler starts with the `ConsumedByJoin()` guard so the button press that *joined* a player
+can't also activate whatever row happened to be selected on that same frame.
 
 Selection feedback: the row's own `Image` is the `Button`'s ColorTint target, and
-highlighted / selected fill the painted cell with **bronze** `(0.455, 0.302, 0.125)` — the same
-tone as the title text, chosen to sit in the environment rather than glare out of it. Pure scene
-data, no code. `BoardMenuRow` adds what a ColorBlock can't reach: all three texts flip to cream
+highlighted / selected fill the row with **bronze** `(0.455, 0.302, 0.125)` — the same tone as
+the title text, chosen to sit in the environment rather than glare out of it. Pure scene data, no
+code. `BoardMenuRow` adds what a ColorBlock can't reach: all three texts flip to cream
 `(0.96, 0.91, 0.82)` so they read on the bronze, the cream `SelectionMarker` notch appears, and
 STATUS flips `ON TIME → BOARDING`.
+
+**The highlight cannot be previewed by hand in the editor.** `Selectable` pushes `normalColor`
+(white at **alpha 0** — rows are transparent at rest) onto the target's `CanvasRenderer` on
+enable, and the CanvasRenderer colour is a separate channel from `Image.color`, so setting
+`Image.color` does nothing visible. To eyeball a selected row, drive
+`image.canvasRenderer.SetColor(...)` instead — and put it back afterwards.
 
 Idle text colours are read from the components at `Awake`, never hard-coded — so recolouring a
 row stays a prefab or scene edit. The corollary: **if you preview a selected row by hand-editing
 its text colours in the editor, put them back**, or that dark preview colour becomes the row's
-idle colour and the text vanishes against the board.
+idle colour and the text vanishes against the backdrop.
+
+#### Portrait re-fit
+
+The row prefab was retuned in August 2026 when the menu moved from the wide board (2827 px rows)
+to the portrait banner (1035 px rows). The three columns use **fractional anchors**, so they
+rescale with the row on their own; what did *not* survive the move were the absolute insets and
+the font sizes, which were sized for a row nearly 3× wider.
+
+| Column | Anchors | Font | Widest string | Needs / has |
+|---|---|---|---|---|
+| `FlightCode` | `0 … 0.24` | 64 | `C0110` | 202 / 224 |
+| `Destination` | `0.24 … 0.73` | 72 | `LOAD GAME` | 441 / 483 |
+| `Status` | `0.73 … 1` | 44 | `BOARDING` | 234 / 255 |
+
+All three now inset `12 px` a side (was 55 / 22), and `SelectionMarker` is `14 × −24` at `x 10`.
+`Status` is the tight one — it is sized for `BOARDING`, the *selected* wording, which is longer
+than the `ON TIME` sitting there at rest. At the board's old font 46 it overflowed its band by
+10 px. If you re-word a status, re-check it against the band, not against what the row shows idle.
+
+> Editing this prefab also changes the four rows still inside `DepartureBoard.prefab`, which now
+> render at portrait sizes on a landscape board. That board is retired, so this is deliberate.
 
 Navigation is left on **Automatic** deliberately. Explicit navigation would happily land on a
 locked row — `Selectable.Navigate` only checks `IsActive()`, not `IsInteractable()` — whereas
 Automatic filters non-interactable entries, so gamepad up/down steps NEW GAME ↔ EXIT and starts
 routing through LOAD GAME and SETTINGS the moment they are enabled.
 
-New Game unfreezes persisted players and calls `SceneLoader.LoadStageSelect`. Device ownership is
+Picking a save slot unfreezes persisted players and calls `SceneLoader.LoadStageSelect` — it also
+refuses, with the wrong-action SFX, if no player has joined, since the stage would have no
+characters. Device ownership is
 in [player](mechanics/player.md#joining).
 
-`PlayerSpawnTransform` is the lineup anchor — move that object to reposition the characters.
+### Sizing and standing the lobby characters
 
-### Player list
+`PlayerSpawnTransform` is the lineup anchor — move that object to reposition the characters. Four
+numbers on `MainMenuManager` control the rest:
 
-**Scene:** root `PlayerListCanvas` · **Prefab:** `Assets/Prefab/UI/PlayerSlot.prefab`
-
-The only screen-space UI in the lobby: a Screen Space - Overlay canvas anchored bottom-right,
-inactive until the first join, then showing four avatars — white for a joined slot, grey for a
-free one. `MainMenuManager.playerSlots` holds the four `PlayerSlotView`s in P1–P4 order and
-`RefreshPlayerList()` tints them off `joinedPlayers.Count`.
-
-`PlayerListPanel/JoinHint` sits along the bottom-left of the same panel and lists the keyboard
-halves and gamepads still free. Head, body and the hint are all anchored in **fractions of their
-parent**, so resizing the panel rescales everything — the avatar Images keep `preserveAspect`
-on, which letterboxes them inside their slot rather than squashing them. Content is inset past
-the 28 px 9-slice border; anything closer than that draws over the frame.
-
-It deliberately has **no `GraphicRaycaster`** — it is display only and must not swallow clicks
-meant for the board.
-
-The three sprites in `Assets/UI/` are named misleadingly; check the silhouettes, not the names:
-
-| File | Size | Actually is |
+| Field | Value | Does |
 |---|---|---|
-| `Multiplayer1.png` | 41×40 | the **head** — rounded shape with two eye holes |
-| `Multiplayer2.png` | 289×172 | the panel background |
-| `Multiplayer3.png` | 49×30 | the **body** — wide shoulders, arch cut out below |
+| `lobbyScale` | `0.55` | **display size.** Annie is `4.090` world units tall at scale 1, so this shows her at `2.249` |
+| `feetPivotOffset` | `0` | how far the model's soles sit **below** its pivot at scale 1 |
+| `spacing` | `2.6` | max gap between characters when only a few joined |
+| `bandWidth` | `4.6` | the row never spreads wider than this; raise it with `lobbyScale` or big characters will overlap |
 
-Both head and body are white silhouettes on transparent, drawn to be tinted. The body is a
-sibling *before* the head so the shoulders render behind the face.
+`UpdatePositions` sets the pivot to `spawn.y + feetPivotOffset * lobbyScale`, so when
+`feetPivotOffset` matches the model, **the soles land exactly on `spawn.y`** — which means the
+spawn object belongs at floor height, not at hip height.
 
-### Logo
+Both were wrong until August 2026. Measured off a baked `Annie.prefab`: her `MainBody` spans
+`y 0.0000 … 2.5563`, so **her pivot already is her soles** and the drop is `0`, not the `1.005`
+that was set. The floor under the spawn is `Floor_Ground.002` at `y −3.70`, and the spawn sat at
+`−3.44`. Together she floated `0.813` — a third of her height. Now `feetPivotOffset 0` and
+`spawn.y −3.70`, verified: soles land at `−3.7000`, gap `0.0000`.
 
-Scene root `LogoCanvas` — a **Screen Space - Overlay** canvas holding
-`Assets/UI/CarryOnLogo.png`, anchored to the left edge (`anchoredPosition (463, 110)`,
-`710 × 262`, sprite aspect 2.713). `sortingOrder -10` keeps it under the player list.
+> Re-measure `feetPivotOffset` if the character prefab is ever replaced — it is a property of the
+> model's pivot, not a feel value, and a wrong one floats or sinks every lobby character at once.
 
-**It must not be a World Space canvas.** It started as one and the outlines of scene objects
+> **Removed from the scene in the August 2026 cleanup:** the bottom-right `PlayerListCanvas`
+> avatar strip, the retired `DepartureBoard` instance, and a stray `MeshRenderer` with no
+> `MeshFilter` sitting on `PlayerSpawnTransform`. `LogoCanvas` had already gone. The join hint
+> that used to live on the player-list panel now sits at the bottom of the banner canvas.
+>
+> **Scene-only — the assets are all still in the project on purpose.** `PlayerSlot.prefab`,
+> `PlayerSlotView.cs`, `DepartureBoard.prefab` and
+> `Assets/UI/{Multiplayer1,Multiplayer2,Multiplayer3,CarryOnLogo}.png` are now referenced by
+> nothing and are kept for re-use. Don't treat "no references" here as dead weight to prune.
+
+### Overlay vs world space, and the outline pass
+
+The lobby's one screen-space element used to be a **Screen Space - Overlay** canvas for the logo,
+and that mode was not a style choice. It started as World Space and the outlines of scene objects
 behind it drew straight over the artwork. The cause is render order, not parenting:
 
 1. `URP-HighFidelity-Renderer` runs a `FullScreenPassRendererFeature` with the
@@ -170,17 +277,23 @@ So the outline pass edge-detects only the geometry *behind* the logo and paints 
 the finished image. Overlay canvases are composited to the backbuffer after the whole SRP loop,
 renderer features included, so they are immune.
 
-If the logo ever needs to be diegetic (occluded by the terminal, catching the world's light),
-World Space is the right mode but the outline feature has to be dealt with too — the artifact is
-not fixable by moving, reparenting, or re-sorting the canvas.
+If anything flat ever needs to sit *over* the world rather than in it, Overlay is the right mode;
+in World Space the outline feature has to be dealt with too, and the artifact is not fixable by
+moving, reparenting, or re-sorting the canvas.
 
-### Panel sprite
+**`MenuCanvas` is unaffected**, and that is not luck — it is diegetic. It hangs on the banner in
+world space precisely so the terminal's outlines and lighting apply to it; there is no artwork
+underneath for stray edges to spoil, only the `Backdrop` fill.
 
-`Multiplayer2` is imported with a **28 px 9-slice border** and the panel Image is `Sliced` with
-`preserveAspect` **off**, so the panel resizes freely without distorting the rounded corners.
-Leave `preserveAspect` off here — on a `Simple` Image it letterboxes the sprite to its native
-1.68 aspect inside the rect, which looks exactly like "the panel refuses to get wider". Keep it
-**on** for the head and body, which do need their proportions.
+### Decorative world canvases
+
+`MenuCanvas` is not the only world-space canvas in the lobby. The three airport signs
+(`WallSignage`, `WallSignage2`, `StandingSignage2`) each carry their own text canvas as a child of
+their **decoration prefab**, with a scrolling ticker or a flicker on it. They are display-only —
+no `GraphicRaycaster`, nothing selectable — and they are documented with the props, not here: see
+[hazards and props](mechanics/hazards-and-props.md#signage-text). They copy this section's canvas
+convention (`localRotation (0, 90, 0)`, ConstantPixelSize scaler, `LiberationSans SDF`), so change
+one and check the other.
 
 ## Stage select
 

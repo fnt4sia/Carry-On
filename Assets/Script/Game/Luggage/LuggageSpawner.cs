@@ -14,6 +14,9 @@ public class LuggageSpawner : SingletonBehaviour<LuggageSpawner>
         "as tutorial luggage (no timer UI, never expires).")]
     [SerializeField] private List<GameObject> fallbackLuggagePrefabs = new();
     [SerializeField, Min(0.1f)] private float fallbackSpawnInterval = 4f;
+    [Tooltip("Menu belts are a closed loop, so a bag that snags would otherwise let the " +
+        "count creep up forever. Stop spawning once this many are riding.")]
+    [SerializeField, Min(1)] private int fallbackMaxActive = 8;
 
     private Vector3 spawnPosition;
     private Quaternion spawnRotation;
@@ -74,31 +77,41 @@ public class LuggageSpawner : SingletonBehaviour<LuggageSpawner>
     private IEnumerator FallbackLoop()
     {
         WaitForSeconds wait = new(fallbackSpawnInterval);
+        List<Luggage> live = new();
+
         while (true)
         {
             yield return wait;
-            SpawnOne(fallbackLuggagePrefabs);
+
+            live.RemoveAll(bag => bag == null || !bag.gameObject.activeInHierarchy);
+            if (live.Count >= fallbackMaxActive) continue;
+
+            Luggage spawned = SpawnOne(fallbackLuggagePrefabs);
+            if (spawned != null)
+                live.Add(spawned);
         }
     }
 
-    private void SpawnOne(List<GameObject> prefabs)
+    private Luggage SpawnOne(List<GameObject> prefabs)
     {
         GameObject prefab = prefabs[Random.Range(0, prefabs.Count)];
-        if (prefab == null) return;
+        if (prefab == null) return null;
 
         Luggage prefabLuggage = prefab.GetComponent<Luggage>();
-        if (prefabLuggage == null) return;
+        if (prefabLuggage == null) return null;
 
         spawnPosition = transform.position;
         spawnRotation = GetRandomSpawnRotation();
 
         Luggage luggage = RentLuggage(prefab, spawnPosition, spawnRotation);
-        if (luggage == null) return;
+        if (luggage == null) return null;
 
+        // Set before Initialize: Initialize refreshes the timer readout, which reads the flag.
+        luggage.isTutorialLuggage = levelConfig == null;
         float lifetime = levelConfig != null ? levelConfig.luggageLifetime : 0f;
         luggage.Initialize(prefabLuggage.behaviorType, lifetime, prefab);
-        luggage.isTutorialLuggage = levelConfig == null;
         AssignDestinationGateIfNeeded(luggage);
+        return luggage;
     }
 
     private static Quaternion GetRandomSpawnRotation()

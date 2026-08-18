@@ -2,9 +2,10 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UI;
 
-// Lobby controller. The camera never moves: one fixed pose looks at the departure board
-// and the character lineup at the same time. The board's world-space canvas is the whole
+// Lobby controller. The camera never moves: one fixed pose looks at the menu banner and
+// the character lineup at the same time. The banner's world-space canvas is the whole
 // menu — it opens showing only a "press to join" line, and the first player to press
 // (keyboard half or gamepad) swaps that for the departures list. Further players join
 // into a lineup that re-centres as they arrive.
@@ -21,22 +22,34 @@ public class MainMenuManager : MonoBehaviour
     [SerializeField] private float lobbyScale = 0.55f;  // character display scale in the lobby
     [SerializeField] private float feetPivotOffset = 1.005f; // model feet sit this far below pivot at scale 1
 
-    [Header("Departure Board")]
+    [Header("Menu Banner")]
     [SerializeField] private GameObject joinPrompt;     // "Press ... to Join", shown before anyone joins
     [SerializeField] private GameObject menuRoot;       // columns + rows, shown after the first join
     [SerializeField] private InputModeManager inputModeManager;
 
-    [Header("Join Hint")]
-    [SerializeField] private GameObject joinHintRoot;   // bottom strip, visible while a slot is free
-    [SerializeField] private TMP_Text joinHintDevices;  // available options, e.g. "Right Ctrl  ·  (A)"
+    [Header("Panels")]
+    [SerializeField] private GameObject savesPanel;     // save list, shared by New Game and Load Game
+    [SerializeField] private TMP_Text savesTitle;       // reads NEW GAME or LOAD GAME
+    [SerializeField] private BoardMenuRow[] saveSlotRows; // one per save slot, in slot order
+    [SerializeField] private GameObject savesBackRow;   // fallback selection when every slot is locked
+    [SerializeField] private GameObject settingsPanel;
+    [SerializeField] private CameraFocus cameraFocus;   // leans the camera in while a panel is open
 
-    [Header("Player List")]
-    [SerializeField] private GameObject playerListRoot;    // hidden until the first player joins
-    [SerializeField] private PlayerSlotView[] playerSlots; // four avatars, P1..P4 in order
+    [Header("Navigation Defaults")]
+    [Tooltip("Row highlighted first in each view when a gamepad is driving.")]
+    [SerializeField] private GameObject menuFirstRow;
+    [SerializeField] private GameObject settingsFirstRow;
+
+    // Which face of the banner is showing. The join gate is a separate state from the menu
+    // because nothing is selectable yet and the camera must stay home.
+    private enum View { JoinGate, Menu, Saves, Settings }
 
     private readonly List<PlayerInput> joinedPlayers = new();
     private PlayerInputManager manager;
     private bool started;
+
+    // Both New Game and Load Game open the same list; this is the only difference between them.
+    private bool pickingForNewGame;
 
     private void Start()
     {
@@ -62,8 +75,6 @@ public class MainMenuManager : MonoBehaviour
         {
             ShowJoinGate();
         }
-
-        RefreshJoinHint();
     }
 
     private void OnDestroy()
@@ -72,30 +83,13 @@ public class MainMenuManager : MonoBehaviour
             manager.onPlayerJoined -= HandlePlayerJoined;
     }
 
-    private void Update() => RefreshJoinHint();
-
     private void ShowJoinGate()
     {
         started = false;
-        if (joinPrompt != null) joinPrompt.SetActive(true);
-        if (menuRoot != null) menuRoot.SetActive(false);
+        ShowView(View.JoinGate);
 
         if (inputModeManager != null) inputModeManager.enabled = false;
         Cursor.visible = false; // attract screen
-
-        RefreshPlayerList();
-    }
-
-    // The avatar strip only exists once somebody is in, then greys out the free slots.
-    private void RefreshPlayerList()
-    {
-        if (playerListRoot != null && playerListRoot.activeSelf != started)
-            playerListRoot.SetActive(started);
-
-        if (playerSlots == null) return;
-        for (int i = 0; i < playerSlots.Length; i++)
-            if (playerSlots[i] != null)
-                playerSlots[i].SetJoined(i < joinedPlayers.Count);
     }
 
     // Show the departures list and choose the initial input mode from the first device.
@@ -103,9 +97,7 @@ public class MainMenuManager : MonoBehaviour
     private void RevealMenu(PlayerInput firstPlayer)
     {
         started = true;
-
-        if (joinPrompt != null) joinPrompt.SetActive(false);
-        if (menuRoot != null) menuRoot.SetActive(true);
+        ShowView(View.Menu);
 
         if (inputModeManager != null)
         {
@@ -116,8 +108,29 @@ public class MainMenuManager : MonoBehaviour
                 ? InputModeManager.Mode.Pointer
                 : InputModeManager.Mode.Navigation);
         }
+    }
 
-        RefreshPlayerList();
+    // The single place that decides what the banner shows and where the camera sits. Every
+    // panel lives on the same canvas, so switching view is only ever SetActive plus a lean.
+    private void ShowView(View next)
+    {
+        if (joinPrompt != null) joinPrompt.SetActive(next == View.JoinGate);
+        if (menuRoot != null) menuRoot.SetActive(next == View.Menu);
+        if (savesPanel != null) savesPanel.SetActive(next == View.Saves);
+        if (settingsPanel != null) settingsPanel.SetActive(next == View.Settings);
+
+        // Zoom in for the panels, back out for the list the lineup is framed with.
+        if (cameraFocus != null)
+            cameraFocus.SetFocused(next == View.Saves || next == View.Settings);
+
+        if (inputModeManager != null)
+            inputModeManager.SetDefaultSelection(next switch
+            {
+                View.Menu => menuFirstRow,
+                View.Saves => FirstSelectableSaveRow(),
+                View.Settings => settingsFirstRow,
+                _ => null,
+            });
     }
 
     private void HandlePlayerJoined(PlayerInput player)
@@ -133,36 +146,6 @@ public class MainMenuManager : MonoBehaviour
             RevealMenu(player);
 
         UpdatePositions();
-        RefreshJoinHint();
-        RefreshPlayerList();
-    }
-
-    // Show the join hint only while something can still join, listing just the free options.
-    private void RefreshJoinHint()
-    {
-        if (joinHintRoot == null) return;
-
-        bool show = started && joinedPlayers.Count < 4;
-        string options = "";
-
-        if (show)
-        {
-            var parts = new List<string>(3);
-            if (Keyboard.current != null)
-            {
-                if (PlayerSystem.IsSchemeFree(PlayerSystem.SchemeKeyboardLeft)) parts.Add("Space");
-                if (PlayerSystem.IsSchemeFree(PlayerSystem.SchemeKeyboardRight)) parts.Add("Right Ctrl");
-            }
-            if (PlayerSystem.FreeGamepadCount() > 0) parts.Add("(A)");
-
-            show = parts.Count > 0;
-            options = string.Join("  ·  ", parts);
-        }
-
-        if (joinHintRoot.activeSelf != show)
-            joinHintRoot.SetActive(show);
-        if (show && joinHintDevices != null && joinHintDevices.text != options)
-            joinHintDevices.text = options;
     }
 
     // Lay the joined characters out as a centred row facing the lobby camera.
@@ -216,17 +199,123 @@ public class MainMenuManager : MonoBehaviour
 
     // ---- Board row handlers, wired on each row's Button in the scene ----
 
-    public void OnClickNewGame()
+    public void OnClickNewGame() => OpenSaves(forNewGame: true);
+
+    public void OnClickLoadGame() => OpenSaves(forNewGame: false);
+
+    public void OnClickSettings()
     {
-        // The press that just joined a player must not also activate the selected row.
-        if (PlayerSystem.Instance != null && PlayerSystem.Instance.LastJoinFrame == Time.frameCount)
+        if (ConsumedByJoin()) return;
+
+        PlayButtonSelectSfx();
+        ShowView(View.Settings);
+    }
+
+    // Wired on every panel's back row.
+    public void OnClickBack()
+    {
+        if (ConsumedByJoin()) return;
+
+        PlayButtonSelectSfx();
+        ShowView(View.Menu);
+    }
+
+    public void OnClickExit()
+    {
+        if (ConsumedByJoin()) return;
+
+        PlayButtonSelectSfx();
+        Application.Quit();
+    }
+
+    private void OpenSaves(bool forNewGame)
+    {
+        if (ConsumedByJoin()) return;
+
+        pickingForNewGame = forNewGame;
+        PlayButtonSelectSfx();
+
+        if (savesTitle != null)
+            savesTitle.text = forNewGame ? "NEW GAME" : "LOAD GAME";
+
+        // Fill before showing: ShowView picks the first selectable row off the interactable
+        // states this sets.
+        RefreshSaveSlots();
+        ShowView(View.Saves);
+    }
+
+    // Fills the slot rows off disk. Called on every open so a save written last round shows up.
+    //
+    // New Game offers every slot — picking a filled one overwrites it. Load Game can only offer
+    // slots that actually hold something, so empty rows are left in place but switched
+    // non-interactable: still listed, not pressable, and BoardMenuRow draws them with its
+    // locked wording.
+    private void RefreshSaveSlots()
+    {
+        if (saveSlotRows == null) return;
+
+        var summaries = ProgressionService.ReadSlotSummaries();
+
+        for (int i = 0; i < saveSlotRows.Length; i++)
+        {
+            if (saveSlotRows[i] == null || i >= summaries.Length) continue;
+
+            var summary = summaries[i];
+
+            // Set interactable first: SetContent refreshes off it to pick idle vs locked wording.
+            Button button = saveSlotRows[i].GetComponent<Button>();
+            if (button != null)
+                button.interactable = pickingForNewGame || summary.Exists;
+
+            // "SLOT n" is 242 px and the FLIGHT column is 224 — the slot name goes in the wide
+            // DESTINATION column, and FLIGHT carries a short code like the menu's C0110 rows.
+            saveSlotRows[i].SetContent(
+                $"SV{summary.Slot:00}",
+                $"SLOT {summary.Slot}",
+                summary.Exists ? Count(summary.TotalStars, "STAR") : "EMPTY");
+        }
+    }
+
+    // Gamepad navigation must not start on a locked row. With no saves at all in Load Game,
+    // every slot is locked and Back is the only way out.
+    private GameObject FirstSelectableSaveRow()
+    {
+        if (saveSlotRows != null)
+            foreach (BoardMenuRow row in saveSlotRows)
+            {
+                if (row == null) continue;
+                Button button = row.GetComponent<Button>();
+                if (button != null && button.interactable) return row.gameObject;
+            }
+
+        return savesBackRow;
+    }
+
+    private static string Count(int value, string noun) => $"{value} {noun}{(value == 1 ? "" : "S")}";
+
+    // Wired on each slot row with the slot number as the button's int argument.
+    public void OnClickSlot(int slot)
+    {
+        if (ConsumedByJoin()) return;
+
+        // Loading a slot nobody has written yet has nothing to load.
+        if (!pickingForNewGame && !ProgressionService.SlotHasData(slot))
+        {
+            AudioManager.Instance?.PlaySFX(Sfx.Wrong);
             return;
+        }
 
         // Need at least one joined player, otherwise the stage would have no characters.
         if (joinedPlayers.Count < 1)
         {
             AudioManager.Instance?.PlaySFX(Sfx.Wrong);
             return;
+        }
+
+        if (ProgressionService.Instance != null)
+        {
+            if (pickingForNewGame) ProgressionService.Instance.StartNewGame(slot);
+            else ProgressionService.Instance.UseSlot(slot);
         }
 
         PlayButtonSelectSfx();
@@ -238,21 +327,9 @@ public class MainMenuManager : MonoBehaviour
         SceneLoader.LoadStageSelect();
     }
 
-    // Load Game and Settings are selectable and highlight like any other row, but have
-    // nowhere to go yet — deliberately silent until there is something to open. The
-    // rows stay wired to these so hooking them up later is a one-line change.
-    public void OnClickLoadGame() { }
-
-    public void OnClickSettings() { }
-
-    public void OnClickExit()
-    {
-        if (PlayerSystem.Instance != null && PlayerSystem.Instance.LastJoinFrame == Time.frameCount)
-            return;
-
-        PlayButtonSelectSfx();
-        Application.Quit();
-    }
+    // The press that just joined a player must not also activate the selected row.
+    private static bool ConsumedByJoin()
+        => PlayerSystem.Instance != null && PlayerSystem.Instance.LastJoinFrame == Time.frameCount;
 
     private static void PlayButtonSelectSfx()
     {

@@ -199,6 +199,20 @@ Every panel's `HingeJoint.connectedBody` is retargeted to the `Shake` Rigidbody 
 [above](#why-the-shake-lives-on-a-wrapper-node). If you rebuild the curtains, redo that link or
 they will hang from world space and fight the shake.
 
+### Why panels used to freeze open
+
+A panel held wide by a passing bag stops moving, and PhysX puts its rigidbody to sleep. **A
+`HingeJoint` spring cannot wake a sleeping body** — only a fresh collision can — so once the bag
+left, the panel stayed frozen at whatever angle it was pinned at and left a visible hole. The
+same thing happened part-way through a slow return, when the swing dipped under the sleep
+threshold. Measured in `MainMenu`: 8 of 28 strips asleep at 77–81° after ~100 s of belt traffic;
+`WakeUp()` restored every one of them, then they re-froze on the next bag.
+
+`Game/World/BaggageDoorCurtain.cs` on the curtain root sets `sleepThreshold = 0` on every strip
+below it (and wakes them in `OnEnable`, since re-enabling restores the sleeping state). The
+strips are 0.5 kg boxes, so never sleeping costs nothing. `sleepThreshold` is a runtime-only
+property — it cannot be authored on the prefab, which is why this needs a script at all.
+
 > ### Never put Has Exit Time on the idle → open transition
 >
 > The controller's `Default State` is an empty state, so its `normalizedTime` climbs forever and

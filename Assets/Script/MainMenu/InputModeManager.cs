@@ -32,6 +32,15 @@ public class InputModeManager : MonoBehaviour
         else ApplyNavigation();
     }
 
+    // The default has to follow the visible panel. Rows of a hidden panel are inactive, and
+    // SetSelectedGameObject on an inactive object silently leaves nothing selected — so a
+    // stale default would strand gamepad navigation with no highlight anywhere.
+    public void SetDefaultSelection(GameObject selection)
+    {
+        defaultSelection = selection;
+        if (CurrentMode == Mode.Navigation) SelectDefault();
+    }
+
     private void Update()
     {
         if (MouseActivity())

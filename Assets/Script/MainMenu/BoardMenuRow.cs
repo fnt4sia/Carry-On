@@ -33,11 +33,22 @@ public class BoardMenuRow : MonoBehaviour,
 
     private Button button;
     private Color idleFlightColor, idleDestinationColor, idleStatusColor;
+    private bool cached;
     private bool selected;
     private bool hovered;
 
-    private void Awake()
+    private void Awake() => EnsureCached();
+
+    // Awake does NOT run while a GameObject is inactive, and these rows live inside panels that
+    // start switched off. Anything that touches a row before its first activation — filling the
+    // save list, say — would otherwise read the idle colours as default(Color), which is
+    // transparent black, and paint the text invisible. So caching is lazy and happens once,
+    // from whichever entry point gets there first.
+    private void EnsureCached()
     {
+        if (cached) return;
+        cached = true;
+
         button = GetComponent<Button>();
         if (flightCodeText != null) idleFlightColor = flightCodeText.color;
         if (destinationText != null) idleDestinationColor = destinationText.color;
@@ -48,8 +59,20 @@ public class BoardMenuRow : MonoBehaviour,
     // pointer/selection state from a previous showing is stale by then.
     private void OnEnable()
     {
+        EnsureCached();
         selected = false;
         hovered = false;
+        Refresh();
+    }
+
+    // Save-slot rows are the one place a row's wording is not authored: the slot list has to
+    // read off disk. Idle colours are untouched, so a filled row still looks like every other.
+    public void SetContent(string flightCode, string destination, string status)
+    {
+        EnsureCached();
+        if (flightCodeText != null) flightCodeText.text = flightCode;
+        if (destinationText != null) destinationText.text = destination;
+        idleStatus = status;
         Refresh();
     }
 

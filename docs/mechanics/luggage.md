@@ -56,10 +56,27 @@ lifetime, falling back to 30 seconds with a warning when no level context exists
 
 ## Waves
 
-`LuggageSpawner` reads only `LevelContext.CurrentConfig`. It waits `waveDelay`, then spawns
+`LuggageSpawner` reads `LevelContext.CurrentConfig`. It waits `waveDelay`, then spawns
 `luggagePerWave` items spaced by `intraWaveInterval`, picking a random prefab from the pool each
 time. With more than one gate, each item is assigned a random active gate number. Pacing values
 are documented in [levels](../levels.md).
+
+## Tutorial luggage (menus)
+
+`Luggage.isTutorialLuggage` turns a bag into scenery: the lifetime countdown never runs, the
+timer readout stays hidden, fragile bags don't shatter, and no trail or impact smoke plays. The
+bag is otherwise a normal physics bag that belts push and players can grab.
+
+A scene with no `LevelContext` — `MainMenu` is the only one today — has no config to read, so the
+spawner falls back to its own serialized fields instead of erroring out: `fallbackLuggagePrefabs`
+on a flat `fallbackSpawnInterval`, every bag flagged tutorial, capped at `fallbackMaxActive`
+riding at once (the menu belt is a closed loop, so one snagged bag would otherwise let the count
+climb forever). The flag is set *before* `Initialize` because `Initialize` refreshes the timer
+readout, which reads it.
+
+`LuggageVisualEffects` applies the silencing in `Update`, not `Awake` — the spawner assigns the
+flag after `Awake` has already run. It also clears `playOnAwake` on the three `HitSmoke`
+systems, which otherwise puff once every time a pooled bag is re-enabled.
 
 ## Pooling
 
