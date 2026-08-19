@@ -120,6 +120,12 @@ forced drop if Unity breaks the joint.
 accepts the held bag, and calls `TryPlace`. Placement force-releases the player first. See
 [stations](stations.md).
 
+The same press also works a [lever](hazards-and-props.md#lever): `TryUseStation` now returns
+`bool`, and `TryUseLever` runs only when it returns `false` — empty-handed, or no station took
+the bag. Station first means a player putting a bag into a machine can never also flip a lever
+standing beside it. Both sweeps use `grabRadius`, so that one field is the reach for grabbing,
+station use, and levers alike.
+
 `OnDrawGizmosSelected` draws the grab radius and the clear/blocked rays — useful when tuning
 layers and geometry.
 

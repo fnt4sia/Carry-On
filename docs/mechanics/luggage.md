@@ -97,10 +97,25 @@ Every luggage prefab nests `Assets/Prefab/UI/Luggage Timer.prefab`. `LuggageTime
 thin world-space presenter:
 
 - a radial `Image.fillAmount` reads `LifetimeNormalized`;
-- text shows remaining whole seconds;
 - warning and danger colours apply at the configured thresholds;
 - multi-gate luggage shows its destination number;
 - it billboards to `Camera.main` and sits on the `WorldUI` layer.
+
+**There is no seconds readout.** The dial is the whole signal — colour and sweep, no number.
+`Time` and the plain `Face` disc were deleted from the prefab in August 2026 and `timeText` is
+deliberately left empty; `LuggageTimerDisplay` still null-checks it, so re-adding a text object
+and dragging it back in is all it takes to bring the number back.
+
+The body is now `Assets/UI/InGame/TimeIcon.png` — a stopwatch whose cream face is **not** centred
+in the image (the crown pushes it down). The dial is aligned to that face, not to the sprite:
+
+| | |
+|---|---|
+| `Frame` | `TimeIcon`, `preserveAspect`, `153.2 × 160` (the sprite is 634 × 662) |
+| `Fill` | `72 × 72` at `(1.93, −7.73)` — the face is 297 px across, centred at `(325, 363)` of 634 × 662 |
+| `Gate` | pushed down to `y −95` to clear the taller icon |
+
+Re-derive those two numbers from the sprite if the art changes; don't eyeball them.
 
 The whole readout hides while the bag is delivered, expired, **or inside a station**. The
 in-station case exists because the countdown is frozen there — a visible dial that never moves

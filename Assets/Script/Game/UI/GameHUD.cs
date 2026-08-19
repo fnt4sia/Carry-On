@@ -29,6 +29,10 @@ public class GameHUD : MonoBehaviour
     [SerializeField] private TMP_Text stageText;
     [SerializeField] private TMP_Text[] starRequirementTexts;
 
+    [Header("Round Timer Dial")]
+    [Tooltip("Radial Image on the round timer icon. Drains like the luggage timer dial.")]
+    [SerializeField] private Image gameTimerFill;
+
     [Header("Stars")]
     [SerializeField] private Image[] stars;
 
@@ -180,6 +184,16 @@ public class GameHUD : MonoBehaviour
 
     private void OnTimeChanged(float timeRemaining)
     {
+        if (gameTimerFill != null)
+        {
+            float roundLength = gameManager != null && gameManager.Config != null
+                ? gameManager.Config.gameTime
+                : 0f;
+            gameTimerFill.fillAmount = roundLength > 0f
+                ? Mathf.Clamp01(timeRemaining / roundLength)
+                : 0f;
+        }
+
         if (gameTimerText == null)
             return;
 

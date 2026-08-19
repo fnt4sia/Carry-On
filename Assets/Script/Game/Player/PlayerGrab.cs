@@ -123,8 +123,9 @@ public class PlayerGrab : MonoBehaviour
         Luggage candidate = luggageHeld == null ? FindBestGrabCandidate() : null;
         ProcessGrabInput(grabDown, grabUp, candidate);
 
-        if (useStationAction.WasPressedThisFrame())
-            TryUseStation();
+        // A station needs a held bag, a lever is pulled empty-handed, so one press covers both.
+        if (useStationAction.WasPressedThisFrame() && !TryUseStation())
+            TryUseLever();
 
         // Arrow charge visual (runs in all scenes). Arrow is optional: a body prefab
         // without one must not break grabbing, so guard instead of dereferencing.
@@ -559,9 +560,9 @@ public class PlayerGrab : MonoBehaviour
         Arrow.transform.localPosition = new Vector3(0, ArrowHeight, arrowZPos);
     }
 
-    private void TryUseStation()
+    private bool TryUseStation()
     {
-        if (luggageHeld == null) return;
+        if (luggageHeld == null) return false;
 
         int hitCount = Physics.OverlapSphereNonAlloc(grabPoint.position, grabRadius, nearbyHits);
         for (int i = 0; i < hitCount; i++)
@@ -574,8 +575,27 @@ public class PlayerGrab : MonoBehaviour
 
             // TryPlace will DropAllGrabbers on the luggage, which nullifies luggageHeld via Drop()
             if (station.TryPlace(luggageHeld))
-                return;
+                return true;
         }
+
+        return false;
+    }
+
+    private bool TryUseLever()
+    {
+        int hitCount = Physics.OverlapSphereNonAlloc(grabPoint.position, grabRadius, nearbyHits);
+        for (int i = 0; i < hitCount; i++)
+        {
+            Collider hit = nearbyHits[i];
+            nearbyHits[i] = null;
+            Lever lever = hit.GetComponentInParent<Lever>();
+            if (lever == null) continue;
+
+            lever.Use();
+            return true;
+        }
+
+        return false;
     }
 
     public void Drop(bool forceRelease = false)

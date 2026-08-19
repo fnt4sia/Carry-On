@@ -344,6 +344,32 @@ The result sequence runs on unscaled time, because the round ends with `Time.tim
 shows real total and per-player delivery counts from `GameResult`, reveals earned stars, stamps
 approval, and selects Next Stage. P1–P4 rows are all prefab-wired.
 
+### Timer and score plaques
+
+Both in-round readouts are the same widget built twice, from `Assets/UI/InGame/`:
+
+```text
+Timer  (bottom-left, anchoredPosition 100,40)     Score  (bottom-right, −40,40)
+├── Image  MoneyBar, 228 × 110                    ├── Image  MoneyBar, 228 × 110
+├── Icon   TimeIcon, 118.7 × 124                  ├── Icon   MoneyIcon, 117.6 × 124
+│   └── Fill   red radial, 56 × 56                └── Text   score, 150 × 60 at x +30
+└── Text Timer  m:ss, 150 × 60 at x +30
+```
+
+The icon is anchored to the bar's **left edge with pivot `0.5`**, so half of it hangs outside the
+plaque — that overlap is the look, and it is why the icon is 124 tall against a 110 bar. The text
+sits at `x +30` to clear the icon's inner half; at the plaque's 228 width a 150-wide text box is
+the widest that still fits inside the bar.
+
+> **The timer's x is 100, not 40.** Its icon hangs 59 px left of the container, so at the score
+> plaque's mirrored inset of 40 the stopwatch would run off the bottom-left corner of the screen.
+> 100 puts the icon's left edge at ~41, which is what actually mirrors the score side.
+
+`GameHUD.gameTimerFill` drives `Timer/Icon/Fill` from `OnTimeChanged`, as
+`timeRemaining / LevelConfig.gameTime`. It is a plain drain in one authored colour — unlike the
+[luggage dial](mechanics/luggage.md#timer-ui) it has **no warning/danger thresholds**. Both
+dials use the built-in `Knob` sprite, `Filled` / `Radial360`, origin Top, counter-clockwise.
+
 Buttons call the `SceneLoader` API. Next uses `GameManager.Config.nextLevel` when present and
 otherwise returns to stage select.
 

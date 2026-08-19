@@ -23,6 +23,29 @@ per-instance material is cloned.
 Connection lists are per-level wiring and must stay scene-instance overrides. **Never use Apply
 All from a configured instance** — that pushes one level's wiring into the prefab.
 
+## Lever
+
+**Script:** `Game/World/Lever.cs` — **Prefab:** `Prefab/Environment/Lever.prefab`
+
+The pressure plate's manual twin: a player walks up and presses **UseStation** (P1 `F`,
+P2 `L`, gamepad West) to flip it. Wiring is identical to the plate — the lever owns
+`connectedGateways` and `connectedPlatforms`, the targets never point back, and the lists stay
+scene-instance overrides. Every pull toggles gateways and reverses platforms; there is no
+momentary mode, because a lever has no "released" state.
+
+`Lever` has no detection of its own. `PlayerGrab.TryUseLever` reuses the same
+`Physics.OverlapSphereNonAlloc(grabPoint.position, grabRadius, …)` sweep that finds a station,
+so **a lever only needs a collider to be reachable** and its range is `grabRadius` on the
+character prefab. One `UseStation` press covers both: `TryUseStation` runs first and returns
+`false` when the player is empty-handed or no station accepts the bag, and only then does the
+lever fire — so placing a bag in a machine can never also pull a lever standing next to it.
+
+`E` is **not** available for this: it is already `Grab` on the `KeyboardLeft` scheme.
+
+The prefab is a placeholder — a 0.5 × 1.8 × 0.5 cube with a solid `BoxCollider`, tinted red when
+off and green when on through a `MaterialPropertyBlock`, exactly as the plate does. Swap the mesh
+when the real model exists; nothing in the script reads the geometry.
+
 ## Gateway
 
 The sliding double door. `Gateway` exposes `Open`, `Close`, and `Toggle`, driving the cached
