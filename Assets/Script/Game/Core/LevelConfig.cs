@@ -17,6 +17,20 @@ public class LevelConfig : ScriptableObject
     public bool unlockedByDefault;
     public LevelConfig nextLevel;
 
+    [Header("Stage Select Ticket")]
+    [Tooltip("Flight number printed on the ticket stub, e.g. AB01.")]
+    public string flightCode = "AB01";
+    [Tooltip("Departure airport code, e.g. CGK.")]
+    public string originCode = "CGK";
+    [Tooltip("Departure city printed under the code, e.g. JAKARTA.")]
+    public string originName = "JAKARTA";
+    [Tooltip("Arrival airport code, e.g. DPS.")]
+    public string destinationCode = "DPS";
+    [Tooltip("Arrival city printed under the code, e.g. BALI.")]
+    public string destinationName = "BALI";
+    [Tooltip("Screenshot shown in the ticket's preview window. Optional.")]
+    public Sprite previewImage;
+
     [Header("Timer")]
     public float gameTime = 120f;
 

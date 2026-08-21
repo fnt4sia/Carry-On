@@ -16,10 +16,32 @@ public class MultiplayerCamera : MonoBehaviour
 
     private readonly List<Transform> players = new();
     private Vector3 velocity;
+    private bool explicitTargets;
+    private bool snapNextMove;
 
     private void Start()
     {
-        FindAllPlayers();
+        if (!explicitTargets)
+            FindAllPlayers();
+        Move();
+    }
+
+    /// <summary>
+    /// Frame an explicit set of transforms instead of discovering joined players. Stage
+    /// select needs this: its map planes are not PlayerInput objects, and the players
+    /// themselves are deactivated while the map is open.
+    /// </summary>
+    public void SetTargets(IReadOnlyList<Transform> targets)
+    {
+        explicitTargets = true;
+        players.Clear();
+        if (targets != null)
+            foreach (Transform target in targets)
+                if (target != null)
+                    players.Add(target);
+
+        // Frame them at once rather than gliding in from the authored pose.
+        snapNextMove = true;
         Move();
     }
 
@@ -57,6 +79,14 @@ public class MultiplayerCamera : MonoBehaviour
 
         Vector3 offset = new(smoothOffset, 0, smoothOffset);
         Vector3 targetPosition = new Vector3(centerPoint.x, newY, centerPoint.z) + offset;
+
+        if (snapNextMove)
+        {
+            snapNextMove = false;
+            velocity = Vector3.zero;
+            transform.position = targetPosition;
+            return;
+        }
 
         transform.position = Vector3.SmoothDamp(transform.position, targetPosition, ref velocity, smoothTime);
     }

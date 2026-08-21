@@ -18,6 +18,12 @@ MonoBehaviour:
   description: Peak-hour waves leave little time and make bomb detection essential.
   unlockedByDefault: 0
   nextLevel: {fileID: 0}
+  flightCode: AB04
+  originCode: BPN
+  originName: BALIKPAPAN
+  destinationCode: BIK
+  destinationName: BIAK
+  previewImage: {fileID: 0}
   gameTime: 120
   star1Score: 60
   star2Score: 120

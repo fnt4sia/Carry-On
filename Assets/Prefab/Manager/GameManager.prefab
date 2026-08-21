@@ -435,6 +435,11 @@ PrefabInstance:
         type: 2}
     - target: {fileID: 4704550656988651018, guid: 7c79ecc5a85da4dd48a7d19e7673a129,
         type: 3}
+      propertyPath: m_hasFontAssetChanged
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4704550656988651018, guid: 7c79ecc5a85da4dd48a7d19e7673a129,
+        type: 3}
       propertyPath: 'm_ActiveFontFeatures.Array.data[0]'
       value: 1801810542
       objectReference: {fileID: 0}
@@ -482,6 +487,16 @@ PrefabInstance:
         type: 3}
       propertyPath: m_AnchoredPosition.y
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5629119486553644817, guid: 7c79ecc5a85da4dd48a7d19e7673a129,
+        type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 10.300003
+      objectReference: {fileID: 0}
+    - target: {fileID: 5629119486553644817, guid: 7c79ecc5a85da4dd48a7d19e7673a129,
+        type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: -0.70000076
       objectReference: {fileID: 0}
     - target: {fileID: 5638651562327758855, guid: 7c79ecc5a85da4dd48a7d19e7673a129,
         type: 3}

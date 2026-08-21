@@ -18,6 +18,12 @@ MonoBehaviour:
   description: Relaxed sandbox for testing mechanics and level layouts.
   unlockedByDefault: 1
   nextLevel: {fileID: 0}
+  flightCode: DS00
+  originCode: CGK
+  originName: JAKARTA
+  destinationCode: CGK
+  destinationName: JAKARTA
+  previewImage: {fileID: 0}
   gameTime: 999
   star1Score: 10
   star2Score: 30

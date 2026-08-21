@@ -18,6 +18,12 @@ MonoBehaviour:
   description: Fragile luggage joins denser waves and faster decisions.
   unlockedByDefault: 0
   nextLevel: {fileID: 11400000, guid: 78d6d66ff873145dab72c6a1e99ebdd2, type: 2}
+  flightCode: AB02
+  originCode: DPS
+  originName: BALI
+  destinationCode: UPG
+  destinationName: MAKASSAR
+  previewImage: {fileID: 0}
   gameTime: 120
   star1Score: 40
   star2Score: 80

@@ -6532,6 +6532,11 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1043322873121616777, guid: 20fa8d5aedd6b3f4fbcd23ee02bc04bb,
+        type: 3}
+      propertyPath: m_AdditionalShaderChannelsFlag
+      value: 25
+      objectReference: {fileID: 0}
     - target: {fileID: 1229066062301933466, guid: 20fa8d5aedd6b3f4fbcd23ee02bc04bb,
         type: 3}
       propertyPath: m_Name
@@ -10394,20 +10399,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
-    - target: {fileID: 1749975526901988491, guid: d1eb070aa15dbae43b60edc569c8f1a5,
-        type: 3}
-      propertyPath: m_IsActive
-      value: 0
-      objectReference: {fileID: 0}
     - target: {fileID: 2045707623928017399, guid: d1eb070aa15dbae43b60edc569c8f1a5,
         type: 3}
       propertyPath: m_Name
       value: GameManager
-      objectReference: {fileID: 0}
-    - target: {fileID: 2045707623928017399, guid: d1eb070aa15dbae43b60edc569c8f1a5,
-        type: 3}
-      propertyPath: m_IsActive
-      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6625530303480784118, guid: d1eb070aa15dbae43b60edc569c8f1a5,
         type: 3}
@@ -10457,21 +10452,6 @@ PrefabInstance:
     - target: {fileID: 6625530303480784118, guid: d1eb070aa15dbae43b60edc569c8f1a5,
         type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 8635504717285983439, guid: d1eb070aa15dbae43b60edc569c8f1a5,
-        type: 3}
-      propertyPath: m_AnchoredPosition.x
-      value: 10.300003
-      objectReference: {fileID: 0}
-    - target: {fileID: 8635504717285983439, guid: d1eb070aa15dbae43b60edc569c8f1a5,
-        type: 3}
-      propertyPath: m_AnchoredPosition.y
-      value: -0.70000076
-      objectReference: {fileID: 0}
-    - target: {fileID: 8682997759926289876, guid: d1eb070aa15dbae43b60edc569c8f1a5,
-        type: 3}
-      propertyPath: m_hasFontAssetChanged
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
@@ -13957,6 +13937,11 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1043322873121616777, guid: 20fa8d5aedd6b3f4fbcd23ee02bc04bb,
+        type: 3}
+      propertyPath: m_AdditionalShaderChannelsFlag
+      value: 25
+      objectReference: {fileID: 0}
     - target: {fileID: 1229066062301933466, guid: 20fa8d5aedd6b3f4fbcd23ee02bc04bb,
         type: 3}
       propertyPath: m_Name

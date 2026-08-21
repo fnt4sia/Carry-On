@@ -18,6 +18,12 @@ MonoBehaviour:
   description: Practice grabbing, washing, and delivering without heavy pressure.
   unlockedByDefault: 1
   nextLevel: {fileID: 11400000, guid: 33c3b7f5bf113437aafd465088effc9d, type: 2}
+  flightCode: AB00
+  originCode: HLP
+  originName: HALIM
+  destinationCode: CGK
+  destinationName: JAKARTA
+  previewImage: {fileID: 0}
   gameTime: 180
   star1Score: 20
   star2Score: 40

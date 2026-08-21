@@ -20,6 +20,12 @@ public class LevelNode : MonoBehaviour
     public int BestStars => level != null && ProgressionService.Instance != null
         ? ProgressionService.Instance.GetBestStars(level)
         : 0;
+    public int BestScore => level != null && ProgressionService.Instance != null
+        ? ProgressionService.Instance.GetBestScore(level)
+        : 0;
+    public int LastScore => level != null && ProgressionService.Instance != null
+        ? ProgressionService.Instance.GetLastScore(level)
+        : 0;
 
     private void OnEnable()
     {

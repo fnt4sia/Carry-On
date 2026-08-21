@@ -18,6 +18,12 @@ MonoBehaviour:
   description: Shorter deadlines and frequent bomb checks pressure both players.
   unlockedByDefault: 0
   nextLevel: {fileID: 11400000, guid: 15e248666776648698057017dab07e86, type: 2}
+  flightCode: AB03
+  originCode: UPG
+  originName: MAKASSAR
+  destinationCode: BPN
+  destinationName: BALIKPAPAN
+  previewImage: {fileID: 0}
   gameTime: 120
   star1Score: 50
   star2Score: 100

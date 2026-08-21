@@ -18,6 +18,12 @@ MonoBehaviour:
   description: Learn the baggage flow with forgiving waves and longer luggage timers.
   unlockedByDefault: 1
   nextLevel: {fileID: 11400000, guid: fb48f04fc3c064b54a19f787b92b9c00, type: 2}
+  flightCode: AB01
+  originCode: CGK
+  originName: JAKARTA
+  destinationCode: DPS
+  destinationName: BALI
+  previewImage: {fileID: 0}
   gameTime: 120
   star1Score: 30
   star2Score: 60

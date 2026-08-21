@@ -17,7 +17,8 @@ public class ProgressionService : SingletonBehaviour<ProgressionService>
     [Serializable]
     private class SaveData
     {
-        public int version = 1;
+        // 2 added lastScore. A version-1 file still loads: the missing field reads 0.
+        public int version = 2;
         public List<LevelProgress> levels = new();
     }
 
@@ -27,6 +28,8 @@ public class ProgressionService : SingletonBehaviour<ProgressionService>
         public string levelId;
         public int bestStars;
         public int bestScore;
+        // The most recent run, not the best one — the stage-select ticket shows both.
+        public int lastScore;
         public bool unlocked;
     }
 
@@ -84,6 +87,10 @@ public class ProgressionService : SingletonBehaviour<ProgressionService>
     public int GetBestScore(LevelConfig level)
         => level == null ? 0 : Find(level.levelId)?.bestScore ?? 0;
 
+    /// <summary>Score from the most recent completed run, which may be lower than the best.</summary>
+    public int GetLastScore(LevelConfig level)
+        => level == null ? 0 : Find(level.levelId)?.lastScore ?? 0;
+
     public void RecordResult(LevelConfig level, GameResult result)
     {
         if (level == null || result == null)
@@ -93,6 +100,8 @@ public class ProgressionService : SingletonBehaviour<ProgressionService>
         current.unlocked = true;
         current.bestStars = Mathf.Max(current.bestStars, result.Stars);
         current.bestScore = Mathf.Max(current.bestScore, result.Score);
+        // Best is a maximum, last is an overwrite — a worse run must still show up as the latest.
+        current.lastScore = result.Score;
 
         if (level.nextLevel != null)
             GetOrCreate(level.nextLevel.levelId).unlocked = true;
