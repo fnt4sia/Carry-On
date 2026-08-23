@@ -7,13 +7,15 @@ using UnityEngine;
 //
 // Wiring matches PressurePlate: the lever owns its target lists and the targets never point
 // back, so a level's connections live in exactly one place. Every pull flips the state:
-//   - Gateways : Toggle()
+//   - Gateways, panels, elevators: Toggle()
 //   - Platforms: ReverseDirection()
 public class Lever : MonoBehaviour
 {
     [Header("Connected Targets")]
     [SerializeField] private List<Gateway> connectedGateways = new List<Gateway>();
     [SerializeField] private List<RotatingPlatform> connectedPlatforms = new List<RotatingPlatform>();
+    [SerializeField] private List<SlidingPanel> connectedPanels = new List<SlidingPanel>();
+    [SerializeField] private List<Elevator> connectedElevators = new List<Elevator>();
 
     [Header("Visuals")]
     [SerializeField] private Renderer leverRenderer;
@@ -42,6 +44,18 @@ public class Lever : MonoBehaviour
         {
             if (gateway == null) continue;
             gateway.Toggle();
+        }
+
+        foreach (SlidingPanel panel in connectedPanels)
+        {
+            if (panel == null) continue;
+            panel.Toggle();
+        }
+
+        foreach (Elevator elevator in connectedElevators)
+        {
+            if (elevator == null) continue;
+            elevator.Toggle();
         }
 
         foreach (RotatingPlatform platform in connectedPlatforms)

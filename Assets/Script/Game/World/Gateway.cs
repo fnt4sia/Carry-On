@@ -10,6 +10,8 @@ public class Gateway : MonoBehaviour
     [Header("Components")]
     [SerializeField] private Animator gateAnimator;
 
+    public bool IsOpen => isOpen;
+
     private void Start()
     {
         UpdateGateVisuals();

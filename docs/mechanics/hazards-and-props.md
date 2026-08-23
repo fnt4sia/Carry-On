@@ -1,7 +1,7 @@
 # Hazards and props
 
-**Scripts:** `Game/World/{PressurePlate, Gateway, RotatingPlatform, OneWayDoor, PoolHazard,
-WindSway, MarqueeText, SignFlicker, AmbientTrafficSpawner}.cs`,
+**Scripts:** `Game/World/{PressurePlate, Lever, Gateway, SlidingPanel, Elevator, RotatingPlatform,
+OneWayDoor, PoolHazard, WindSway, MarqueeText, SignFlicker, AmbientTrafficSpawner}.cs`,
 `Game/Core/AmbientAirplaneSpawner.cs`
 
 Reusable logic prefabs. Shared behaviour (colliders, visuals, animation) belongs in Prefab Mode;
@@ -10,15 +10,22 @@ what each instance is *connected to* is per-level scene data.
 ## Pressure plate
 
 One `PressurePlate` drives every "step here to actuate something" prop. The plate owns its
-connections: a `connectedGateways` list and a `connectedPlatforms` list, both multi-target. The
-targets never point back, so wiring lives in exactly one place — the plate.
+connections — `connectedGateways`, `connectedPanels`, `connectedElevators` and
+`connectedPlatforms`, all multi-target. The targets never point back, so wiring lives in exactly
+one place — the plate.
 
-On press (first valid contact) it toggles or opens its gateways and reverses its platforms. On
-release (last contact leaves) it closes gateways in momentary mode; toggle mode keeps the door
-state. It counts valid contacts, so a multi-collider object can't release it early.
-`isToggleMode` applies to gateways only — platforms just reverse on each press. Player and
-luggage filters decide what can trigger it. Tinting uses a `MaterialPropertyBlock`, so no
-per-instance material is cloned.
+On press (first valid contact) it toggles or opens its gateways, panels and elevators, and
+reverses its platforms. On release (last contact leaves) it closes gateways, panels and elevators
+in momentary mode; toggle mode keeps their state. It counts valid contacts, so a multi-collider
+object can't release it early. `isToggleMode` does not reach platforms — they just reverse on
+each press. Player and luggage filters decide what can trigger it. Tinting uses a
+`MaterialPropertyBlock`, so no per-instance material is cloned.
+
+Gateway, `SlidingPanel` and `Elevator` all expose the same `Open` / `Close` / `Toggle` trio, which
+is what lets one plate drive three unrelated props with no special casing. They are still four
+separate typed lists rather than one interface list: Unity cannot serialize an interface reference
+in the inspector without falling back to `List<MonoBehaviour>` and casting, which costs the drag
+-and-drop type safety the plate depends on.
 
 Connection lists are per-level wiring and must stay scene-instance overrides. **Never use Apply
 All from a configured instance** — that pushes one level's wiring into the prefab.
@@ -29,9 +36,10 @@ All from a configured instance** — that pushes one level's wiring into the pre
 
 The pressure plate's manual twin: a player walks up and presses **UseStation** (P1 `F`,
 P2 `L`, gamepad West) to flip it. Wiring is identical to the plate — the lever owns
-`connectedGateways` and `connectedPlatforms`, the targets never point back, and the lists stay
-scene-instance overrides. Every pull toggles gateways and reverses platforms; there is no
-momentary mode, because a lever has no "released" state.
+`connectedGateways`, `connectedPanels`, `connectedElevators` and `connectedPlatforms`, the targets
+never point back, and the lists stay scene-instance overrides. Every pull toggles gateways, panels
+and elevators and reverses platforms; there is no momentary mode, because a lever has no
+"released" state.
 
 `Lever` has no detection of its own. `PlayerGrab.TryUseLever` reuses the same
 `Physics.OverlapSphereNonAlloc(grabPoint.position, grabRadius, …)` sweep that finds a station,
@@ -57,6 +65,115 @@ Z; the transition blend is the slide.
 with an opening through it, so an auto-fitted box collider spans the whole bounding volume and
 bricks up the doorway — the door then reads as permanently shut no matter what the leaves do.
 Only the two leaves should carry box colliders.
+
+## Sliding panel
+
+**Script:** `Game/World/SlidingPanel.cs` · **Prefab:** `Prefab/Environment/Sliding Glass.prefab`
+
+A panel that slides aside when actuated and slides back when closed — the moving half of the
+Sliding Glass prop.
+
+| Field | On `Sliding Glass` | Does |
+|---|---|---|
+| `slidingBody` | empty | the transform that moves. Empty = this object |
+| `slideDirection` | `Right` | the sliding body's **own** local axis, so it follows the prop's rotation |
+| `slideDistance` | 3.05 | how far it travels, in the sliding body's local units |
+| `slideSpeed` | 3 | local units per second. `0` snaps |
+| `startOpen` | off | on = already slid aside at level start |
+
+**The authored pose is always the closed pose.** `Awake` captures `localPosition` as closed and
+derives open from it, then snaps to whichever `startOpen` asks for. A door that begins open is
+still placed in the scene where it *blocks* — that is the pose the level designer can see and
+align, and it is what the slide is measured from.
+
+`Sliding Glass.prefab` is a holder with the existing `Glass Panel.prefab` nested under it:
+
+```text
+Sliding Glass      Rigidbody (kinematic), SlidingPanel      <- moves
+  Glass Panel      nested prefab, scale (3, 3.5, 1)         <- mesh + collider
+```
+
+The root moves and the panel rides along, so the mesh and material stay a plain instance of
+`Glass Panel` and any edit to that prefab still propagates. Scale the **child** to resize the
+glass; `slideDistance` is measured in the root's parent space, so resizing never rescales the
+travel.
+
+The kinematic `Rigidbody` is the reason the panel *sweeps* players and luggage aside instead of
+letting PhysX push them out of an interpenetration after the fact. `SlidingPanel` uses
+`MovePosition` when it finds one and falls back to setting `localPosition` when it does not, so a
+panel without a Rigidbody still works — it just shoves less cleanly.
+
+## Elevator
+
+**Script:** `Game/World/Elevator.cs` · **Prefab:** `Prefab/Environment/Elevator.prefab`
+
+A cab that closes its door, travels to another height, then opens the door again. Driven by a
+plate or a lever through the same `Open` / `Close` / `Toggle` trio Gateway uses: `Open` goes to the
+raised floor, `Close` returns to the start floor.
+
+| Field | On the prefab | Does |
+|---|---|---|
+| `liftBody` | empty | the transform that travels. Empty = this object |
+| `travelHeight` | 6 | how far above the authored position the raised floor sits |
+| `travelSpeed` | 3 | local units per second. `0` snaps |
+| `doorPause` | 0.25 | beat held after the door shuts and again on arrival |
+| `startRaised` | off | on = the cab starts at the raised floor |
+| `door` | the `Door` child | optional. Without one the cab just travels |
+| `doorTravelTime` | 0.35 | how long to wait for the door animation. Match the controller's transition |
+
+### The door is a Gateway
+
+The cab door is the **same `Gateway` component the level gates use** — a two-leaf sliding door
+driven by an animator, not by `SlidingPanel`. `Elevator` never moves the leaves itself; it calls
+`Close()`, waits `doorTravelTime`, travels, then calls `Open()`.
+
+```text
+Door           Animator (ElevatorDoor.controller), Gateway (isOpen = true)
+  Door_Left    cube, closed (-1, 0, 0)  ->  open (-3, 0, 0)
+  Door_Right   cube, closed ( 1, 0, 0)  ->  open ( 3, 0, 0)
+```
+
+`Assets/Animation/ElevatorDoor/` holds the controller and two constant-pose clips,
+`ElevatorDoor_Closed` and `ElevatorDoor_Open`, exactly like `Gateway.controller`: one `IsOpen`
+bool, no keyframed motion, and a **0.35s transition that *is* the slide**. To retime the door,
+change the transition duration and `doorTravelTime` together — there is nothing else to retime.
+
+Unlike the gates, the default state is **Open** and `IsOpen` defaults to `true`, because an
+elevator idles with its door open. That is what stops the door playing a close-then-open blend the
+moment the level loads.
+
+The clips bind by path to `Door_Left` and `Door_Right`. **Renaming either leaf silently breaks the
+animation** — the doors simply stop moving, with no error.
+
+The rest of the prefab is placeholder geometry: cubes on the `Wall` layer, pivot at the centre of
+the cab floor so the floor's top surface is exactly `y = 0`.
+
+| Child | localPosition | localScale |
+|---|---|---|
+| `Floor` | `(0, -0.1, 0)` | `(4.4, 0.2, 4.4)` |
+| `Ceiling` | `(0, 3.6, 0)` | `(4.4, 0.2, 4.4)` |
+| `Wall_Back` | `(0, 1.75, 2.1)` | `(4.4, 3.5, 0.2)` |
+| `Wall_Left` | `(-2.1, 1.75, 0)` | `(0.2, 3.5, 4)` |
+| `Wall_Right` | `(2.1, 1.75, 0)` | `(0.2, 3.5, 4)` |
+| `Door` | `(0, 1.75, -2.1)` | — (empty holder) |
+| `Door/Door_Left` | `(-1, 0, 0)` | `(2, 3.5, 0.2)` |
+| `Door/Door_Right` | `(1, 0, 0)` | `(2, 3.5, 0.2)` |
+
+The entrance is local **−Z**, and the two leaves cover `x −2 … 2` when shut. Open, each has slid 2
+outward and sits past the side walls — but at `z −2.1` they pass in *front* of those walls rather
+than through them, so nothing interpenetrates. Follow the [Gateway](#gateway) rule and keep box
+colliders on the leaves only.
+
+The cab carries a kinematic `Rigidbody`; that is what carries riders. Measured over a 6-unit
+ascent, a 5 kg box resting on the floor stayed exactly 0.500 above it, with no slip and no
+re-parenting.
+
+**The pivot is the floor's top surface**, so an instance placed at `y 0` sits flush with a floor at
+`y 0`. Placing the cab any higher leaves a lip players cannot step over.
+
+**Reversing mid-travel is supported.** `SetRaised` restarts the sequence, so a plate pressed while
+the cab is climbing sends it back down from wherever it is — the door is already shut, so the
+restarted routine skips straight to the travel leg.
 
 ## Rotating platform
 

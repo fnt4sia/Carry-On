@@ -7,19 +7,21 @@ using UnityEngine;
 // so multi-collider objects don't release the plate early.
 //
 // On press (first valid contact enters):
-//   - Gateways : Toggle() in toggle mode, otherwise Open().
+//   - Gateways, panels, elevators: Toggle() in toggle mode, otherwise Open().
 //   - Platforms: ReverseDirection().
 // On release (last contact leaves):
-//   - Gateways : Close() in momentary mode (toggle mode keeps the new state).
+//   - Gateways, panels, elevators: Close() in momentary mode (toggle mode keeps the new state).
 //   - Platforms: nothing (direction is kept); only the plate visual resets.
 public class PressurePlate : MonoBehaviour
 {
     [Header("Connected Targets")]
     [SerializeField] private List<Gateway> connectedGateways = new List<Gateway>();
     [SerializeField] private List<RotatingPlatform> connectedPlatforms = new List<RotatingPlatform>();
+    [SerializeField] private List<SlidingPanel> connectedPanels = new List<SlidingPanel>();
+    [SerializeField] private List<Elevator> connectedElevators = new List<Elevator>();
 
     [Header("Settings")]
-    [Tooltip("Gateways only. On = flip once per press. Off = open while occupied, close on release.")]
+    [Tooltip("Gateways, panels and elevators. On = flip once per press. Off = open while occupied, close on release.")]
     [SerializeField] private bool isToggleMode = true;
     [SerializeField] private bool canPlayerTrigger = true;
     [SerializeField] private bool canLuggageTrigger = true;
@@ -78,6 +80,26 @@ public class PressurePlate : MonoBehaviour
                 gateway.Open();
         }
 
+        foreach (SlidingPanel panel in connectedPanels)
+        {
+            if (panel == null) continue;
+
+            if (isToggleMode)
+                panel.Toggle();
+            else
+                panel.Open();
+        }
+
+        foreach (Elevator elevator in connectedElevators)
+        {
+            if (elevator == null) continue;
+
+            if (isToggleMode)
+                elevator.Toggle();
+            else
+                elevator.Open();
+        }
+
         foreach (RotatingPlatform platform in connectedPlatforms)
         {
             if (platform == null) continue;
@@ -89,13 +111,24 @@ public class PressurePlate : MonoBehaviour
     {
         SetPlateColor(defaultColor);
 
-        if (!isToggleMode)
+        if (isToggleMode) return;
+
+        foreach (Gateway gateway in connectedGateways)
         {
-            foreach (Gateway gateway in connectedGateways)
-            {
-                if (gateway == null) continue;
-                gateway.Close();
-            }
+            if (gateway == null) continue;
+            gateway.Close();
+        }
+
+        foreach (SlidingPanel panel in connectedPanels)
+        {
+            if (panel == null) continue;
+            panel.Close();
+        }
+
+        foreach (Elevator elevator in connectedElevators)
+        {
+            if (elevator == null) continue;
+            elevator.Close();
         }
     }
 
