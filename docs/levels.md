@@ -135,9 +135,9 @@ silently falls back to an in-place swap.
 `BeltSurface` physic material on every deck; and one deck height per scene
 (`position.y + 4.0 × scale.y`).
 
-Because Build Settings holds only the two menu scenes, **Validate All Build Scenes currently
-validates nothing** — it skips both for having no `LevelContext`. Use Validate Open Scene on
-`DesignScene` until a gameplay scene is back in the build.
+**Validate All Build Scenes covers `DesignScene`** since it was added to Build Settings (index 2);
+it still skips MainMenu and ChooseStage for having no `LevelContext`. Editor-only scenes such as
+`Level1` are not in the build, so validate those with Validate Open Scene.
 
 Add a check whenever you catch yourself saying "I forgot to…". Rule of thumb: if the mistake can
 be described numerically or as a missing reference, it belongs here. If it needs eyes — does the
@@ -145,7 +145,7 @@ route feel good, is the camera framing nice — it stays manual QA.
 
 ## DesignScene
 
-`Assets/Scenes/Stages/DesignScene.unity`, editor-only, outside Build Settings. It holds a normal
+`Assets/Scenes/Stages/DesignScene.unity`, build index 2 and doubling as Stage 1. It holds a normal
 `LevelContext` using `LevelConfig_Design`, the reusable game and spawner prefabs, four player
 spawn points, a washer, a wrapper, and `DebugAutoJoin`.
 

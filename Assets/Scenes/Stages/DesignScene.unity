@@ -1161,6 +1161,11 @@ PrefabInstance:
       propertyPath: 'connectedGateways.Array.data[0]'
       value: 
       objectReference: {fileID: 947560752}
+    - target: {fileID: 3566517626375628149, guid: 9dd10cdb13210424391aa623485873c1,
+        type: 3}
+      propertyPath: 'connectedPlatforms.Array.data[0]'
+      value: 
+      objectReference: {fileID: 0}
     - target: {fileID: 6280571920460483026, guid: 9dd10cdb13210424391aa623485873c1,
         type: 3}
       propertyPath: m_Name
@@ -1475,7 +1480,7 @@ Transform:
   - {fileID: 1663745418}
   - {fileID: 947560753}
   - {fileID: 590270727}
-  - {fileID: 1889930328}
+  - {fileID: 1157547005}
   - {fileID: 764975056}
   - {fileID: 1636784143}
   - {fileID: 1217186317}
@@ -1613,7 +1618,7 @@ PrefabInstance:
         type: 3}
       propertyPath: 'connectedPlatforms.Array.data[0]'
       value: 
-      objectReference: {fileID: 1889930327}
+      objectReference: {fileID: 1157547004}
     - target: {fileID: 6280571920460483026, guid: 9dd10cdb13210424391aa623485873c1,
         type: 3}
       propertyPath: m_Name
@@ -2479,6 +2484,92 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 48c24ca3b21fc4a93b04440be67a31e6, type: 3}
+--- !u!1001 &1157547003
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 726502278}
+    m_Modifications:
+    - target: {fileID: 5662080356951275234, guid: 72c69535e2bc2467c95233818b03358a,
+        type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 106.6
+      objectReference: {fileID: 0}
+    - target: {fileID: 5662080356951275234, guid: 72c69535e2bc2467c95233818b03358a,
+        type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -9.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 5662080356951275234, guid: 72c69535e2bc2467c95233818b03358a,
+        type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 40.9
+      objectReference: {fileID: 0}
+    - target: {fileID: 5662080356951275234, guid: 72c69535e2bc2467c95233818b03358a,
+        type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0.7071068
+      objectReference: {fileID: 0}
+    - target: {fileID: 5662080356951275234, guid: 72c69535e2bc2467c95233818b03358a,
+        type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5662080356951275234, guid: 72c69535e2bc2467c95233818b03358a,
+        type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0.7071068
+      objectReference: {fileID: 0}
+    - target: {fileID: 5662080356951275234, guid: 72c69535e2bc2467c95233818b03358a,
+        type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5662080356951275234, guid: 72c69535e2bc2467c95233818b03358a,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5662080356951275234, guid: 72c69535e2bc2467c95233818b03358a,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5662080356951275234, guid: 72c69535e2bc2467c95233818b03358a,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6278731962014693771, guid: 72c69535e2bc2467c95233818b03358a,
+        type: 3}
+      propertyPath: m_Name
+      value: Rotating Platform - Pool Bridge
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 72c69535e2bc2467c95233818b03358a, type: 3}
+--- !u!114 &1157547004 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 4797244925658032449, guid: 72c69535e2bc2467c95233818b03358a,
+    type: 3}
+  m_PrefabInstance: {fileID: 1157547003}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a8cde7c1e32494d34b8e153f3122f74d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RotatingPlatform
+--- !u!4 &1157547005 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 5662080356951275234, guid: 72c69535e2bc2467c95233818b03358a,
+    type: 3}
+  m_PrefabInstance: {fileID: 1157547003}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &1198837708
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3090,6 +3181,11 @@ PrefabInstance:
       propertyPath: 'connectedElevators.Array.data[0]'
       value: 
       objectReference: {fileID: 1981752975}
+    - target: {fileID: 3566517626375628149, guid: 9dd10cdb13210424391aa623485873c1,
+        type: 3}
+      propertyPath: 'connectedPlatforms.Array.data[0]'
+      value: 
+      objectReference: {fileID: 0}
     - target: {fileID: 6280571920460483026, guid: 9dd10cdb13210424391aa623485873c1,
         type: 3}
       propertyPath: m_Name
@@ -4281,92 +4377,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 19d0d395fb51a4b59afc22373655bd4c, type: 3}
---- !u!1001 &1889930326
-PrefabInstance:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 726502278}
-    m_Modifications:
-    - target: {fileID: 5662080356951275234, guid: 72c69535e2bc2467c95233818b03358a,
-        type: 3}
-      propertyPath: m_LocalPosition.x
-      value: 120.68
-      objectReference: {fileID: 0}
-    - target: {fileID: 5662080356951275234, guid: 72c69535e2bc2467c95233818b03358a,
-        type: 3}
-      propertyPath: m_LocalPosition.y
-      value: -0.27592584
-      objectReference: {fileID: 0}
-    - target: {fileID: 5662080356951275234, guid: 72c69535e2bc2467c95233818b03358a,
-        type: 3}
-      propertyPath: m_LocalPosition.z
-      value: 80
-      objectReference: {fileID: 0}
-    - target: {fileID: 5662080356951275234, guid: 72c69535e2bc2467c95233818b03358a,
-        type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 0.7071068
-      objectReference: {fileID: 0}
-    - target: {fileID: 5662080356951275234, guid: 72c69535e2bc2467c95233818b03358a,
-        type: 3}
-      propertyPath: m_LocalRotation.x
-      value: -0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5662080356951275234, guid: 72c69535e2bc2467c95233818b03358a,
-        type: 3}
-      propertyPath: m_LocalRotation.y
-      value: 0.7071068
-      objectReference: {fileID: 0}
-    - target: {fileID: 5662080356951275234, guid: 72c69535e2bc2467c95233818b03358a,
-        type: 3}
-      propertyPath: m_LocalRotation.z
-      value: -0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5662080356951275234, guid: 72c69535e2bc2467c95233818b03358a,
-        type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5662080356951275234, guid: 72c69535e2bc2467c95233818b03358a,
-        type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5662080356951275234, guid: 72c69535e2bc2467c95233818b03358a,
-        type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 6278731962014693771, guid: 72c69535e2bc2467c95233818b03358a,
-        type: 3}
-      propertyPath: m_Name
-      value: Rotating Platform - Pool Bridge
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: 72c69535e2bc2467c95233818b03358a, type: 3}
---- !u!114 &1889930327 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 4797244925658032449, guid: 72c69535e2bc2467c95233818b03358a,
-    type: 3}
-  m_PrefabInstance: {fileID: 1889930326}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a8cde7c1e32494d34b8e153f3122f74d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::RotatingPlatform
---- !u!4 &1889930328 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 5662080356951275234, guid: 72c69535e2bc2467c95233818b03358a,
-    type: 3}
-  m_PrefabInstance: {fileID: 1889930326}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &1918483186
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -5201,7 +5211,7 @@ Transform:
   m_GameObject: {fileID: 919132149189982410}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 65.5, y: -2, z: 43.91597}
+  m_LocalPosition: {x: 65.5, y: -13.8, z: 43.91597}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

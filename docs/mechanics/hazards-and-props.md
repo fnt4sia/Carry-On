@@ -177,6 +177,22 @@ restarted routine skips straight to the travel leg.
 
 ## Rotating platform
 
+`Prefab/Environment/Rotating Platform.prefab` — rebuilt from scratch in August 2026. Three
+objects, no more:
+
+```text
+Rotating Platform      pivot; kinematic Rigidbody + the RotatingPlatform script; scale (1,1,1)
+  Deck                 RotatablePlatform mesh + RotatingPlatform.mat + BoxCollider — 44 x 0.51 x 4.4
+  Rider Zone           BoxCollider trigger, 44 x 1.5 x 4.4, sitting on the deck's top face
+```
+
+The deck's renderer and collider are the same box, so what you see is what you stand on. Bake
+size into `Deck`'s localScale and leave the **root scale uniform** — the root is what spins, and
+the old prefab's non-uniform `(1, 1, 1.4)` root made every dimension in the inspector a lie. The
+version before this one carried a second, colliderless copy of the mesh scaled ~100x (a 3 km
+slab) next to an invisible collider proxy whose renderer was switched off and whose material was
+`water`; if something looks wrong here, check `MeshRenderer.enabled` before trusting bounds.
+
 Rotates its body in `FixedUpdate` and carries player and luggage riders around its pivot.
 `carryRiders` enables positional transport; `rotateRiders` also rotates rider orientation. It
 exposes `ReverseDirection` / `SetClockwise` for a plate to call — the plate owns that connection,
@@ -190,10 +206,37 @@ left a rider registered forever. Because the carry maths is `pivot + delta * (ri
 a ghost rider gets flung harder the further away they walk, so the bug read as "the platform
 throws me across the map while I'm nowhere near it". An overlap query cannot drift.
 
+**The player is carried by a transform write, luggage by `MovePosition`.** `PlayerMovement`
+walks by assigning `transform.position` directly, and the project runs with **Auto Sync
+Transforms off**, so `rigidbody.position` goes stale the instant it does. Carrying the player
+through `MovePosition` read that stale origin and then lost the race with the transform write —
+the platform rotated out from under the rider and they slid off. `RiderState.TransformDriven`
+(set when the rider has a `PlayerMovement`) picks the matching path, so the platform's write and
+the player's own write add up instead of cancelling. Luggage is genuinely physics-driven and
+still uses `MovePosition`.
+
 Stepping off calls `ReleaseRider`, which subtracts the carry velocity the last step imparted.
 `MovePosition` bakes the carry motion into a dynamic rider's velocity, so without this the
-player keeps the platform's speed as a shove when they walk off. The correction only ever slows
-a rider — never speeds one up.
+rider keeps the platform's speed as a shove when they walk off. The correction only ever slows
+a rider — never speeds one up. It is **skipped for transform-driven riders**: nothing was ever
+pushed through their rigidbody, so there is no baked velocity to hand back and subtracting one
+would be a shove of its own.
+
+**Deck width is a hard constraint.** Annie's capsule radius is 0.726, so she is ~1.45 wide. The
+deck must clear that with room to stand — the Pool Bridge is 4.34 wide. A deck narrower than the
+player reads in game as "the platform throws me off", and no amount of carry maths fixes it.
+
+**The deck must be frictionless, or riders move at double speed.** The deck carries
+`BeltSurface.physicMaterial` (friction 0, combine **Minimum**) for the same reason a conveyor
+deck does: the script owns the carry, so contact must not add a second one. `Player Physics` is
+friction 0 but combines by **Average**, so a deck with *no* material lands on Unity's default 0.6
+and the pair averages to **0.3** — enough for the rotating kinematic collider to physically drag
+the rider around on top of the scripted carry. Measured on a 10.9 s ride at radius 15: with the
+bare deck the player orbited at **19.6 °/s** against the platform's 10 °/s (ratio 1.96); with
+`BeltSurface` it tracks at **10.0019 °/s** (ratio 1.0002) and holds its radius to five decimals.
+The doubled carry also jitters the rider hard enough to pop them off a thin deck, which reads as
+falling straight through it. Combine mode is the trap here — checking only `dynamicFriction: 0`
+on the player's material tells you nothing about the pair.
 
 **Speed is a tip-speed problem, not an rpm problem.** Tangential speed is
 `rotationSpeed(deg) * Deg2Rad * radius`. The Pool Bridge beam is 44 units long, so radius 22:

@@ -33,14 +33,18 @@ public class RotatingPlatform : MonoBehaviour
 
     private class RiderState
     {
-        public RiderState(Transform transform, Rigidbody rigidbody)
+        public RiderState(Transform transform, Rigidbody rigidbody, bool transformDriven)
         {
             Transform = transform;
             Rigidbody = rigidbody;
+            TransformDriven = transformDriven;
         }
 
         public Transform Transform { get; }
         public Rigidbody Rigidbody { get; }
+        // The player walks by writing transform.position, not through the rigidbody. Carrying
+        // one with MovePosition fights that write instead of adding to it — see MoveRiders.
+        public bool TransformDriven { get; }
         public int Stamp { get; set; }
         public Vector3 CarryVelocity { get; set; }
     }
@@ -141,7 +145,8 @@ public class RotatingPlatform : MonoBehaviour
 
             if (!riders.TryGetValue(riderTransform, out RiderState state))
             {
-                state = new RiderState(riderTransform, riderRigidbody);
+                bool transformDriven = riderTransform.GetComponent<PlayerMovement>() != null;
+                state = new RiderState(riderTransform, riderRigidbody, transformDriven);
                 riders.Add(riderTransform, state);
             }
 
@@ -199,26 +204,35 @@ public class RotatingPlatform : MonoBehaviour
             Transform riderTransform = state.Transform;
 
             Rigidbody riderRigidbody = state.Rigidbody;
-            Vector3 currentPosition = riderRigidbody != null ? riderRigidbody.position : riderTransform.position;
+
+            // PlayerMovement walks by writing transform.position directly, and the project runs
+            // with Auto Sync Transforms off, so rigidbody.position is stale the moment it does.
+            // Carrying the player through MovePosition therefore reads a stale origin and then
+            // loses the race with that transform write — the platform rotates out from under the
+            // rider and they slide off. Move whoever is transform-driven the same way they move
+            // themselves, so the two writes add up instead of cancelling.
+            bool useTransform = state.TransformDriven || riderRigidbody == null;
+
+            Vector3 currentPosition = useTransform ? riderTransform.position : riderRigidbody.position;
             Vector3 nextPosition = pivot + rotationDelta * (currentPosition - pivot);
 
             // Remember what this step's carry is worth as a velocity, so stepping off can
             // hand it back instead of leaving the rider with the platform's speed.
             state.CarryVelocity = (nextPosition - currentPosition) / Time.fixedDeltaTime;
 
-            if (riderRigidbody != null)
-            {
-                riderRigidbody.MovePosition(nextPosition);
-
-                if (rotateRiders)
-                    riderRigidbody.MoveRotation(rotationDelta * riderRigidbody.rotation);
-            }
-            else
+            if (useTransform)
             {
                 riderTransform.position = nextPosition;
 
                 if (rotateRiders)
                     riderTransform.rotation = rotationDelta * riderTransform.rotation;
+            }
+            else
+            {
+                riderRigidbody.MovePosition(nextPosition);
+
+                if (rotateRiders)
+                    riderRigidbody.MoveRotation(rotationDelta * riderRigidbody.rotation);
             }
         }
     }
@@ -227,6 +241,11 @@ public class RotatingPlatform : MonoBehaviour
     // exactly what the last step added, so walking off the platform does not shove the player.
     private void ReleaseRider(RiderState state)
     {
+        // A transform-driven rider was never pushed through its rigidbody, so there is no
+        // baked carry velocity to hand back — subtracting one would be a shove of its own.
+        if (state.TransformDriven)
+            return;
+
         Rigidbody body = state.Rigidbody;
         if (body == null || body.isKinematic)
             return;
