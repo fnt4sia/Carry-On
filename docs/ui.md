@@ -232,10 +232,15 @@ numbers on `MainMenuManager` control the rest:
 
 | Field | Value | Does |
 |---|---|---|
-| `lobbyScale` | `0.55` | **display size.** Annie is `4.090` world units tall at scale 1, so this shows her at `2.249` |
+| `lobbyScale` | `0.9` | **display size.** Annie is `4.26` world units tall at scale 1, so this shows her at `3.83` |
 | `feetPivotOffset` | `0` | how far the model's soles sit **below** its pivot at scale 1 |
 | `spacing` | `2.6` | max gap between characters when only a few joined |
-| `bandWidth` | `4.6` | the row never spreads wider than this; raise it with `lobbyScale` or big characters will overlap |
+| `bandWidth` | `7` | the row never spreads wider than this; raise it with `lobbyScale` or big characters will overlap |
+
+Retuned August 2026 for the new bodies: the row was tiny and half under the camera's bottom
+edge. `PlayerSpawnTransform` moved from `(-60.10, -3.70, 68.40)` to `(-60.10, -3.70, 71.80)` —
+farther along the camera's view direction, so the characters stand full-height in front of the
+carousel, right of the departures board. `spawn.y` stays `-3.70` (floor height, see below).
 
 `UpdatePositions` sets the pivot to `spawn.y + feetPivotOffset * lobbyScale`, so when
 `feetPivotOffset` matches the model, **the soles land exactly on `spawn.y`** — which means the
@@ -249,6 +254,20 @@ that was set. The floor under the spawn is `Floor_Ground.002` at `y −3.70`, an
 
 > Re-measure `feetPivotOffset` if the character prefab is ever replaced — it is a property of the
 > model's pivot, not a feel value, and a wrong one floats or sinks every lobby character at once.
+
+**Player pin.** The `1P/2P` pin over each head is the `Player Indicator` child on the character
+prefab (`PlayerIndicator.cs`). Its height comes from the character's **renderer bounds, not the
+capsule** — all three bodies share one capsule that stops at the skull ([player](mechanics/player.md#all-three-bodies-are-one-rig)),
+so hanging the pin off the collider would bury it in Annie's hat and Bun Jovi's ears. Reading
+the silhouette keeps one `hoverHeight` (`0.2`) correct on every body. In the lobby it never
+hides; in a gameplay scene (detected by
+`GameManager.Instance`) it shrinks away `gameplayShowSeconds` (3 s) after each scene load, over
+`shrinkDuration` (0.35 s) — by then everyone knows which body is theirs, and it comes back on
+returning to the lobby. The pin billboards by copying the camera's rotation (screen-parallel),
+not by aiming at the camera position — aiming skewed pins near the screen edge, which read as a
+stretched sprite. Note the pin draws through the `WorldUI` overlay camera, so **it is invisible
+in Unity-MCP camera-render screenshots** (the URP overlay stack is skipped); use
+`ScreenCapture.CaptureScreenshot` to see it.
 
 > **Removed from the scene in the August 2026 cleanup:** the bottom-right `PlayerListCanvas`
 > avatar strip, the retired `DepartureBoard` instance, and a stray `MeshRenderer` with no

@@ -1,6 +1,7 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
@@ -21,8 +22,15 @@ public class PlayerIndicator : MonoBehaviour
 
     [Header("Presentation")]
     [SerializeField] private string worldUiLayerName = WorldUIOverlayCamera.LayerName;
-    [Tooltip("Gap between the top of the player's collider and the tip of the pin.")]
+    [Tooltip("Gap between the top of the character's silhouette and the tip of the pin.")]
     [SerializeField, Min(0f)] private float hoverHeight = 0.45f;
+
+    [Header("In-game auto-hide")]
+    [Tooltip("How long the pin stays up after a gameplay scene starts before it shrinks " +
+             "away. In the lobby the pin never hides.")]
+    [SerializeField, Min(0f)] private float gameplayShowSeconds = 3f;
+    [Tooltip("How long the shrink-away takes.")]
+    [SerializeField, Min(0.01f)] private float shrinkDuration = 0.35f;
 
     [Tooltip("Disc colour per player, in playerIndex order.")]
     [SerializeField]
@@ -36,6 +44,9 @@ public class PlayerIndicator : MonoBehaviour
 
     private Camera targetCamera;
     private int lastIndex = -1;
+    private Vector3 baseScale;
+    private float sceneStartTime;
+    private SkinnedMeshRenderer[] bodyRenderers;
 
     private void Awake()
     {
@@ -52,10 +63,28 @@ public class PlayerIndicator : MonoBehaviour
             return;
         }
 
+        baseScale = transform.localScale;
+        sceneStartTime = Time.time;
+        bodyRenderers = player.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+
         ApplyWorldUiLayer();
         ApplyPlayer();
         UpdatePlacementAndFacing();
     }
+
+    // The player object (and this pin) persists across scene loads, so the show timer
+    // restarts on every load rather than only once at Awake.
+    private void OnEnable()
+    {
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    private void OnDisable()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode) => sceneStartTime = Time.time;
 
     private void LateUpdate()
     {
@@ -64,6 +93,18 @@ public class PlayerIndicator : MonoBehaviour
             ApplyPlayer();
 
         UpdatePlacementAndFacing();
+        UpdateHide();
+    }
+
+    // Lobby pins stay up forever; in a gameplay scene the pin shrinks away shortly after
+    // the round starts — by then everyone knows which body is theirs. Scaled time, so a
+    // pause freezes the countdown with everything else.
+    private void UpdateHide()
+    {
+        float t = GameManager.Instance == null
+            ? 0f
+            : Mathf.Clamp01((Time.time - sceneStartTime - gameplayShowSeconds) / shrinkDuration);
+        transform.localScale = baseScale * (1f - (t * t * (3f - 2f * t)));
     }
 
     private void ApplyPlayer()
@@ -80,10 +121,7 @@ public class PlayerIndicator : MonoBehaviour
         Vector3 anchor = sourceCollider != null
             ? sourceCollider.bounds.center
             : player.transform.position;
-        float top = sourceCollider != null
-            ? sourceCollider.bounds.max.y
-            : player.transform.position.y;
-        transform.position = new Vector3(anchor.x, top + hoverHeight, anchor.z);
+        transform.position = new Vector3(anchor.x, SilhouetteTop() + hoverHeight, anchor.z);
 
         // Re-resolve after a scene load: players persist, the camera does not.
         if (targetCamera == null || !targetCamera.isActiveAndEnabled)
@@ -91,12 +129,34 @@ public class PlayerIndicator : MonoBehaviour
         if (targetCamera == null)
             return;
 
-        // A world-space canvas reads correctly when its +Z points AWAY from the viewer, so
-        // the look direction is self -> camera, not camera -> self. Aiming +Z at the camera
-        // shows the back of the canvas and the label comes out mirrored.
-        Vector3 direction = transform.position - targetCamera.transform.position;
-        if (direction.sqrMagnitude > 0.0001f)
-            transform.rotation = Quaternion.LookRotation(direction, targetCamera.transform.up);
+        // Align to the camera's plane instead of aiming at its position: aiming tilts pins
+        // near the screen edge inward and the perspective skew reads as a stretched sprite.
+        // Camera-plane alignment keeps every pin screen-parallel, so the art always shows
+        // at its authored proportions. (+Z ends up pointing away from the viewer, which is
+        // the orientation a world-space canvas needs to not render mirrored.)
+        transform.rotation = targetCamera.transform.rotation;
+    }
+
+    // Top of the character's art, not of the capsule: every body shares one capsule so that
+    // nobody is blocked by a doorway another walks through, which means the capsule stops at
+    // the skull and Annie's hat and Bun Jovi's ears stick out above it. Hanging the pin off
+    // the renderers keeps it clear of each silhouette with the same hoverHeight on every prefab.
+    private float SilhouetteTop()
+    {
+        float top = float.NegativeInfinity;
+        if (bodyRenderers != null)
+        {
+            foreach (SkinnedMeshRenderer r in bodyRenderers)
+                if (r != null)
+                    top = Mathf.Max(top, r.bounds.max.y);
+        }
+
+        if (!float.IsNegativeInfinity(top))
+            return top;
+
+        return sourceCollider != null
+            ? sourceCollider.bounds.max.y
+            : player.transform.position.y;
     }
 
     private void ApplyWorldUiLayer()

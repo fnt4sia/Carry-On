@@ -4135,7 +4135,7 @@ Transform:
   m_GameObject: {fileID: 804938571}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0.5112931, z: 0, w: 0.8594064}
-  m_LocalPosition: {x: -60.1, y: -3.7, z: 68.4}
+  m_LocalPosition: {x: -60.1, y: -3.7, z: 71.8}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -6890,8 +6890,8 @@ MonoBehaviour:
   spawnCenter: {fileID: 804938575}
   lobbyCamera: {fileID: 1029946687}
   spacing: 2.6
-  bandWidth: 4.6
-  lobbyScale: 0.55
+  bandWidth: 7
+  lobbyScale: 0.9
   feetPivotOffset: 0
   joinPrompt: {fileID: 1031846024}
   menuRoot: {fileID: 1981041239}

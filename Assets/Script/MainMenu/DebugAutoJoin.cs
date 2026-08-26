@@ -22,10 +22,10 @@ public class DebugAutoJoin : MonoBehaviour
         }
 
         if (PlayerInput.all.Count == 0 && keyboardPlayerCount >= 1)
-            manager.JoinPlayer(-1, -1, PlayerSystem.SchemeKeyboardLeft, keyboard);
+            PlayerSystem.Instance.JoinPlayer(PlayerSystem.SchemeKeyboardLeft, keyboard);
 
         if (PlayerInput.all.Count < 2 && keyboardPlayerCount >= 2)
-            manager.JoinPlayer(-1, -1, PlayerSystem.SchemeKeyboardRight, keyboard);
+            PlayerSystem.Instance.JoinPlayer(PlayerSystem.SchemeKeyboardRight, keyboard);
 #endif
     }
 }

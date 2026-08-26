@@ -8,9 +8,9 @@ using UnityEngine.SceneManagement;
 //
 // Joining is manual (not PlayerInputManager auto-join) so one keyboard can host two
 // players on separate control schemes:
-//   Space      -> KeyboardLeft  (WASD half)
-//   Right Ctrl -> KeyboardRight (arrows half)
-//   (A) south  -> Gamepad       (any gamepad not yet paired)
+//   Space       -> KeyboardLeft  (WASD half)
+//   Right Shift -> KeyboardRight (arrows half)
+//   (A) south   -> Gamepad       (any gamepad not yet paired)
 // A slot only joins while it is still free, so what's "available" is detected
 // automatically. Joining is polled only in the lobby.
 //
@@ -28,10 +28,11 @@ public class PlayerSystem : SingletonBehaviour<PlayerSystem>
 
     [SerializeField] private string lobbySceneName = "MainMenu";
 
-    [Header("Character")]
-    [SerializeField, Tooltip("Body prefab spawned for every joined player. Set this " +
-        "instead of the PlayerInputManager's hidden Player Prefab field.")]
-    private GameObject characterPrefab;
+    [Header("Characters")]
+    [SerializeField, Tooltip("Bodies handed out in join order (first player gets element 0, " +
+        "wrapping around). Set these instead of the PlayerInputManager's hidden Player " +
+        "Prefab field.")]
+    private GameObject[] characterPrefabs;
 
     private PlayerInputManager manager;
     private bool joinAllowed;
@@ -63,9 +64,10 @@ public class PlayerSystem : SingletonBehaviour<PlayerSystem>
         manager = GetComponent<PlayerInputManager>();
 
         // Visible override for the manager's hidden Player Prefab field (hidden because
-        // Join Behavior = Manual). Runs before any JoinPlayer call, so every spawn uses it.
-        if (characterPrefab != null)
-            manager.playerPrefab = characterPrefab;
+        // Join Behavior = Manual). Runs before any JoinPlayer call; JoinPlayer swaps in
+        // the next roster body right before each join.
+        if (characterPrefabs != null && characterPrefabs.Length > 0)
+            manager.playerPrefab = characterPrefabs[0];
 
         SceneManager.sceneLoaded += OnSceneLoaded;
         ApplyJoinState(SceneManager.GetActiveScene().name);
@@ -93,7 +95,7 @@ public class PlayerSystem : SingletonBehaviour<PlayerSystem>
                 Join(SchemeKeyboardLeft, kb);
                 return;
             }
-            if (kb.rightCtrlKey.wasPressedThisFrame && IsSchemeFree(SchemeKeyboardRight))
+            if (kb.rightShiftKey.wasPressedThisFrame && IsSchemeFree(SchemeKeyboardRight))
             {
                 Join(SchemeKeyboardRight, kb);
                 return;
@@ -112,9 +114,18 @@ public class PlayerSystem : SingletonBehaviour<PlayerSystem>
 
     private void Join(string scheme, InputDevice device)
     {
-        var player = manager.JoinPlayer(-1, -1, scheme, device);
+        var player = JoinPlayer(scheme, device);
         if (player != null)
             LastJoinFrame = Time.frameCount;
+    }
+
+    // Single join entry point (lobby polling and DebugAutoJoin both come through here),
+    // so every joined player gets the next character body in roster order.
+    public PlayerInput JoinPlayer(string scheme, InputDevice device)
+    {
+        if (characterPrefabs != null && characterPrefabs.Length > 0)
+            manager.playerPrefab = characterPrefabs[PlayerInput.all.Count % characterPrefabs.Length];
+        return manager.JoinPlayer(-1, -1, scheme, device);
     }
 
     // A keyboard half is free while no player uses that scheme (the keyboard device

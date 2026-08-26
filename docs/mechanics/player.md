@@ -2,10 +2,11 @@
 
 **Scripts:** `MainMenu/PlayerSystem.cs`, `MainMenu/DebugAutoJoin.cs`,
 `Game/Player/{PlayerSpawner, PlayerMovement, PlayerGrab, PlayerHandIK, JointBreakHandler}.cs`
-**Prefab:** `Assets/Prefab/Character/Annie.prefab` — all feel values are serialized here.
+**Prefabs:** `Assets/Prefab/Character/{Annie, Bun Jovi, Scannor}.prefab` — all feel values are
+serialized per prefab (the three currently share Annie's tuning; they were cloned from her).
 
 One to four players share a screen. Everything a player *is* — body, movement feel, grab rules,
-animator — lives on one character prefab.
+animator — lives on that player's character prefab.
 
 ## Joining
 
@@ -14,7 +15,7 @@ Joining is polled only in `MainMenu`, because one physical keyboard is shared by
 | Join input | Scheme | Gameplay half |
 |---|---|---|
 | Space | `KeyboardLeft` | WASD, Left Shift, E, F |
-| Right Ctrl | `KeyboardRight` | arrows, Right Shift, Right Ctrl, L |
+| Right Shift | `KeyboardRight` | arrows, Right Shift, Right Ctrl, L |
 | gamepad South | `Gamepad` | one unpaired gamepad |
 
 A keyboard scheme is free when no current player uses its scheme name; a gamepad is free when no
@@ -27,14 +28,25 @@ control schemes, and `playerIndex` values survive every menu and scene transitio
 
 ### Which body spawns
 
-Every player spawns as the prefab in `PlayerSystem`'s **Character Prefab** field, on
-`Assets/Prefab/Manager/PlayerSystem.prefab`. `PlayerSystem` copies it into
-`PlayerInputManager.playerPrefab` at startup, before any join. Use that field — not the
-manager's own *Player Prefab*, which Unity hides while Join Behavior is *Manual*.
+Bodies are handed out in **join order** from `PlayerSystem`'s **Character Prefabs** roster on
+`Assets/Prefab/Manager/PlayerSystem.prefab`: player 1 gets element 0, player 2 element 1, and
+so on, wrapping around when players outnumber entries. The roster is `[Annie, Bun Jovi,
+Scannor]` (August 2026 model drop — the new-style Annie replaced the old one in place, same
+prefab GUID). Use that roster field — not the manager's own *Player Prefab*, which Unity hides
+while Join Behavior is *Manual*.
 
-It currently points at `Annie.prefab`. `Ramp Agent Body.prefab` is still in
-`Assets/Prefab/Character/` but **nothing references it** — it is dead weight, not a second
-shipping body.
+`PlayerSystem.JoinPlayer(scheme, device)` is the single join entry point — it swaps
+`PlayerInputManager.playerPrefab` to the next roster body right before each
+`manager.JoinPlayer` call. Lobby polling and `DebugAutoJoin` both go through it; anything else
+that joins a player must too, or every player gets whichever body was assigned last.
+
+`Ramp Agent Body.prefab` is still in `Assets/Prefab/Character/` but **nothing references
+it** — dead weight, not a fourth shipping body.
+
+Each character prefab is the same component stack cloned from Annie; the model lives on a
+child named `Model` (a nested instance of that character's FBX), and the **Animator sits on
+`Model`, not the prefab root** — the FBX clips bind bone paths relative to it.
+`PlayerGrab`/`PlayerMovement` reach it through their serialized `animator` fields.
 
 ### Shared input asset
 
@@ -144,17 +156,33 @@ plays the raw animation.
 
 ### The hands reach toward the case, not onto it
 
-Measured on the shipped prefab (unchanged by the 2026-07 model swap — same skeleton dims):
+Measured on the August 2026 bodies (all three share skeleton proportions at import scale 5):
 
 | | |
 |---|---|
-| Annie's arm, shoulder → wrist | **0.763** |
-| Shoulder → grip, case at `GrabAnchor.z = 1.65` | **~1.76** |
+| Arm, shoulder → wrist | **0.84** |
+| Shoulder → grip, case on `GrabAnchor` | **~1.45** |
 
-Her arms are 18% of her 4.31 height, where a figure normally runs ~30%. The hands **cannot**
-touch a case held anywhere clear of her own face — pulling the case close enough (z ≈ 0.70) puts
-hundreds of hair vertices inside it, and it is too tall to ride lower. Not a tuning problem;
-only longer arms or a smaller case fix it.
+Better than the old model (0.763 against ~1.76) but the grip still sits beyond the arm, so the
+`maxReach` clamp still does the work — the hands get close enough to read as holding the case.
+
+### All three bodies are one rig
+
+Annie, Bun Jovi and Scannor share the **same skeleton at the same proportions** — shoulder
+`2.358`, head bone `2.681`, feet `0.182`, identical on all three. Only the silhouette differs:
+Annie's hat and hair reach `4.27`, Bun Jovi's ears `4.89`, Scannor's bare head `3.84`.
+
+Because of that, **every gameplay value on the three prefabs is identical, deliberately** — the
+capsule included (`height 3.85`, `center y 1.925`, `radius 0.726`). A capsule sized to each
+mesh would size it to hair and ears, giving Bun Jovi a collider `1.2` taller than Scannor's for
+the same body, so one character would be stopped by gaps another walks through. `3.85` wraps
+every body (Scannor's mesh is the tallest bare skull at `3.839`) and sits below the `4.11` top
+the game originally shipped with, so it cannot collide with anything the old capsule cleared.
+Hair, hat and ears intentionally poke above it.
+
+> If you change a feel value — speed, grab radius, joint spring, capsule — **change it on all
+> three prefabs.** They are meant to be interchangeable bodies, not balance variants. A diff of
+> all 1020 serialized properties across the three should come back empty.
 
 `maxReach` is what keeps the out-of-reach case safe (2026-07-27; it replaced the older
 `reachFade`, which faded the solve out entirely and left the arms playing the plain clip). When
@@ -170,8 +198,13 @@ land on the grip exactly.
 
 ## Animator
 
-**Controller:** `Assets/Animation/Annie/Annie.controller` — parameters `isMoving`, `isDashing`,
-`isGrabbing`, `isThrowing`, all bool, all hashed once in `AnimId`.
+**Controllers:** `Assets/Animation/{Annie/Annie, Bun Jovi/Bun Jovi, Scannor/Scannor}.controller`
+— three copies of the same graph, each pointing at its own FBX's clips (takes named
+`AN_1-idle-Loop`, `AN_2-jog`, `AN_4-throw_Enter`, `AN_5-throw-Loop`, `AN_6-throw-End`,
+`AN_7-throw-loop-jog`, `AN_8-dash`, with loop flags set on the importer). Annie's spare
+`AN_3-jog-Stop` and the others' `AN_1-idle-RARE` are imported but unused. Parameters
+`isMoving`, `isDashing`, `isGrabbing`, `isThrowing`, all bool, all hashed once in `AnimId`.
+A graph change must be made three times — or made once and re-copied with motions swapped.
 
 ```text
 Idle ⇄ Move                     isMoving
