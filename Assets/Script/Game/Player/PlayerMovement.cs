@@ -210,6 +210,10 @@ public class PlayerMovement : MonoBehaviour
         if (!body.SweepTest(moveDelta.normalized, out RaycastHit hit, moveDelta.magnitude + 0.05f,
                             QueryTriggerInteraction.Ignore)) return;
 
+        // Anything tagged "Ground" (ramps, low platforms, floor seams) is walkable —
+        // skip the wall-clamp entirely and let the player move onto/over it normally.
+        if (hit.collider.CompareTag("Ground")) return;
+
         Rigidbody hitRb = hit.rigidbody;
         bool isWall = hitRb == null || hitRb.isKinematic || hitRb.mass >= body.mass;
         if (!isWall) return;
