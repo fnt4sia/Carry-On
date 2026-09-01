@@ -267,7 +267,7 @@
                 {
                     "name": "",
                     "id": "8d0e2f4a-6b7c-4d9e-f51a-3b5c7d9e1f3a",
-                    "path": "<Keyboard>/rightCtrl",
+                    "path": "<Keyboard>/slash",
                     "interactions": "",
                     "processors": "",
                     "groups": "KeyboardRight",
@@ -329,7 +329,7 @@
                     "name": "Pause",
                     "type": "Button",
                     "id": "d347666a-6bf8-41cb-84f2-5c2cd45accbe",
-                    "expectedControlType": "Button",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false

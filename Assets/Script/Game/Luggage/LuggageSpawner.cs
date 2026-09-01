@@ -2,11 +2,32 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-// Singleton that runs the wave loop. Reads LevelConfig and spawns luggage at intervals
-// using a per-prefab object pool. Exposes ReturnLuggage(Luggage) so destroyed, expired,
-// or sunk luggage can be recycled back into the pool instead of being destroyed.
-public class LuggageSpawner : SingletonBehaviour<LuggageSpawner>
+// Runs the wave loop. Reads LevelConfig and spawns luggage at intervals using a
+// per-prefab object pool. Exposes ReturnLuggage(Luggage) so destroyed, expired, or sunk
+// luggage can be recycled back into the pool instead of being destroyed.
+//
+// A scene may hold as many spawners as the layout needs; drop in another Spawner prefab
+// and it feeds its own belt. Each one runs the level config's wave loop independently,
+// so the config's numbers are per spawner: two spawners with luggagePerWave = 4 put 8
+// bags on the floor per wave. That makes a second spawner a real difficulty change, so
+// re-check the star thresholds by hand after adding one.
+public class LuggageSpawner : MonoBehaviour
 {
+    // Registered in enable order. The first one owns the shared pool, so a bag returned
+    // at any sink can be re-rented by any spawner instead of each keeping its own pile.
+    private static readonly List<LuggageSpawner> activeSpawners = new();
+
+    public static LuggageSpawner Instance
+    {
+        get
+        {
+            for (int i = 0; i < activeSpawners.Count; i++)
+                if (activeSpawners[i] != null)
+                    return activeSpawners[i];
+            return null;
+        }
+    }
+
     private LevelConfig levelConfig;
 
     [Header("Fallback (no LevelConfig, e.g. menus)")]
@@ -25,11 +46,30 @@ public class LuggageSpawner : SingletonBehaviour<LuggageSpawner>
     private readonly List<Gate> activeDeliveryGates = new List<Gate>();
     private Transform poolRoot;
 
-    protected override void OnSingletonAwake()
+    // Created on first use so only the pool-owning spawner builds one.
+    private Transform PoolRoot
     {
-        GameObject poolObject = new("LuggagePool");
-        poolObject.transform.SetParent(transform, false);
-        poolRoot = poolObject.transform;
+        get
+        {
+            if (poolRoot == null)
+            {
+                GameObject poolObject = new("LuggagePool");
+                poolObject.transform.SetParent(transform, false);
+                poolRoot = poolObject.transform;
+            }
+            return poolRoot;
+        }
+    }
+
+    private void OnEnable()
+    {
+        if (!activeSpawners.Contains(this))
+            activeSpawners.Add(this);
+    }
+
+    private void OnDisable()
+    {
+        activeSpawners.Remove(this);
     }
 
     private void Start()
@@ -103,7 +143,10 @@ public class LuggageSpawner : SingletonBehaviour<LuggageSpawner>
         spawnPosition = transform.position;
         spawnRotation = GetRandomSpawnRotation();
 
-        Luggage luggage = RentLuggage(prefab, spawnPosition, spawnRotation);
+        // Rent through the pool owner, not through this spawner, so bags recycle across
+        // every spawner in the scene instead of each one hoarding its own.
+        LuggageSpawner pool = Instance != null ? Instance : this;
+        Luggage luggage = pool.RentLuggage(prefab, spawnPosition, spawnRotation);
         if (luggage == null) return null;
 
         // Set before Initialize: Initialize refreshes the timer readout, which reads the flag.
@@ -195,8 +238,7 @@ public class LuggageSpawner : SingletonBehaviour<LuggageSpawner>
             poolDictionary[key] = queue = new Queue<GameObject>();
 
         luggage.gameObject.SetActive(false);
-        if (poolRoot != null)
-            luggage.transform.SetParent(poolRoot, worldPositionStays: false);
+        luggage.transform.SetParent(PoolRoot, worldPositionStays: false);
         queue.Enqueue(luggage.gameObject);
         return true;
     }

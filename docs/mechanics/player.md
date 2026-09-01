@@ -15,7 +15,7 @@ Joining is polled only in `MainMenu`, because one physical keyboard is shared by
 | Join input | Scheme | Gameplay half |
 |---|---|---|
 | Space | `KeyboardLeft` | WASD, Left Shift, E, F |
-| Right Shift | `KeyboardRight` | arrows, Right Shift, Right Ctrl, L |
+| Right Shift | `KeyboardRight` | arrows, Right Shift, `/`, L |
 | gamepad South | `Gamepad` | one unpaired gamepad |
 
 A keyboard scheme is free when no current player uses its scheme name; a gamepad is free when no

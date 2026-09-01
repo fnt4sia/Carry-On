@@ -155,7 +155,7 @@ to join two real `PlayerInputManager` players:
 | Player | Scheme | Move | Dash | Grab | Use station |
 |---|---|---|---|---|---|
 | P1 | `KeyboardLeft` | WASD | Left Shift | E | F |
-| P2 | `KeyboardRight` | arrows | Right Shift | Right Ctrl | L |
+| P2 | `KeyboardRight` | arrows | Right Shift | `/` | L |
 
 This is the production input path — no `InjectInput`, no placed character clones, no special
 pause branch. Player index, scoring attribution, actions, spawning, station use, and stealing all
