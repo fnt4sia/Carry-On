@@ -30,7 +30,7 @@ MonoBehaviour:
   star3Score: 120
   luggagePrefabs:
   - {fileID: 2657728768583679652, guid: 3ff59be8ddf8948129c2020ea3ca360c, type: 3}
-  luggageLifetime: 35
+  luggageLifetime: 50
   waveDelay: 9
   luggagePerWave: 5
   intraWaveInterval: 1.7
