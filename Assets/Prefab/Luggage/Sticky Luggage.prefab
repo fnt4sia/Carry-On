@@ -9871,10 +9871,12 @@ MonoBehaviour:
   fragileBreakThreshold: 300
   fragileGrabImmunityDuration: 2
   minimumCollisionAudioSpeed: 1.5
+  minimumCollisionImpulse: 60
   mediumCollisionAudioSpeed: 4
   hardCollisionAudioSpeed: 8
   collisionAudioCooldown: 0.15
   outline: {fileID: 3892642802799166956}
+  isTutorialLuggage: 0
   behaviorType: 1
   sourcePrefab: {fileID: 0}
 --- !u!114 &3892642802799166956

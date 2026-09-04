@@ -24,7 +24,7 @@ MonoBehaviour:
   destinationCode: CGK
   destinationName: JAKARTA
   previewImage: {fileID: 0}
-  gameTime: 999
+  gameTime: 180
   star1Score: 10
   star2Score: 30
   star3Score: 60

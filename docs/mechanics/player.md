@@ -1,7 +1,8 @@
 # Player
 
 **Scripts:** `MainMenu/PlayerSystem.cs`, `MainMenu/DebugAutoJoin.cs`,
-`Game/Player/{PlayerSpawner, PlayerMovement, PlayerGrab, PlayerHandIK, JointBreakHandler}.cs`
+`Game/Player/{PlayerSpawner, PlayerMovement, PlayerGrab, PlayerHandIK, JointBreakHandler,
+PlayerIndicator, PlayerRingIndicator}.cs`
 **Prefabs:** `Assets/Prefab/Character/{Annie, Bun Jovi, Scannor}.prefab` — all feel values are
 serialized per prefab (the three currently share Annie's tuning; they were cloned from her).
 
@@ -67,6 +68,49 @@ the matching point. `MovePlayerToSpawn` also serves hazard respawn, and zeroes v
 teleporting. If an index has no point, the spawner falls back to point 0 and warns — author four
 valid points even if you usually test with two players.
 
+## Indicators
+
+Two pieces of art say which body is yours. Both are nested prefab instances on all three
+character prefabs, and both take their colour from one palette so they can never disagree
+about who is 1P.
+
+| | Pin | Ring |
+|---|---|---|
+| Prefab | `Assets/Prefab/UI/Player Indicator.prefab` | `Assets/Prefab/Character/Player Ring.prefab` |
+| Script | `PlayerIndicator` | `PlayerRingIndicator` |
+| What | world-space canvas "1P" tag over the head | eight flat segments on the floor |
+| Lifetime | shrinks away `gameplayShowSeconds` (3s) into a round | up for the whole game |
+
+**Pin.** Forced onto the `WorldUI` layer, so the overlay camera draws it over level geometry.
+Its height comes from the `SkinnedMeshRenderer` bounds, **not the capsule** — every body shares
+one capsule that stops at the skull, so Annie's hat and Bun Jovi's ears would poke through a
+capsule-derived height. It copies the camera's rotation rather than aiming at the camera:
+aiming tilts pins near the screen edge and the perspective skew reads as a stretched sprite.
+The hide timer restarts on every `sceneLoaded` (the player object persists, so `Awake` fires
+once for the whole run) and only counts down when a `GameManager` exists — in the lobby the
+pin never hides.
+
+**Ring.** One shared material, `Assets/Material/World/PlayerRing.mat` (URP Unlit, transparent),
+tinted per player through a `MaterialPropertyBlock` — nothing is cloned and no material leaks.
+`alpha` is deliberately low (0.35): the ring is on screen all round and must not compete with
+the luggage. It spins at `spinSpeed` (45°/s) written as a **world** rotation, so it turns
+steadily instead of swinging every time the body does, and it sits at the collider's
+`bounds.min.y` plus `groundOffset` so it stays on the floor without z-fighting.
+
+Each segment is 0.55 long against a 0.887 arc. The overlap is on purpose in reverse: the bars
+used to be 1.0 and butted into a solid octagon, which made the spin invisible. **If you close
+those gaps, the ring stops reading as moving.**
+
+`PlayerIndicator.CurrentColor` is the single source of truth. The palette is serialized only on
+the pin prefab; `PlayerRingIndicator` resolves the pin at `Awake` through the shared
+`PlayerInput` and reads that property each frame. Nothing on the ring is wired by hand, so the
+same prefab drops onto any body.
+
+> Before September 2026 the ring was a loose `Indicator (1)` object hand-built out of cubes on
+> Annie and Bun Jovi only — Scannor had none, and the two that existed had each other's
+> materials baked in (Annie, player 1, wore `Player2Indicator.mat`). `Player1Indicator.mat` and
+> `Player2Indicator.mat` are now unreferenced.
+
 ## Movement and dash
 
 Movement is camera-relative and position-driven. `Update` reads the `Move` and `Dash` actions;
@@ -81,6 +125,20 @@ rigidbody and any carried luggage body run `SweepTest` along the proposed delta.
 kinematic, or heavier collisions remove only the into-wall component from displacement and
 velocity, so the player slides instead of sticking. Triggers and lighter dynamic props don't
 block movement.
+
+**Only near-vertical surfaces count as walls.** The sweep returns early when `hit.normal.y > 0.5`,
+because a surface facing mostly upward is a floor, a ramp, or the lip of a low platform. The
+check used to flatten the normal and compare it against ~0 instead, which was wrong: flattening
+a near-flat hit like `(-0.09, 0.99, -0.09)` leaves a small horizontal component that normalises
+to a *full-strength* wall normal and cancels the entire move. That is what stopped players dead
+when stepping between rotating platforms, and only intermittently — a non-kinematic body with
+`defaultContactOffset` 0.01 rests somewhere in a 0.005–0.05 penetration band that varies step to
+step, and only part of that band produced the bad hit.
+
+The `Ground` tag is an earlier, weaker workaround for the same problem and is now largely
+redundant. It is checked on **`hit.collider`**, so it must be on the object that owns the
+collider — tagging a parent does nothing. Level 2 has nine `Ground` overrides applied by hand,
+three of them on rotating-platform *roots* where they never took effect.
 
 **Carry anchor delta.** While carrying, the controller records `grabAnchor.position` before
 movement and rotation, then moves the luggage by the anchor's full world delta — linear motion
@@ -181,7 +239,8 @@ the game originally shipped with, so it cannot collide with anything the old cap
 Hair, hat and ears intentionally poke above it.
 
 > If you change a feel value — speed, grab radius, joint spring, capsule — **change it on all
-> three prefabs.** They are meant to be interchangeable bodies, not balance variants. A diff of
+> three prefabs.** (Ring and pin are the exception that proves the rule: they are nested
+> prefabs now, so editing one asset covers all three bodies.) They are meant to be interchangeable bodies, not balance variants. A diff of
 > all 1020 serialized properties across the three should come back empty.
 
 `maxReach` is what keeps the out-of-reach case safe (2026-07-27; it replaced the older

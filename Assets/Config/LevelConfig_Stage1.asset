@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: LevelConfig_Stage1
   m_EditorClassIdentifier: Assembly-CSharp::LevelConfig
   levelId: stage-1
-  sceneName: DesignScene
+  sceneName: Level1
   displayName: Stage 1
   description: Learn the baggage flow with forgiving waves and longer luggage timers.
   unlockedByDefault: 1
@@ -30,7 +30,6 @@ MonoBehaviour:
   star3Score: 90
   luggagePrefabs:
   - {fileID: 2657728768583679652, guid: 3ff59be8ddf8948129c2020ea3ca360c, type: 3}
-  - {fileID: 7318264214933058454, guid: 918e7b0e7e18340caa11355807c50fc4, type: 3}
   luggageLifetime: 35
   waveDelay: 12
   luggagePerWave: 4

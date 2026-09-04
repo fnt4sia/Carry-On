@@ -57,7 +57,10 @@ when the real model exists; nothing in the script reads the geometry.
 ## Gateway
 
 The sliding double door. `Gateway` exposes `Open`, `Close`, and `Toggle`, driving the cached
-`AnimId.IsOpen` animator parameter. Normally driven by a `PressurePlate`. `Gateway_Open` /
+`AnimId.IsOpen` animator parameter. Normally driven by a `PressurePlate`; in `Tutorial` it is
+driven by `TutorialRoom` instead, which opens a room's doors once its luggage is cleared (see
+[levels](../levels.md#tutorial)). Both drivers just call `Open` — the door never knows which.
+`Gateway_Open` /
 `Gateway_Closed` are constant-pose clips that slide `MainLeftDoor` / `MainRightDoor` along local
 Z; the transition blend is the slide.
 
@@ -206,6 +209,18 @@ left a rider registered forever. Because the carry maths is `pivot + delta * (ri
 a ghost rider gets flung harder the further away they walk, so the bug read as "the platform
 throws me across the map while I'm nowhere near it". An overlap query cannot drift.
 
+**One platform carries a rider, never two.** Ownership is global and sticky: `s_Owners` maps
+each rider to the platform holding it, and a platform skips any rider another *active* platform
+still lists. The holder keeps a rider until the rider leaves its zone, so crossing a seam is a
+one-step handoff rather than a fight. Without this, two platforms placed to meet tip-to-tip both
+carried the same rider in the same `FixedUpdate` and the two carries **added**. Measured on the
+Level 2 diamond (pivots 16.04 apart, half-length sum 16.28, 25 °/s counter-rotating): a rider at
+the seam moved at **6.997 u/s instead of 3.50** — 70% of walk speed, sideways — while the two
+opposed rotations cancelled its yaw to **0.000°**, so the character slid without turning. The
+double-claim window is **49° of phase**, about a second per crossing. Same-direction neighbours
+would instead double the spin. Execution order between platforms is undefined, so this is not
+something the level author can dodge by ordering the hierarchy.
+
 **The player is carried by a transform write, luggage by `MovePosition`.** `PlayerMovement`
 walks by assigning `transform.position` directly, and the project runs with **Auto Sync
 Transforms off**, so `rigidbody.position` goes stale the instant it does. Carrying the player
@@ -244,7 +259,12 @@ at the old 35 °/s the ends moved at 13.5 u/s, faster than the player's 10 u/s w
 simply could not stand. It now runs at **10 °/s** — 3.9 u/s at the tip, 36 s per revolution.
 Re-check this number whenever the beam's length changes.
 
-**Placement.** The deck's top surface should sit flush with the surrounding floor so players can
+**Placement.** Neighbouring platforms are *meant* to overlap slightly — the Level 2 diamond
+spaces pivots at 16.04 against a 16.28 half-length sum, so the tips meet and you can cross. Do
+not try to fix rider problems by pulling them apart; a gap leaves the rider uncarried mid-stride.
+Ownership arbitration is what makes the seam safe.
+
+The deck's top surface should sit flush with the surrounding floor so players can
 walk on and off, with the floor under the sweep carved away. If the floor is left solid beneath
 the beam, anyone standing in the beam's path is briefly a rider and gets dragged as it passes —
 the rider zone is the deck footprint and cannot tell "on the deck" from "on the floor the deck

@@ -15,6 +15,10 @@ public class Luggage : MonoBehaviour
 
     [Header("Collision Audio")]
     [SerializeField, Min(0f)] private float minimumCollisionAudioSpeed = 1.5f;
+    [Tooltip("Minimum impact force before a clip plays. Speed alone counts a glancing scrape " +
+             "as a hard hit; this is the force that actually landed. Luggage is 30 kg, so 60 " +
+             "is about a 2 m/s head-on hit and a settling nudge is nearer 3.")]
+    [SerializeField, Min(0f)] private float minimumCollisionImpulse = 60f;
     [SerializeField, Min(0f)] private float mediumCollisionAudioSpeed = 4f;
     [SerializeField, Min(0f)] private float hardCollisionAudioSpeed = 8f;
     [SerializeField, Min(0f)] private float collisionAudioCooldown = 0.15f;
@@ -131,11 +135,27 @@ public class Luggage : MonoBehaviour
 
     private void PlayCollisionAudio(Collision collision)
     {
+        // A bag rattles against the deck for its whole trip down a belt, so every seam and
+        // every bounce fired a clip and the track turned into a constant clatter. Checked
+        // before the cooldown on purpose: a muted belt hit must not eat the cooldown that a
+        // real impact needs. Only the belt itself is silent — bag-on-bag, bag-on-wall and
+        // bag-on-player hits still play while riding it.
+        if (collision.collider.GetComponentInParent<Conveyor>() != null)
+            return;
+
         if (Time.time < nextCollisionAudioTime)
             return;
 
         float collisionSpeed = collision.relativeVelocity.magnitude;
         if (collisionSpeed < minimumCollisionAudioSpeed)
+            return;
+
+        // Speed alone reads a glancing scrape as a hard hit — a bag sliding along a wall or
+        // shuffling against another bag keeps its full relative velocity while barely pushing
+        // on anything, which is what made the clatter constant. Impulse is the force that
+        // actually landed. Like the speed floor, this runs before the cooldown is stamped, so
+        // a rejected tap never mutes the real impact a moment later.
+        if (collision.impulse.magnitude < minimumCollisionImpulse)
             return;
 
         nextCollisionAudioTime = Time.time + collisionAudioCooldown;
@@ -185,7 +205,12 @@ public class Luggage : MonoBehaviour
         if (LuggageSpawner.Instance != null && LuggageSpawner.Instance.ReturnLuggage(this))
             return;
 
-        Debug.LogWarning($"{nameof(Luggage)} '{name}' could not return to a pool and will be destroyed.", this);
+        // Only a bag that came from a pool is expected back in one. Scene-placed luggage has no
+        // pool key by design — Tutorial authors every bag in the scene and has no spawner at all —
+        // so destroying it is the normal path, not a fault worth a warning.
+        if (sourcePrefab != null)
+            Debug.LogWarning($"{nameof(Luggage)} '{name}' could not return to a pool and will be destroyed.", this);
+
         Destroy(gameObject);
     }
 

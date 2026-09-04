@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: LevelConfig_Stage3
   m_EditorClassIdentifier: Assembly-CSharp::LevelConfig
   levelId: stage-3
-  sceneName: Stage_3
+  sceneName: Level3
   displayName: Stage 3
   description: Shorter deadlines and frequent bomb checks pressure both players.
   unlockedByDefault: 0

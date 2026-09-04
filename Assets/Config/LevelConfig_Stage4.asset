@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: LevelConfig_Stage4
   m_EditorClassIdentifier: Assembly-CSharp::LevelConfig
   levelId: stage-4
-  sceneName: Stage_4
+  sceneName: Level4
   displayName: Stage 4
   description: Peak-hour waves leave little time and make bomb detection essential.
   unlockedByDefault: 0

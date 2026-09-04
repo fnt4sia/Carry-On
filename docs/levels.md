@@ -14,6 +14,7 @@ object-to-object wiring.
 |---|---|
 | Identity | `levelId`, `sceneName`, `displayName`, `description` |
 | Progression | `unlockedByDefault`, `nextLevel` |
+| Stage select ticket | `flightCode`, `originCode`, `originName`, `destinationCode`, `destinationName`, `previewImage` |
 | Round | `gameTime`, `star1Score`, `star2Score`, `star3Score` |
 | Content | `luggagePrefabs`, `luggageLifetime` |
 | Waves | `waveDelay`, `luggagePerWave`, `intraWaveInterval` |
@@ -30,7 +31,7 @@ Behaviour is defined by each luggage prefab; there is no behaviour list on `Leve
 
 | Config | Round | Stars | Lifetime | Wave delay | Per wave | Interval |
 |---|---:|---|---:|---:|---:|---:|
-| Tutorial | 180s | 20 / 40 / 60 | 45s | 12s | 3 | 2.5s |
+| Tutorial | 180s | 20 / 40 / 60 | 35s | 12s | 3 | 2.5s |
 | Stage 1 | 120s | 30 / 60 / 90 | 28s | 11s | 4 | 2.0s |
 | Stage 2 | 120s | 40 / 80 / 120 | 24s | 9s | 5 | 1.7s |
 | Stage 3 | 120s | 50 / 100 / 150 | 22s | 8s | 5 | 1.4s |
@@ -40,29 +41,44 @@ Behaviour is defined by each luggage prefab; there is no behaviour list on `Leve
 Every config uses +10 correct, −5 missing process, −5 expiry, −5 wrong gate. Tutorial and Stage 1
 are unlocked by default; the rest unlock through the `nextLevel` chain.
 
-## Dangling configs
+## Config ↔ scene mapping
 
-`Stage_1..4` and `Stage Tutorial` were deleted in the July 2026 DesignScene consolidation but
-their config assets were kept, so most of them still name scenes that do not exist:
+Wired September 2026. Every config names a real scene, every scene's `LevelContext` points at its
+own config, and all of them are in Build Settings — `SceneLoader` validates a target against Build
+Settings before loading, so the config alone is never enough.
 
-| Config | `sceneName` | Scene exists? |
-|---|---|---|
-| `LevelConfig_Design` | `DesignScene` | yes, **and now in Build Settings** |
-| `LevelConfig_Stage1` | `DesignScene` | yes — **repointed August 2026** so Stage 1 is playable |
-| `LevelConfig_Tutorial` | `Stage Tutorial` | **no** |
-| `LevelConfig_Stage2..4` | `Stage_2` … `Stage_4` | **no** |
+| Config | `sceneName` | Build index | Luggage pool |
+|---|---|---:|---|
+| `LevelConfig_Tutorial` | `Tutorial` | 3 | Normal |
+| `LevelConfig_Stage1` | `Level1` | 4 | Normal |
+| `LevelConfig_Stage2` | `Level2` | 5 | Normal |
+| `LevelConfig_Stage3` | `Level3` | 6 | Normal, Sticky, Fragile |
+| `LevelConfig_Stage4` | `Level4` | 7 | Normal, Sticky, Fragile |
+| `LevelConfig_Design` | `DesignScene` | 2 | Normal, Sticky, Fragile |
 
-`SceneLoader` validates a target against Build Settings before loading, so a bad route fails
-loudly rather than hanging. That is why `DesignScene` had to be **added to Build Settings** — the
-config alone is not enough.
+**The pool follows the stations the scene actually has.** Tutorial, Level1 and Level2 contain no
+washer and no wrapper, so they can only run Normal — a Sticky or Fragile bag there can never be
+processed and every delivery is a penalty. Level3 (2 washers, 2 wrappers) and Level4 (2 washers,
+3 wrappers) carry the anomalies. If you add a station to a scene, widen that config's pool to
+match; if you widen a pool, add the station first. The validator enforces exactly this pairing.
 
-**Stage 1 is a temporary alias, not a real stage.** It loads `DesignScene`, and `DesignScene`'s
-own `LevelContext` points at `LevelConfig_Design` — so the round runs Design's timer, waves and
-scoring, *not* Stage 1's. The node's config only supplies the scene name and the stage-select
-copy. Point that `LevelContext` at `LevelConfig_Stage1` if Stage 1 should actually play by its
-own numbers.
+`Stage 1 is no longer an alias for DesignScene` — it was one from August 2026 until this wiring,
+which meant it ran Design's 999-second timer instead of its own numbers. It now loads `Level1`
+and plays by `LevelConfig_Stage1`.
 
-`Stage2..4` still route nowhere, so the `nextLevel` chain dead-ends after Stage 1.
+Stage select routes Node 1–4 at `LevelConfig_Stage1..4`, and `nextLevel` chains
+Tutorial → Stage 1 → Stage 2 → Stage 3 → Stage 4. Tutorial and Stage 1 are unlocked by default.
+
+### Still unwired
+
+- **`LevelConfig_Tutorial` has no map node.** The chain reaches Stage 1 *from* it, but nothing on
+  `ChooseStage` routes *to* it — the map only has four nodes.
+- **`Level3 1`** is a duplicate of `Level3` (same 2 washers / 2 wrappers) and is deliberately left
+  pointing at `LevelConfig_Design` and out of the build. Two scenes cannot claim one config's
+  `sceneName`. Delete it or give it its own config.
+- **`Test`** is decoration staging with no `LevelContext`, and stays out of the build.
+- **No stage scene has a `LuggageSink`.** Only `DesignScene` does. Missed luggage is never
+  recycled in any real level — see the validator errors below.
 
 ## Authoring a level
 
@@ -135,13 +151,63 @@ silently falls back to an in-place swap.
 `BeltSurface` physic material on every deck; and one deck height per scene
 (`position.y + 4.0 × scale.y`).
 
-**Validate All Build Scenes covers `DesignScene`** since it was added to Build Settings (index 2);
-it still skips MainMenu and ChooseStage for having no `LevelContext`. Editor-only scenes such as
-`Level1` are not in the build, so validate those with Validate Open Scene.
+**Validate All Build Scenes now covers every stage** — `DesignScene`, `Tutorial`, and `Level1..4`
+are all in Build Settings. It still skips MainMenu and ChooseStage for having no `LevelContext`.
+`Level3 1` and `Test` are out of the build, so validate those with Validate Open Scene.
+
+### Known outstanding findings
+
+Config wiring is clean; what remains is level geometry and content, unchanged by that pass:
+
+| Scene | Finding |
+|---|---|
+| all five stages | **no `LuggageSink`** — missed luggage never recycles |
+| `Tutorial` | **no `LuggageSpawner` — deliberate**, see [Tutorial](#tutorial); all 9 gates are numbered `1`; 8 non-uniform `Conveyor Straight` scales; stepped deck seam |
+| `Level1` | stepped deck seam (y 3.99 vs 4.6) |
+| `Level4` | stepped deck seam (y 14.62 vs 25.35); 3 decks missing `BeltSurface` |
+| `DesignScene` | stepped deck seam — the standing "Service Spur" false positive |
 
 Add a check whenever you catch yourself saying "I forgot to…". Rule of thumb: if the mistake can
 be described numerically or as a missing reference, it belongs here. If it needs eyes — does the
 route feel good, is the camera framing nice — it stays manual QA.
+
+## Tutorial
+
+**Script:** `Game/World/TutorialRoom.cs`
+
+Tutorial is the one stage that does not spawn luggage. It is three rooms in a line, each holding
+its own authored bags and the doors out of it, wired with a `TutorialRoom` under `Tutorial Rooms`:
+
+| Room | Volume centre | Luggage | Behaviour | On completion |
+|---|---|---:|---|---|
+| `Room 1 - Arrivals` | `(-68, 12, 56)` | 9 on the floor | tutorial, no timer | opens `GateWay`, `GateWay (2)` |
+| `Room 2 - Carousel` | `(6, 12, 40)` | 6 on `FullsetConveyor` | tutorial, no timer | opens `GateWay (3)`, `GateWay (4)` |
+| `Room 3 - Departures` | `(3, 12, 155)` | 6 on `FullsetConveyor (1)` | **timed**, 35 s | ends the round |
+
+A room switches its `Luggage` child on when a player enters its `BoxCollider`, and completes when
+every bag under that child is gone. Room 1's root is left on because the players spawn inside it;
+rooms 2 and 3 are authored **off**. Completion opens doors, so the room order is scene wiring —
+the component never knows where it sits in the chain.
+
+**Corridor doors come in pairs.** `GateWay`/`GateWay (2)` sit at the two ends of the room 1 → 2
+corridor and `GateWay (3)`/`GateWay (4)` at the ends of room 2 → 3. Both ends must be listed on
+the same room or players walk into a corridor and are sealed in. All four are authored **closed**;
+they were authored open before this wiring existed, so a room had nothing to unlock.
+
+**Timer freedom comes from the bag, not the room.** `isTutorialLuggage` is a serialized field on
+each `Luggage`, so rooms 1 and 2 are silent and room 3 counts down with no code deciding it. Only
+room 3 uses `LevelConfig_Tutorial.luggageLifetime`; the config's wave fields (`waveDelay`,
+`luggagePerWave`, `intraWaveInterval`) are dead here because nothing reads them without a spawner.
+
+**Falling bags are put back, not recycled.** With no spawner and no sink, a bag knocked off the
+floor is gone for good and its room could never complete. `TutorialRoom` returns anything that
+drops below `resetBelowY` (default −20) to its start pose. An *expired* bag still counts as
+finished — the player already took the penalty, and keeping it on the tally would deadlock the
+room.
+
+Both belts are closed loops, so bags circulate until someone grabs them. Delivering a scene-placed
+bag destroys it rather than pooling it; that is the normal path here and no longer warns (see
+[luggage](mechanics/luggage.md#pooling)).
 
 ## DesignScene
 

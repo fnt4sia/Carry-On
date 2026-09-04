@@ -10,6 +10,8 @@ using UnityEngine.InputSystem;
 [DefaultExecutionOrder(-100)]
 public class GameManager : SingletonBehaviour<GameManager>
 {
+    private const float MusicFadeOutOnRoundEnd = 1.25f;
+
     private LevelConfig levelConfig;
 
     [Header("Input")]
@@ -107,6 +109,10 @@ public class GameManager : SingletonBehaviour<GameManager>
         PauseChanged?.Invoke(false);
     }
 
+    // Ends the round before the timer reaches zero. The Tutorial's last room calls this once
+    // its luggage is cleared; the normal path is still UpdateGameTimer hitting zero.
+    public void EndRoundEarly() => EndRound();
+
     public void ExitGame()
     {
         Time.timeScale = 1f;
@@ -182,6 +188,9 @@ public class GameManager : SingletonBehaviour<GameManager>
         Time.timeScale = 0f;
         RoundScoreContext.Unbind(scoreBoard);
         AudioManager.Instance?.PlaySFX(Sfx.TimesUp);
+        // Ducks the gameplay track out from under the Time's Up sting and the result card.
+        // StopMusic fades on unscaled time, so it keeps running at timeScale 0.
+        AudioManager.Instance?.StopMusic(MusicFadeOutOnRoundEnd);
 
         GameResult result = new(
             levelConfig.levelId,

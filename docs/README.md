@@ -66,20 +66,27 @@ Unity's `Editor/` folder-name rule rather than from any config file.
 
 ## Scenes
 
-Build Settings contains **three scenes**:
+Build Settings contains **eight scenes**:
 
 | Index | Scene |
 |---:|---|
 | 0 | `Menu/MainMenu` |
 | 1 | `Menu/ChooseStage` |
 | 2 | `Stages/DesignScene` |
+| 3 | `Stages/Tutorial` |
+| 4 | `Stages/Level1` |
+| 5 | `Stages/Level2` |
+| 6 | `Stages/Level3` |
+| 7 | `Stages/Level4` |
 
-`DesignScene` is the mechanic sandbox and, since August 2026, doubles as Stage 1 —
-`LevelConfig_Stage1` was repointed at it so the stage-select chain has somewhere to go.
-`Stages/Test` (decoration staging) and `Stages/Level1` (work-in-progress layout) are editor-only.
-The per-stage scenes `Stage_1..4` and `Stage Tutorial` were deleted in the July 2026 DesignScene
-consolidation; their `LevelConfig` assets outlived them — see
-[levels](levels.md#dangling-configs).
+`DesignScene` is the mechanic sandbox. The second-generation stage scenes were wired to their own
+configs in September 2026 — `Tutorial` and `Level1..4` each point their `LevelContext` at
+`LevelConfig_Tutorial` / `LevelConfig_Stage1..4`, and each of those configs names its scene back.
+`DesignScene` no longer doubles as Stage 1. The original `Stage_1..4` and `Stage Tutorial` scenes
+were deleted in the July 2026 consolidation; their configs were reused for the new scenes. See
+[levels](levels.md#config--scene-mapping).
+
+`Level3 1` (a duplicate of `Level3`) and `Test` (decoration staging) stay out of the build.
 
 ```text
 MainMenu -> ChooseStage -> gameplay stage -> next stage or ChooseStage

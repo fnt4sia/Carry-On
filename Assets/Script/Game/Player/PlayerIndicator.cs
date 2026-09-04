@@ -42,6 +42,21 @@ public class PlayerIndicator : MonoBehaviour
         new(0.851f, 0.467f, 0.024f), // 4P orange
     };
 
+    /// <summary>
+    /// This player's identity colour. <see cref="PlayerRingIndicator"/> reads it instead of
+    /// keeping a second palette, so the pin and the floor ring can never disagree about who
+    /// is 1P. Computed on demand, so it does not depend on script execution order.
+    /// </summary>
+    public Color CurrentColor
+    {
+        get
+        {
+            if (player == null || playerColors == null || playerColors.Length == 0)
+                return Color.white;
+            return playerColors[Mathf.Clamp(player.playerIndex, 0, playerColors.Length - 1)];
+        }
+    }
+
     private Camera targetCamera;
     private int lastIndex = -1;
     private Vector3 baseScale;

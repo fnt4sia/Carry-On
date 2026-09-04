@@ -66,7 +66,7 @@ resolve LevelConfig -> reset ScoreBoard -> publish initial time
   -> 3/2/1 countdown on unscaled time (timeScale 0)
   -> RoundStarted (timeScale 1, SFX + music)
   -> timer and scoring
-  -> EndRound at zero (timeScale 0)
+  -> EndRound at zero (timeScale 0, Time's Up SFX, music fades out over 1.25 s)
   -> GameResult -> ProgressionService + RoundEnded
 ```
 

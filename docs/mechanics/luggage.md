@@ -85,8 +85,15 @@ The spawner pools by `sourcePrefab`. `RentLuggage` restores transform and activa
 `false` when an object has no pool key, which lets `Luggage.DestroyLuggage` log and destroy it
 safely rather than leaking.
 
+A bag that never came from a pool has no `sourcePrefab`, so `ReturnLuggage` refuses it and
+`DestroyLuggage` destroys it. That is the normal end for scene-placed luggage and is **not**
+warned about — only a bag that *did* carry a pool key and still failed to return logs a warning.
+`Tutorial` authors every bag in the scene and has no spawner at all, so without that distinction
+every delivery there logged a false alarm.
+
 `LuggageSink` recycles anything that falls out of the play area. Put one under every water or
-void volume.
+void volume. `Tutorial` has neither a sink nor a spawner, so its rooms recover fallen bags
+themselves — see [levels](../levels.md#tutorial).
 
 Gameplay triggers resolve bags through `Luggage.TryGetFromCollider` — the component is the
 identity. Physics layers narrow queries; tags are never the source of truth.
@@ -131,3 +138,24 @@ render on top.
 Collision speed selects one of three ground or window/glass clips, throttled by a cooldown
 serialized on the luggage prefab. IDs come from `Sfx.LuggageCollision`, which builds the tiered
 ID in one place; `AudioManager` warns once when an ID isn't registered.
+
+**Two floors, not one.** `minimumCollisionAudioSpeed` (1.5 m/s) still picks the tier, but speed
+alone counted a *glancing* contact as a hard hit — a bag sliding along a wall or shuffling
+against another bag keeps its full relative velocity while barely pushing on anything, so the
+clatter never stopped. `minimumCollisionImpulse` (60) is the second gate and the one that
+actually quiets things: it is the force that landed, not how fast the surfaces were passing.
+Luggage is 30 kg under −15 gravity, so 60 ≈ a 2 m/s head-on hit, a settling nudge is nearer 3,
+and the fragile break at 300 is a 10 m/s slam. Neither floor stamps the cooldown, so a rejected
+tap can never mute a real impact a moment later.
+
+**Conveyors are silent.** A bag rattles against the deck the whole way down a belt, so every
+seam and bounce fired a clip and a running level turned into constant clatter. `PlayCollisionAudio`
+drops any collision whose collider resolves to a `Conveyor` through `GetComponentInParent`. The
+test runs **before** the cooldown, so a muted belt hit never eats the cooldown a real impact
+needs, and it only silences the belt — bag-on-bag, bag-on-player, and the sliding-door `Panel`
+colliders on `FullsetConveyor` all still play while riding it.
+
+The one thing it also silences is a bag slammed into the *side* of a belt: the deck
+`MeshCollider` is generated from the whole model, rails included, so nothing distinguishes a
+side rail from the deck by collider. If that ever matters, gate on an upward contact normal
+instead of muting the collider outright.

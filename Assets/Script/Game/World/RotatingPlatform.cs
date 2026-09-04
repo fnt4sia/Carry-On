@@ -6,6 +6,13 @@ using UnityEngine;
 // A PressurePlate calls ReverseDirection to flip clockwise/counter-clockwise; the plate
 // owns that connection, so the platform keeps no reference back to it.
 //
+// Rider ownership is global and sticky: a rider is carried by exactly one platform per step.
+// Two platforms placed to meet tip-to-tip have overlapping rider zones, and without this both
+// carried the same rider in the same FixedUpdate. The carries add, so a counter-rotating pair
+// cancelled the rider's yaw while doubling their translation - the rider slid sideways at twice
+// the deck speed without turning. Whoever holds a rider keeps it until the rider leaves that
+// platform's zone, which makes crossing a seam a clean handoff instead of a fight.
+//
 // Riders are re-discovered every FixedUpdate by overlapping the rider zone rather than by
 // counting OnTriggerEnter/Exit pairs. A missed exit — a collider disabled while standing on
 // the platform, a teleport, a grab that swaps colliders — used to leave a rider registered
@@ -143,6 +150,9 @@ public class RotatingPlatform : MonoBehaviour
             if (riderTransform == rotatingBody || riderTransform.IsChildOf(rotatingBody))
                 continue;
 
+            if (!TryClaim(riderTransform))
+                continue;
+
             if (!riders.TryGetValue(riderTransform, out RiderState state))
             {
                 bool transformDriven = riderTransform.GetComponent<PlayerMovement>() != null;
@@ -167,8 +177,38 @@ public class RotatingPlatform : MonoBehaviour
             if (riders.TryGetValue(s_StaleRiders[i], out RiderState state))
                 ReleaseRider(state);
 
+            ReleaseOwnership(s_StaleRiders[i]);
             riders.Remove(s_StaleRiders[i]);
         }
+    }
+
+    // Takes this rider unless another platform is still carrying it. The holder keeps a rider
+    // while it still lists one, so a rider standing in two overlapping zones is carried by the
+    // platform it was already on rather than by both.
+    private bool TryClaim(Transform rider)
+    {
+        if (!s_Owners.TryGetValue(rider, out RotatingPlatform owner) || owner == null || !owner.isActiveAndEnabled)
+        {
+            s_Owners[rider] = this;
+            return true;
+        }
+
+        if (owner == this)
+            return true;
+
+        // The holder drops the rider in its own stale sweep once the rider leaves its zone.
+        // Until then it keeps it; the handoff costs at most one FixedUpdate of carry.
+        if (owner.riders.ContainsKey(rider))
+            return false;
+
+        s_Owners[rider] = this;
+        return true;
+    }
+
+    private void ReleaseOwnership(Transform rider)
+    {
+        if (rider != null && s_Owners.TryGetValue(rider, out RotatingPlatform owner) && owner == this)
+            s_Owners.Remove(rider);
     }
 
     private Vector3 GetZoneHalfExtents()
@@ -269,13 +309,17 @@ public class RotatingPlatform : MonoBehaviour
     private void ReleaseAllRiders()
     {
         foreach (KeyValuePair<Transform, RiderState> pair in riders)
+        {
             ReleaseRider(pair.Value);
+            ReleaseOwnership(pair.Key);
+        }
 
         riders.Clear();
     }
 
     private static Collider[] s_Overlaps = new Collider[64];
     private static readonly List<Transform> s_StaleRiders = new List<Transform>();
+    private static readonly Dictionary<Transform, RotatingPlatform> s_Owners = new Dictionary<Transform, RotatingPlatform>();
 
     private static bool IsCarryable(Collider other)
     {

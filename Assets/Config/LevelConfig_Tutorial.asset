@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: LevelConfig_Tutorial
   m_EditorClassIdentifier: Assembly-CSharp::LevelConfig
   levelId: tutorial
-  sceneName: Stage Tutorial
+  sceneName: Tutorial
   displayName: Training Day
   description: Practice grabbing, washing, and delivering without heavy pressure.
   unlockedByDefault: 1
@@ -30,7 +30,6 @@ MonoBehaviour:
   star3Score: 60
   luggagePrefabs:
   - {fileID: 2657728768583679652, guid: 3ff59be8ddf8948129c2020ea3ca360c, type: 3}
-  - {fileID: 7318264214933058454, guid: 918e7b0e7e18340caa11355807c50fc4, type: 3}
   luggageLifetime: 35
   waveDelay: 12
   luggagePerWave: 3

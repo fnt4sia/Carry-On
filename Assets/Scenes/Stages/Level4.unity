@@ -5287,7 +5287,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: edab93779f2ae481ea2f5de1e1283959, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CarryOn.Core::LevelContext
-  levelConfig: {fileID: 11400000, guid: 350922281f01f4803be9d0098a726c76, type: 2}
+  levelConfig: {fileID: 11400000, guid: 15e248666776648698057017dab07e86, type: 2}
 --- !u!4 &357115672
 Transform:
   m_ObjectHideFlags: 0

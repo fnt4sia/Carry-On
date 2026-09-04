@@ -218,9 +218,16 @@ public class PlayerMovement : MonoBehaviour
         bool isWall = hitRb == null || hitRb.isKinematic || hitRb.mass >= body.mass;
         if (!isWall) return;
 
-        Vector3 wallNormal = hit.normal; wallNormal.y = 0f;
-        if (wallNormal.sqrMagnitude < 0.0001f) return; // grazing a floor/ceiling — ignore
-        wallNormal.Normalize();
+        // A surface facing mostly upward is a floor, a ramp, or the lip of a low platform:
+        // walkable, not a wall. This used to flatten the normal and test it against ~0, which
+        // let a barely-tilted floor hit through — flattening (-0.09, 0.99, -0.09) leaves a small
+        // horizontal component that normalises to a full-strength wall and cancels the whole
+        // move. That is what stopped players dead at rotating-platform seams, and only
+        // sometimes, because it depended on how deep the capsule happened to be resting in the
+        // deck that step.
+        if (hit.normal.y > 0.5f) return;
+
+        Vector3 wallNormal = new Vector3(hit.normal.x, 0f, hit.normal.z).normalized;
 
         float intoWall = Vector3.Dot(moveDelta, -wallNormal);
         if (intoWall > 0f) moveDelta += wallNormal * intoWall;

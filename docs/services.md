@@ -33,9 +33,11 @@ one-shot IDs.
 When adding audio, register the clip on the runtime prefab and add or reuse a constant in
 `Sfx.cs`. Don't scatter a new literal through callers.
 
-On a level load, menu music fades out; `GameManager` starts gameplay music after the countdown.
-Menu and stage-select scenes play menu music. Fades use unscaled time, so pause and the result
-screen don't freeze them.
+On a level load, menu music fades out; `GameManager` starts gameplay music after the countdown and
+fades it back out over 1.25 s in `EndRound`, so the result card plays over the Time's Up sting
+instead of the gameplay loop. Menu and stage-select scenes play menu music. Fades use unscaled
+time, so pause and the result screen don't freeze them — which is the whole reason the round-end
+fade works at all, since `EndRound` sets `timeScale` to 0 on the same frame.
 
 ## Camera
 
