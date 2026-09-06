@@ -14,7 +14,6 @@ public class LuggageTimerDisplay : MonoBehaviour
     [SerializeField] private RectTransform visualRoot;
     [SerializeField] private Image fillImage;
     [SerializeField] private TMP_Text timeText;
-    [SerializeField] private TMP_Text gateNumberText;
 
     [Header("Presentation")]
     [SerializeField] private string worldUiLayerName = WorldUIOverlayCamera.LayerName;
@@ -27,7 +26,6 @@ public class LuggageTimerDisplay : MonoBehaviour
 
     private Camera targetCamera;
     private int lastDisplayedSecond = -1;
-    private int lastGateNumber = -1;
 
     private void Awake()
     {
@@ -71,7 +69,6 @@ public class LuggageTimerDisplay : MonoBehaviour
             return;
 
         lastDisplayedSecond = -1;
-        lastGateNumber = -1;
         UpdatePlacementAndFacing();
         UpdateTimer();
     }
@@ -90,25 +87,17 @@ public class LuggageTimerDisplay : MonoBehaviour
 
         fillImage.fillAmount = luggage.LifetimeNormalized;
 
-        if (second != lastDisplayedSecond)
-        {
-            lastDisplayedSecond = second;
-            fillImage.color = second <= dangerThreshold
-                ? dangerColor
-                : second <= warningThreshold
-                    ? warningColor
-                    : normalColor;
-            if (timeText != null)
-                timeText.text = second.ToString();
-        }
-
-        int gateNumber = luggage.HasDestinationGate ? luggage.DestinationGateNumber : 0;
-        if (gateNumber == lastGateNumber || gateNumberText == null)
+        if (second == lastDisplayedSecond)
             return;
 
-        lastGateNumber = gateNumber;
-        gateNumberText.gameObject.SetActive(gateNumber > 0);
-        gateNumberText.text = gateNumber > 0 ? gateNumber.ToString() : string.Empty;
+        lastDisplayedSecond = second;
+        fillImage.color = second <= dangerThreshold
+            ? dangerColor
+            : second <= warningThreshold
+                ? warningColor
+                : normalColor;
+        if (timeText != null)
+            timeText.text = second.ToString();
     }
 
     private void UpdatePlacementAndFacing()

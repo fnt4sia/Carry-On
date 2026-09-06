@@ -2,15 +2,19 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-// Runs the wave loop. Reads LevelConfig and spawns luggage at intervals using a
-// per-prefab object pool. Exposes ReturnLuggage(Luggage) so destroyed, expired, or sunk
+// Feeds a belt. Reads LevelConfig and drops one bag every spawnInterval seconds using a
+// per-prefab object pool. Exposes ReturnLuggage(Luggage) so delivered, rejected or sunk
 // luggage can be recycled back into the pool instead of being destroyed.
 //
-// A scene may hold as many spawners as the layout needs; drop in another Spawner prefab
-// and it feeds its own belt. Each one runs the level config's wave loop independently,
-// so the config's numbers are per spawner: two spawners with luggagePerWave = 4 put 8
-// bags on the floor per wave. That makes a second spawner a real difficulty change, so
-// re-check the star thresholds by hand after adding one.
+// The belt runs flat — no waves. Which colour comes out is a straight random pick from the
+// level's luggage pool, so the palette a gate can ask for is simply the set of prefabs listed
+// there. Bags no longer expire, so maxActiveLuggage is what stops an ignored belt from filling
+// the arena; the spawner idles while the cap is reached rather than queueing a backlog.
+//
+// A scene may hold as many spawners as the layout needs; drop in another Spawner prefab and it
+// feeds its own belt. Each one runs the config's numbers independently, so two spawners double
+// the real spawn rate and the cap. That makes a second spawner a difficulty change worth
+// re-checking the star thresholds by hand for.
 public class LuggageSpawner : MonoBehaviour
 {
     // Registered in enable order. The first one owns the shared pool, so a bag returned
@@ -43,7 +47,9 @@ public class LuggageSpawner : MonoBehaviour
     private Quaternion spawnRotation;
 
     private readonly Dictionary<GameObject, Queue<GameObject>> poolDictionary = new();
-    private readonly List<Gate> activeDeliveryGates = new List<Gate>();
+
+    // Bags this spawner has put out that are still in play, used only for the active cap.
+    private readonly List<Luggage> live = new();
     private Transform poolRoot;
 
     // Created on first use so only the pool-owning spawner builds one.
@@ -89,41 +95,69 @@ public class LuggageSpawner : MonoBehaviour
             return;
         }
 
-        RefreshActiveDeliveryGates();
-        StartCoroutine(WaveLoop());
+        StartCoroutine(SpawnLoop());
     }
 
-    private IEnumerator WaveLoop()
+    private IEnumerator SpawnLoop()
     {
         var prefabs = levelConfig.luggagePrefabs;
         if (prefabs == null || prefabs.Count == 0) yield break;
 
+        WaitForSeconds wait = new(levelConfig.spawnInterval);
+
         while (true)
         {
-            yield return new WaitForSeconds(levelConfig.waveDelay);
+            yield return wait;
 
-            int wavePerWave = Mathf.Max(1, levelConfig.luggagePerWave);
+            // Nothing expires any more, so an unattended belt would otherwise pile bags up
+            // until the physics gives out.
+            PruneLive();
+            if (live.Count >= levelConfig.maxActiveLuggage && !RecycleOldest())
+                continue;
 
-            for (int i = 0; i < wavePerWave; i++)
-            {
-                SpawnOne(prefabs);
-                if (i < wavePerWave - 1)
-                    yield return new WaitForSeconds(levelConfig.intraWaveInterval);
-            }
+            Luggage spawned = SpawnOne(prefabs);
+            if (spawned != null)
+                live.Add(spawned);
         }
+    }
+
+    private void PruneLive()
+    {
+        live.RemoveAll(bag => bag == null || !bag.gameObject.activeInHierarchy);
+    }
+
+    // The belt is a closed loop, so a bag only leaves it by being delivered. Left alone that
+    // deadlocks: once the cap is reached with, say, no yellow bag riding, a flight that wants
+    // yellow can never be filled because nothing new can spawn. Retiring the oldest bag keeps
+    // the supply turning over so every colour comes round again.
+    //
+    // Anything a player is holding or a station is working on is skipped — it is in use.
+    private bool RecycleOldest()
+    {
+        for (int i = 0; i < live.Count; i++)
+        {
+            Luggage bag = live[i];
+            if (bag == null || bag.GetIsGrabbed() || bag.IsInStation)
+                continue;
+
+            live.RemoveAt(i);
+            bag.DestroyLuggage();
+            return true;
+        }
+
+        return false;
     }
 
     // Menu/tutorial mode: no LevelConfig, so spawn forever on a plain interval.
     private IEnumerator FallbackLoop()
     {
         WaitForSeconds wait = new(fallbackSpawnInterval);
-        List<Luggage> live = new();
 
         while (true)
         {
             yield return wait;
 
-            live.RemoveAll(bag => bag == null || !bag.gameObject.activeInHierarchy);
+            PruneLive();
             if (live.Count >= fallbackMaxActive) continue;
 
             Luggage spawned = SpawnOne(fallbackLuggagePrefabs);
@@ -153,7 +187,6 @@ public class LuggageSpawner : MonoBehaviour
         luggage.isTutorialLuggage = levelConfig == null;
         float lifetime = levelConfig != null ? levelConfig.luggageLifetime : 0f;
         luggage.Initialize(prefabLuggage.behaviorType, lifetime, prefab);
-        AssignDestinationGateIfNeeded(luggage);
         return luggage;
     }
 
@@ -162,31 +195,6 @@ public class LuggageSpawner : MonoBehaviour
         Quaternion uprightPrefabRotation = Quaternion.Euler(90f, 0f, 90f);
         float randomYaw = Random.Range(0, 4) * 90f;
         return Quaternion.AngleAxis(randomYaw, Vector3.up) * uprightPrefabRotation;
-    }
-
-    private void RefreshActiveDeliveryGates()
-    {
-        activeDeliveryGates.Clear();
-        activeDeliveryGates.AddRange(FindObjectsByType<Gate>(FindObjectsSortMode.None));
-        activeDeliveryGates.Sort((a, b) => a.GateNumber.CompareTo(b.GateNumber));
-
-        if (activeDeliveryGates.Count <= 1)
-            return;
-
-        for (int i = 1; i < activeDeliveryGates.Count; i++)
-        {
-            if (activeDeliveryGates[i - 1].GateNumber == activeDeliveryGates[i].GateNumber)
-                Debug.LogWarning($"Multiple delivery gates use gate number {activeDeliveryGates[i].GateNumber}. Give each delivery gate a unique number.");
-        }
-    }
-
-    private void AssignDestinationGateIfNeeded(Luggage luggage)
-    {
-        if (activeDeliveryGates.Count <= 1)
-            return;
-
-        Gate destinationGate = activeDeliveryGates[Random.Range(0, activeDeliveryGates.Count)];
-        luggage.AssignDestinationGate(destinationGate.GateNumber);
     }
 
     public Luggage RentLuggage(GameObject prefab, Vector3 position, Quaternion rotation)

@@ -41,8 +41,28 @@ fade works at all, since `EndRound` sets `timeScale` to 0 on the same frame.
 
 ## Camera
 
-**Scripts:** `Game/Core/MultiplayerCamera.cs`, `WorldUIOverlayCamera.cs`
+**Scripts:** `Game/Core/ArenaCamera.cs`, `MultiplayerCamera.cs`, `WorldUIOverlayCamera.cs`
 **Prefab:** `Assets/Prefab/Manager/Main Camera.prefab`
+
+There are two camera behaviours, and which one a scene uses is a **scene override on the Main
+Camera prefab instance** — the prefab itself still carries `MultiplayerCamera`.
+
+### ArenaCamera — the gameplay camera (redesign)
+
+`ArenaCamera` is the Overcooked-style shot: the whole playfield is in frame at all times, and the
+camera never follows anyone and never zooms. It reads the pose authored in the scene on `Awake`
+and only adds a slow drift on top — two sine axes on deliberately unequal periods, plus a tiny
+roll — so a held frame doesn't read as a frozen image.
+
+Drift is meant to be *below* conscious notice: at the default 0.35 units and ~34 units of viewing
+distance it moves the picture about 1.5% of screen width. If you can see it as camera movement it
+is too strong. Zero either amplitude to switch that half off.
+
+**Only `Level1` uses it.** Because the shot is fixed, every spawn point, the belt and the gate must
+all sit inside the frustum — moving any of them means re-checking the framing. `RebaseToCurrentPose`
+exists for moving the camera at runtime; nothing calls it yet.
+
+### MultiplayerCamera — stage select, and the not-yet-redesigned levels
 
 `MultiplayerCamera` discovers `PlayerInput` objects, sorts them by index, drops destroyed
 references, and frames the active group:
@@ -55,6 +75,10 @@ references, and frames the active group:
 
 Players persist between scenes, so the camera resolves its set per stage rather than storing
 prefab references.
+
+`MapController` in stage select drives it through `SetTargets`, framing the map planes instead of
+players. **That is why the script still exists** — don't delete it when converting the remaining
+levels to `ArenaCamera`.
 
 `WorldUIOverlayCamera` self-installs on `Camera.main`. It removes the `WorldUI` layer from the
 base camera, creates a child URP overlay camera that renders only `WorldUI`, and keeps projection

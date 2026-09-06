@@ -25,16 +25,17 @@ MonoBehaviour:
   destinationName: BALI
   previewImage: {fileID: 0}
   gameTime: 120
-  star1Score: 30
-  star2Score: 60
-  star3Score: 90
+  star1Score: 100
+  star2Score: 160
+  star3Score: 220
   luggagePrefabs:
-  - {fileID: 2657728768583679652, guid: 3ff59be8ddf8948129c2020ea3ca360c, type: 3}
-  luggageLifetime: 35
-  waveDelay: 12
-  luggagePerWave: 4
-  intraWaveInterval: 2
+  - {fileID: 1818504315736707031, guid: 905695df6aa04d46ae99ecd04ad20fc0, type: 3}
+  - {fileID: 7840445263251666485, guid: 1dbb9ae148504060b25fccda56048d43, type: 3}
+  - {fileID: 4505602499030791835, guid: 5dd4a25230f240c183eae85cfdd219b0, type: 3}
+  - {fileID: 9063756403775074392, guid: eb7455f71e47435bba384405e0fe7e7e, type: 3}
+  luggageLifetime: 0
+  spawnInterval: 1
+  maxActiveLuggage: 14
   scoreCorrectDelivery: 10
   scoreMissingProcess: -5
   scoreTimerExpired: -5
-  scoreWrongGateDelivery: -5

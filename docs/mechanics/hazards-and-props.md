@@ -7,6 +7,12 @@ OneWayDoor, PoolHazard, WindSway, MarqueeText, SignFlicker, AmbientTrafficSpawne
 Reusable logic prefabs. Shared behaviour (colliders, visuals, animation) belongs in Prefab Mode;
 what each instance is *connected to* is per-level scene data.
 
+> **These are out of the gameplay loop on the `redesign` branch.** The plates and gateways were
+> removed from `Level1` — a gate that idles one player while the other fetches turned out to be
+> the boring half of the playtest. The scripts and prefabs are kept because they still describe
+> working props, but no redesigned level wires them. Don't add them back to a level without a
+> reason that survives a playtest.
+
 ## Pressure plate
 
 One `PressurePlate` drives every "step here to actuate something" prop. The plate owns its

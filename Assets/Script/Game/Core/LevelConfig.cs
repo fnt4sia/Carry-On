@@ -2,8 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 // ScriptableObject defining a level's tuning: round timer, 1/2/3-star score thresholds,
-// luggage spawner settings (pool, wave size, intervals), and scoring values
-// (correct delivery / missing-process / expired / wrong-gate penalties).
+// luggage spawner settings (pool, spawn interval, active cap), and scoring values.
 [CreateAssetMenu(fileName = "LevelConfig", menuName = "Carry On/Level Config")]
 public class LevelConfig : ScriptableObject
 {
@@ -42,26 +41,25 @@ public class LevelConfig : ScriptableObject
     [Header("Spawner — Luggage Pool")]
     [Tooltip("Prefabs that can be spawned. Each prefab already defines its own luggage behavior.")]
     public List<GameObject> luggagePrefabs;
-    [Tooltip("Seconds before a spawned luggage expires if not delivered.")]
-    public float luggageLifetime = 20f;
+    [Tooltip("Seconds before a spawned luggage expires if not delivered. Set to 0 for no " +
+             "countdown at all — flight-manifest levels put the pressure on the gate instead.")]
+    public float luggageLifetime = 0f;
 
-    [Header("Spawner — Waves")]
-    [Tooltip("Seconds between the end of one wave and the start of the next.")]
-    public float waveDelay = 10f;
-    [Tooltip("How many luggage spawn per wave.")]
-    public int luggagePerWave = 5;
-    [Tooltip("Seconds between spawns within a single wave.")]
-    public float intraWaveInterval = 1.5f;
+    [Header("Spawner — Pacing")]
+    [Tooltip("Seconds between spawns. The belt runs flat; there are no waves.")]
+    public float spawnInterval = 1f;
+    [Tooltip("Bags one spawner will keep in play at once. Without a lifetime this is the only " +
+             "thing stopping an ignored belt from burying the arena.")]
+    public int maxActiveLuggage = 14;
 
     [Header("Scoring")]
     [Tooltip("Points for a correctly processed delivery at the right gate.")]
     public int scoreCorrectDelivery = 10;
     [Tooltip("Penalty for delivering luggage with an unprocessed problem (unwashed/unwrapped).")]
     public int scoreMissingProcess = -5;
-    [Tooltip("Penalty when a luggage's lifetime expires before delivery.")]
+    [Tooltip("Penalty when a luggage's lifetime expires before delivery. Unused where " +
+             "luggageLifetime is 0.")]
     public int scoreTimerExpired = -5;
-    [Tooltip("Penalty for delivering luggage to the wrong numbered gate when a level has multiple delivery gates.")]
-    public int scoreWrongGateDelivery = -5;
 
     public int CalculateStars(int score)
     {
@@ -74,10 +72,9 @@ public class LevelConfig : ScriptableObject
     private void OnValidate()
     {
         gameTime = Mathf.Max(1f, gameTime);
-        luggageLifetime = Mathf.Max(1f, luggageLifetime);
-        waveDelay = Mathf.Max(0f, waveDelay);
-        luggagePerWave = Mathf.Max(1, luggagePerWave);
-        intraWaveInterval = Mathf.Max(0f, intraWaveInterval);
+        luggageLifetime = Mathf.Max(0f, luggageLifetime);
+        spawnInterval = Mathf.Max(0.05f, spawnInterval);
+        maxActiveLuggage = Mathf.Max(1, maxActiveLuggage);
 
         star1Score = Mathf.Max(0, star1Score);
         star2Score = Mathf.Max(star1Score, star2Score);

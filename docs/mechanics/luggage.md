@@ -1,14 +1,26 @@
 # Luggage
 
-**Scripts:** `Game/Luggage/{Luggage, LuggageBehaviorType, LuggageSpawner, LuggageSink, LuggageTimerDisplay}.cs`
-**Prefabs:** the five under `Assets/Prefab/Luggage/`
+**Scripts:** `Game/Luggage/{Luggage, LuggageBehaviorType, LuggageColor, LuggageSpawner, LuggageSink, LuggageTimerDisplay}.cs`
+**Prefabs:** the nine under `Assets/Prefab/Luggage/`
 
 Luggage is a dynamic rigidbody; a station docks it kinematically while processing. The `Luggage`
-component owns behaviour, processing flags, expiry, grabber attribution, destination gate,
-pooling identity, and cached physics references.
+component owns flight colour, behaviour, processing flags, expiry, grabber attribution, pooling
+identity, and cached physics references.
 
 Physics and audio values are serialized on the `Luggage` component of each luggage prefab.
 Per-level lifetime and spawn content come from the active `LevelConfig`.
+
+## Colour
+
+`Luggage.color` (`LuggageColor`: Red / Blue / Green / Yellow) is the bag's identity, and colour is
+the whole destination rule — a gate's flight asks for N bags of a colour and *any* bag of that
+colour fills a slot. Nothing is assigned to a particular gate; see
+[delivery and scoring](delivery-and-scoring.md).
+
+Colour lives on the prefab. `Luggage Red/Blue/Green/Yellow.prefab` are **variants** of
+`Normal Luggage.prefab` that override exactly two things: the `color` field and the renderer's
+material (`Assets/Material/Luggage/Luggage<Colour>.mat`, a tint of `NormalLuggage.mat`). Edit the
+base prefab and all four inherit it — never fork them into full copies.
 
 ## Behaviour types
 
@@ -45,21 +57,33 @@ Fragile collision behaviour is per-prefab: `fragileBreakThreshold` and
 `fragileGrabImmunityDuration`. Picking a fragile bag up grants that short immunity so carry
 alignment can't shatter it in your hands.
 
-## Lifetime
+## Lifetime (opt-in)
 
-The countdown runs only while the bag is free. It pauses in a station and stops on delivery or
-expiry. Expiry applies `LevelConfig.scoreTimerExpired` through `RoundScoreContext` and destroys
-the bag.
+**`LevelConfig.luggageLifetime = 0` disables the countdown entirely, and that is how the
+flight-manifest levels play.** The pressure belongs to the gate's departing flight, not to every
+individual bag rotting on the floor. Level1 runs at 0.
 
-Scene-placed luggage is safe: on `Start` it initialises from the active spawner or level
-lifetime, falling back to 30 seconds with a warning when no level context exists.
+Where a lifetime *is* set, the countdown runs only while the bag is free: it pauses in a station
+and stops on delivery or expiry. Expiry applies `LevelConfig.scoreTimerExpired` through
+`RoundScoreContext` and destroys the bag.
 
-## Waves
+Scene-placed luggage initialises on `Start` from the active spawner or level lifetime, falling
+back to 30 seconds with a warning when no level context exists.
 
-`LuggageSpawner` reads `LevelContext.CurrentConfig`. It waits `waveDelay`, then spawns
-`luggagePerWave` items spaced by `intraWaveInterval`, picking a random prefab from the pool each
-time. With more than one gate, each item is assigned a random active gate number. Pacing values
-are documented in [levels](../levels.md).
+## Spawn pacing
+
+`LuggageSpawner` reads `LevelContext.CurrentConfig` and drops **one bag every `spawnInterval`
+seconds** — the belt runs flat, and there are no waves. Which colour comes out is a straight
+random pick from `luggagePrefabs`, so the palette a gate can ask for is simply the set of prefabs
+listed there. Pacing values are documented in [levels](../levels.md).
+
+**`maxActiveLuggage` is load-bearing.** With no lifetime, a bag only leaves the belt by being
+delivered, so the cap is the only thing stopping an ignored belt from burying the arena.
+
+Reaching the cap does not stall the belt: `RecycleOldest` retires the oldest bag that no player is
+holding and no station is working on, then spawns in its place. Without that the level can
+**deadlock** — once the cap is reached with, say, no yellow bag riding the loop, a flight that
+wants yellow could never be filled because nothing new could spawn.
 
 ## Tutorial luggage (menus)
 
@@ -105,8 +129,10 @@ thin world-space presenter:
 
 - a radial `Image.fillAmount` reads `LifetimeNormalized`;
 - warning and danger colours apply at the configured thresholds;
-- multi-gate luggage shows its destination number;
 - it billboards to `Camera.main` and sits on the `WorldUI` layer.
+
+Where `luggageLifetime` is 0 the readout hides itself, because the visibility test requires at
+least one second remaining. Nothing extra is needed to switch it off.
 
 **There is no seconds readout.** The dial is the whole signal — colour and sweep, no number.
 `Time` and the plain `Face` disc were deleted from the prefab in August 2026 and `timeText` is

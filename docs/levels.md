@@ -16,9 +16,9 @@ object-to-object wiring.
 | Progression | `unlockedByDefault`, `nextLevel` |
 | Stage select ticket | `flightCode`, `originCode`, `originName`, `destinationCode`, `destinationName`, `previewImage` |
 | Round | `gameTime`, `star1Score`, `star2Score`, `star3Score` |
-| Content | `luggagePrefabs`, `luggageLifetime` |
-| Waves | `waveDelay`, `luggagePerWave`, `intraWaveInterval` |
-| Scoring | `scoreCorrectDelivery`, `scoreMissingProcess`, `scoreTimerExpired`, `scoreWrongGateDelivery` |
+| Content | `luggagePrefabs`, `luggageLifetime` (0 = no countdown) |
+| Spawner pacing | `spawnInterval`, `maxActiveLuggage` |
+| Scoring | `scoreCorrectDelivery`, `scoreMissingProcess`, `scoreTimerExpired` |
 
 `levelId` is a save key — renaming one after release orphans every existing save record and needs
 an explicit migration. `OnValidate` enforces positive timings and ordered star thresholds.
@@ -29,17 +29,33 @@ Behaviour is defined by each luggage prefab; there is no behaviour list on `Leve
 
 ## Current balance
 
-| Config | Round | Stars | Lifetime | Wave delay | Per wave | Interval |
-|---|---:|---|---:|---:|---:|---:|
-| Tutorial | 180s | 20 / 40 / 60 | 35s | 12s | 3 | 2.5s |
-| Stage 1 | 120s | 30 / 60 / 90 | 28s | 11s | 4 | 2.0s |
-| Stage 2 | 120s | 40 / 80 / 120 | 24s | 9s | 5 | 1.7s |
-| Stage 3 | 120s | 50 / 100 / 150 | 22s | 8s | 5 | 1.4s |
-| Stage 4 | 120s | 60 / 120 / 180 | 19s | 7s | 6 | 1.1s |
-| Design | 999s | 10 / 30 / 60 | 30s | 10s | 5 | 3.0s |
+| Config | Round | Stars | Lifetime | Spawn interval | Max active |
+|---|---:|---|---:|---:|---:|
+| Tutorial | 180s | 20 / 40 / 60 | 35s | 1.0s | 14 |
+| Stage 1 | 120s | 100 / 160 / 220 | **0 (off)** | 1.0s | 14 |
+| Stage 2 | 120s | 40 / 80 / 120 | 24s | 1.0s | 14 |
+| Stage 3 | 120s | 50 / 100 / 150 | 22s | 1.0s | 14 |
+| Stage 4 | 120s | 60 / 120 / 180 | 19s | 1.0s | 14 |
+| Design | 999s | 10 / 30 / 60 | 30s | 1.0s | 14 |
 
-Every config uses +10 correct, −5 missing process, −5 expiry, −5 wrong gate. Tutorial and Stage 1
-are unlocked by default; the rest unlock through the `nextLevel` chain.
+> **Only Stage 1 has been retuned for the flight redesign.** The wave fields
+> (`waveDelay`, `luggagePerWave`, `intraWaveInterval`) were removed from `LevelConfig`, so every
+> other config lost its pacing and now runs on the script defaults shown above. Tutorial and
+> Stages 2–4 still carry their old lifetimes and old star thresholds and are **not balanced** —
+> they are next in line for the redesign, not shipped content.
+
+**Level1 uses a fixed camera.** The shot is authored on the Main Camera at
+`(-7, 25.1, 7)` rotated `(42.12, 0, 0)`, with `ArenaCamera` replacing `MultiplayerCamera` as a
+scene override. Everything playable must sit inside that frustum: the belt loop, all four spawn
+points, the gate and its manifest board. Move any of them and re-check the framing — nothing
+enforces it. See [services](services.md#camera).
+
+Stage 1 scores +10 per bag accepted onto a flight and nothing else: no wrong-gate penalty, no
+missing-process penalty. Its thresholds are therefore just bag counts — 10 / 16 / 22 delivered —
+and they are a first guess that wants a playtest. The other configs still list the old
++10 / −5 / −5 values.
+
+Tutorial and Stage 1 are unlocked by default; the rest unlock through the `nextLevel` chain.
 
 ## Config ↔ scene mapping
 
@@ -196,8 +212,8 @@ they were authored open before this wiring existed, so a room had nothing to unl
 
 **Timer freedom comes from the bag, not the room.** `isTutorialLuggage` is a serialized field on
 each `Luggage`, so rooms 1 and 2 are silent and room 3 counts down with no code deciding it. Only
-room 3 uses `LevelConfig_Tutorial.luggageLifetime`; the config's wave fields (`waveDelay`,
-`luggagePerWave`, `intraWaveInterval`) are dead here because nothing reads them without a spawner.
+room 3 uses `LevelConfig_Tutorial.luggageLifetime`; the config's pacing fields (`spawnInterval`,
+`maxActiveLuggage`) are dead here because nothing reads them without a spawner.
 
 **Falling bags are put back, not recycled.** With no spawner and no sink, a bag knocked off the
 floor is gone for good and its room could never complete. `TutorialRoom` returns anything that

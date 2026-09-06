@@ -1,51 +1,87 @@
 # Delivery and scoring
 
-**Scripts:** `Game/World/Gate.cs`, `Game/Core/GameManager.cs`,
-`Game/Scoring/{ScoreBoard, ScoringRules, RoundScoreContext, GameResult}.cs`
+**Scripts:** `Game/World/Gate.cs`, `Game/UI/GateManifestDisplay.cs`, `Game/Core/GameManager.cs`,
+`Game/Scoring/{ScoreBoard, RoundScoreContext, GameResult}.cs`
 **Prefab:** `Prefab/Decoration/Gate`
 
-Delivering a bag through a gate is the only way to score. Everything below is deterministic plain
+Delivering a bag onto a flight is the only way to score. Everything below is deterministic plain
 C# once the gate has resolved the bag.
 
-## Gates
+## Gates are flights
+
+A gate is a **departing flight**. Its manifest lists how many bags of each colour the plane still
+needs; players carry matching luggage into the trigger until every line is filled, at which point
+the flight departs and `GenerateFlight` builds a fresh one in its place.
 
 ```text
 trigger collider
   -> Luggage.TryGetFromCollider
   -> reject an already delivered item
   -> read LevelContext.CurrentConfig
-  -> ScoringRules.Resolve(...)
-  -> RoundScoreContext.TryRecordDelivery(last player, delta)
-  -> mark delivered and recycle
+  -> FindOpenLine(luggage.color)          // null => this flight doesn't want it
+  -> IsProcessed(luggage)                 // unwashed / unwrapped => turned away
+  -> RoundScoreContext.TryRecordDelivery(last player, scoreCorrectDelivery)
+  -> count the line, mark delivered, recycle
+  -> manifest full? CompleteFlight() -> GenerateFlight()
 ```
 
 The score is recorded *before* `IsDelivered` is set, so a missing round context can't silently
 eat a bag. Attribution uses the persistent `lastGrabber`, which is what credits a thrown
 delivery to the thrower.
 
-**Multiple gates.** Each gate has a per-instance `gateNumber`. With one gate, luggage gets no
-destination and that gate accepts everything. With two or more, the spawner assigns each bag a
-random active gate number and the timer UI displays it. Duplicate numbers produce a warning, and
-the validator treats uniqueness as an error — destination routing depends on it.
+**Colour is the whole destination rule.** Any red bag fills a red slot; no bag is ever assigned
+to a particular gate. See [luggage](luggage.md#colour).
 
-Gate number is a correct scene override: it identifies that placement. Never apply a configured
-level instance's number back onto the prefab.
+**Rejection, not punishment.** A bag the flight doesn't want — wrong colour, or still filthy or
+bursting — is not scored and not destroyed. `RejectLuggage` drops whoever was holding it and
+throws it back the way it came (`rejectSpeed`, `rejectLift`). A wrong delivery costs the players
+*time and mess*, never points.
 
-## Scoring priority
+### Flight generation
 
-`ScoringRules.Resolve` takes an immutable `LuggageScoreState`, the level config, and the gate
-number:
+Serialized per gate instance:
 
-| Priority | Condition | Config value |
-|---:|---|---|
-| 1 | has a destination and this isn't it | `scoreWrongGateDelivery` |
-| 2 | required wash or wrap missing | `scoreMissingProcess` |
-| 3 | otherwise | `scoreCorrectDelivery` |
+| Field | Meaning |
+|---|---|
+| `palette` | colours this gate's flights may ask for |
+| `minColorsPerFlight` / `maxColorsPerFlight` | how many different colours one flight wants |
+| `minBagsPerColor` / `maxBagsPerColor` | how many bags of each colour it wants |
 
-> **That priority order is not enforced by anything.** It lives only in the order of the `if`
-> statements, and there are no tests in this project. Reordering them silently changes which
-> penalty a player receives, and playtesting will not catch it — the game just feels unfair.
-> Re-check the numbers by hand whenever you touch this file.
+Colours are drawn **without replacement**, so one flight never lists the same colour twice, and
+the count is clamped to the palette size.
+
+> Every colour in `palette` must also be spawnable by the level's `luggagePrefabs`, or a flight
+> that asks for it can never be filled. Nothing enforces this — check it by hand.
+
+`gateNumber` still identifies a placement and stays a correct scene override. Never apply a
+configured level instance's number back onto the prefab.
+
+### The manifest board
+
+`GateManifestDisplay` draws the current flight on a world-space canvas above the gate: one slot
+per colour line, each a tinted swatch over a `delivered/required` count. It subscribes to
+`Gate.ManifestChanged` and redraws — it never polls.
+
+**Every slot is authored in the scene**, per the UI rule in `CLAUDE.md`. The component only shows,
+hides and fills them, so a flight with fewer colours than there are slots leaves the spares
+hidden. Author more slots than `maxColorsPerFlight` or you get a warning and a truncated board.
+
+The board sits on the `WorldUI` layer, so the overlay camera draws it over the scene geometry
+rather than letting the gate art occlude it.
+
+## Scoring
+
+A gate only ever applies `LevelConfig.scoreCorrectDelivery`. There is no wrong-gate penalty and
+no missing-process penalty at the gate any more — both cases are bounced instead of charged, and
+`ScoringRules`/`LuggageScoreState` were deleted with the flight rewrite.
+
+`scoreTimerExpired` still exists and still fires, but only in levels that set a non-zero
+`luggageLifetime`.
+
+> **Scoring has no safety net.** There are no tests in this project, and a scoring bug is
+> invisible during playtesting — the game just feels unfair. Re-check the numbers by hand
+> whenever you touch this file, and re-check the star thresholds in the level's config: with
+> penalties gone, score is now simply `scoreCorrectDelivery x bags delivered`.
 
 ## ScoreBoard
 

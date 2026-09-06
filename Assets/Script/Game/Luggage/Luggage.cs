@@ -2,9 +2,13 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-// Main luggage runtime. Owns behavior type (Normal / Sticky / Fragile), lifetime
-// countdown, fragile collision break, grabber tracking, and the IsWashed / IsWrapped
-// flags the delivery gate reads to score it.
+// Main luggage runtime. Owns flight colour, behavior type (Normal / Sticky / Fragile),
+// fragile collision break, grabber tracking, and the IsWashed / IsWrapped flags the gate
+// reads before accepting a bag onto a flight.
+//
+// Lifetime is opt-in: a level whose LevelConfig sets luggageLifetime to 0 runs with no
+// countdown at all, which is how the flight-manifest levels play. The pressure there comes
+// from the gate's departing flight, not from every individual bag rotting on the floor.
 public class Luggage : MonoBehaviour
 {
     private const float FallbackScenePlacedLifetime = 30f;
@@ -30,6 +34,10 @@ public class Luggage : MonoBehaviour
     public bool isTutorialLuggage;
 
     public LuggageBehaviorType behaviorType;
+
+    [Tooltip("Which flight colour this bag counts as. Colour is the whole destination rule: " +
+             "a gate's flight asks for N bags of a colour and any bag of that colour fills a slot.")]
+    public LuggageColor color;
     [HideInInspector] public GameObject sourcePrefab;
 
     private float lifetimeRemaining;
@@ -41,7 +49,6 @@ public class Luggage : MonoBehaviour
     private float fragileGrabImmunity;
     private float nextCollisionAudioTime;
     private LuggageBehaviorType initialBehaviorType;
-    private int destinationGateNumber;
 
     private List<PlayerGrab> grabbers = new List<PlayerGrab>();
     private PlayerGrab lastGrabber;
@@ -54,8 +61,6 @@ public class Luggage : MonoBehaviour
     public bool RequiresWashing => initialBehaviorType == LuggageBehaviorType.Sticky;
     public bool RequiresWrapping => initialBehaviorType == LuggageBehaviorType.Fragile;
     public bool IsInStation => isInStation;
-    public bool HasDestinationGate => destinationGateNumber > 0;
-    public int DestinationGateNumber => destinationGateNumber;
     public float LifetimeRemaining => Mathf.Max(0f, lifetimeRemaining);
     public float LifetimeNormalized => lifetimeDuration > 0f
         ? Mathf.Clamp01(lifetimeRemaining / lifetimeDuration)
@@ -97,7 +102,6 @@ public class Luggage : MonoBehaviour
         IsWrapped = false;
         fragileGrabImmunity = 0f;
         nextCollisionAudioTime = 0f;
-        destinationGateNumber = 0;
         grabbers.Clear();
         lastGrabber = null;
         CachePhysicsComponents();
@@ -109,7 +113,7 @@ public class Luggage : MonoBehaviour
         if (fragileGrabImmunity > 0f)
             fragileGrabImmunity -= Time.deltaTime;
 
-        if (isTutorialLuggage || isInStation || hasExpired || IsDelivered) return;
+        if (isTutorialLuggage || lifetimeDuration <= 0f || isInStation || hasExpired || IsDelivered) return;
 
         lifetimeRemaining -= Time.deltaTime;
         if (lifetimeRemaining <= 0f)
@@ -246,12 +250,6 @@ public class Luggage : MonoBehaviour
         isInStation = value;
     }
 
-    public void AssignDestinationGate(int gateNumber)
-    {
-        destinationGateNumber = gateNumber;
-        RefreshTimerDisplay();
-    }
-
     public Luggage ConvertToWashed(GameObject washedPrefab)
     {
         if (washedPrefab == null)
@@ -356,7 +354,6 @@ public class Luggage : MonoBehaviour
         nextCollisionAudioTime = source.nextCollisionAudioTime;
         grabbers.Clear();
         lastGrabber = source.lastGrabber;
-        destinationGateNumber = source.destinationGateNumber;
         CachePhysicsComponents();
         RefreshTimerDisplay();
     }
@@ -382,7 +379,7 @@ public class Luggage : MonoBehaviour
                 this);
         }
 
-        Initialize(behaviorType, Mathf.Max(0.1f, lifetime), prefabKey: null);
+        Initialize(behaviorType, Mathf.Max(0f, lifetime), prefabKey: null);
     }
 
     private void CachePhysicsComponents()
