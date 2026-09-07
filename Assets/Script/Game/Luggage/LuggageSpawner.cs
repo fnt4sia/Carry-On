@@ -6,10 +6,15 @@ using UnityEngine;
 // per-prefab object pool. Exposes ReturnLuggage(Luggage) so delivered, rejected or sunk
 // luggage can be recycled back into the pool instead of being destroyed.
 //
-// The belt runs flat — no waves. Which colour comes out is a straight random pick from the
-// level's luggage pool, so the palette a gate can ask for is simply the set of prefabs listed
-// there. Bags no longer expire, so maxActiveLuggage is what stops an ignored belt from filling
-// the arena; the spawner idles while the cap is reached rather than queueing a backlog.
+// The belt runs flat — no waves — and the colour order is a strict round robin over the level's
+// luggage pool, so the palette a gate can ask for is exactly the set of prefabs listed there and
+// every colour is guaranteed to come round on a fixed cycle. No dice: a flight is never
+// unfillable because a colour did not spawn.
+//
+// Bags no longer expire. They leave down the belt's LuggageSink, so the belt drains on its own;
+// maxActiveLuggage only catches the case where nothing is draining (bags abandoned on the floor)
+// and pauses the belt rather than burying the arena. The spawner never destroys a live bag to
+// make room.
 //
 // A scene may hold as many spawners as the layout needs; drop in another Spawner prefab and it
 // feeds its own belt. Each one runs the config's numbers independently, so two spawners double
@@ -50,6 +55,9 @@ public class LuggageSpawner : MonoBehaviour
 
     // Bags this spawner has put out that are still in play, used only for the active cap.
     private readonly List<Luggage> live = new();
+
+    // Cursor into the luggage pool for the round-robin spawn order.
+    private int nextPrefabIndex;
     private Transform poolRoot;
 
     // Created on first use so only the pool-owning spawner builds one.
@@ -109,10 +117,12 @@ public class LuggageSpawner : MonoBehaviour
         {
             yield return wait;
 
-            // Nothing expires any more, so an unattended belt would otherwise pile bags up
-            // until the physics gives out.
+            // Bags leave down the belt's sink, so the belt drains on its own. This cap only
+            // catches the case where nothing is draining — abandoned bags piled on the floor —
+            // and pauses the belt instead of burying the arena. Nothing is ever destroyed to
+            // make room: a bag on the floor stays there until a player deals with it.
             PruneLive();
-            if (live.Count >= levelConfig.maxActiveLuggage && !RecycleOldest())
+            if (live.Count >= levelConfig.maxActiveLuggage)
                 continue;
 
             Luggage spawned = SpawnOne(prefabs);
@@ -124,28 +134,6 @@ public class LuggageSpawner : MonoBehaviour
     private void PruneLive()
     {
         live.RemoveAll(bag => bag == null || !bag.gameObject.activeInHierarchy);
-    }
-
-    // The belt is a closed loop, so a bag only leaves it by being delivered. Left alone that
-    // deadlocks: once the cap is reached with, say, no yellow bag riding, a flight that wants
-    // yellow can never be filled because nothing new can spawn. Retiring the oldest bag keeps
-    // the supply turning over so every colour comes round again.
-    //
-    // Anything a player is holding or a station is working on is skipped — it is in use.
-    private bool RecycleOldest()
-    {
-        for (int i = 0; i < live.Count; i++)
-        {
-            Luggage bag = live[i];
-            if (bag == null || bag.GetIsGrabbed() || bag.IsInStation)
-                continue;
-
-            live.RemoveAt(i);
-            bag.DestroyLuggage();
-            return true;
-        }
-
-        return false;
     }
 
     // Menu/tutorial mode: no LevelConfig, so spawn forever on a plain interval.
@@ -168,7 +156,11 @@ public class LuggageSpawner : MonoBehaviour
 
     private Luggage SpawnOne(List<GameObject> prefabs)
     {
-        GameObject prefab = prefabs[Random.Range(0, prefabs.Count)];
+        // Strict round robin, not a random draw. The belt cycles the pool in the order it is
+        // listed in the config — red, green, yellow, red, ... — so a flight can never be
+        // unfillable because a colour refused to show up. Losing is on the players, not the dice.
+        GameObject prefab = prefabs[nextPrefabIndex % prefabs.Count];
+        nextPrefabIndex = (nextPrefabIndex + 1) % prefabs.Count;
         if (prefab == null) return null;
 
         Luggage prefabLuggage = prefab.GetComponent<Luggage>();

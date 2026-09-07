@@ -29,8 +29,25 @@ The score is recorded *before* `IsDelivered` is set, so a missing round context 
 eat a bag. Attribution uses the persistent `lastGrabber`, which is what credits a thrown
 delivery to the thrower.
 
-**Colour is the whole destination rule.** Any red bag fills a red slot; no bag is ever assigned
-to a particular gate. See [luggage](luggage.md#colour).
+**Every line names a colour; "wrapped" is a second axis on top of it.** A plain line wants a
+colour unprocessed ("3 red"); a wrapped line wants that same colour *after* a wrapper ("1 red,
+wrapped"). A wrapped green bag will not fill a wrapped-red line. `ManifestLine.Accepts`:
+
+```csharp
+if (luggage.IsWrapped != NeedsWrapped) return false;      // exact, both ways
+return luggage.color == Color;
+```
+
+The wrapped test is **exact in both directions** — a wrapped bag does not fill a plain colour line
+either. Over-processing is as wrong as under-processing, which is what keeps wrapping a decision
+rather than a free upgrade.
+
+`wrappedLinesPerFlight` is a fixed count, not a chance: a level that teaches wrapping asks for it
+every flight. Level1 leaves it at 0, Level2 sets it to 1.
+
+Wrapped lines draw their colour from the full palette **independently** of the plain lines, so a
+flight can legitimately want both "2 red" and "1 red wrapped" — two different jobs on the same
+colour, which is what makes the wrapper worth queueing for.
 
 **Rejection, not punishment.** A bag the flight doesn't want — wrong colour, or still filthy or
 bursting — is not scored and not destroyed. `RejectLuggage` drops whoever was holding it and
@@ -46,6 +63,8 @@ Serialized per gate instance:
 | `palette` | colours this gate's flights may ask for |
 | `minColorsPerFlight` / `maxColorsPerFlight` | how many different colours one flight wants |
 | `minBagsPerColor` / `maxBagsPerColor` | how many bags of each colour it wants |
+| `wrappedLinesPerFlight` | how many lines want wrapped bags of any colour |
+| `minBagsPerWrappedLine` / `maxBagsPerWrappedLine` | how many wrapped bags such a line wants |
 
 Colours are drawn **without replacement**, so one flight never lists the same colour twice, and
 the count is clamped to the palette size.
@@ -59,7 +78,12 @@ configured level instance's number back onto the prefab.
 ### The manifest board
 
 `GateManifestDisplay` draws the current flight on a world-space canvas above the gate: one slot
-per colour line, each a tinted swatch over a `delivered/required` count. It subscribes to
+per line, each a tinted swatch over a `delivered/required` count.
+
+A wrapped line shows its colour swatch *plus* `wrappedBadge` — a cross-hatch sprite laid over the
+swatch at 70% alpha, so the colour still reads through and the slot says "this colour, under
+plastic". The badge is a per-slot scene object; a level with no wrapped lines simply leaves the
+reference empty. It subscribes to
 `Gate.ManifestChanged` and redraws — it never polls.
 
 **Every slot is authored in the scene**, per the UI rule in `CLAUDE.md`. The component only shows,

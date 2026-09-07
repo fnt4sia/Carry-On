@@ -17,10 +17,22 @@ the whole destination rule — a gate's flight asks for N bags of a colour and *
 colour fills a slot. Nothing is assigned to a particular gate; see
 [delivery and scoring](delivery-and-scoring.md).
 
-Colour lives on the prefab. `Luggage Red/Blue/Green/Yellow.prefab` are **variants** of
+Colour lives on the prefab. `Luggage Red/Green/Yellow.prefab` are **variants** of
 `Normal Luggage.prefab` that override exactly two things: the `color` field and the renderer's
-material (`Assets/Material/Luggage/Luggage<Colour>.mat`, a tint of `NormalLuggage.mat`). Edit the
-base prefab and all four inherit it — never fork them into full copies.
+material. Edit the base prefab and all of them inherit it — never fork them into full copies.
+
+`Luggage Blue.prefab` and `LuggageBlue.mat` still exist but are **used by nothing**: Level1 runs
+red / green / yellow only. Blue is unusable as a tint anyway — see below.
+
+**The colour materials must not tint `Luggage.png`.** That atlas is a saturated orange, and
+`_BaseColor` multiplies against it, so a yellow tint came out orange, green came out olive, and
+blue came out muddy brown (the texture has almost no blue channel to multiply). The colour
+materials therefore use **`LuggageTintable.png`** instead — the same atlas run through luminance
+and stretched so the case body is pure white while straps and hardware stay as darker detail. The
+tint then *is* the colour. `NormalLuggage.mat` still uses the original orange atlas.
+
+If you add a colour, give it a `LuggageTintable`-based material; tinting the orange atlas will
+quietly produce a colour nobody can name.
 
 ## Behaviour types
 
@@ -57,6 +69,20 @@ Fragile collision behaviour is per-prefab: `fragileBreakThreshold` and
 `fragileGrabImmunityDuration`. Picking a fragile bag up grants that short immunity so carry
 alignment can't shatter it in your hands.
 
+## Wrapping
+
+`MarkWrapped()` wraps a bag **in place**: it sets `IsWrapped` and switches on the `wrapVisual`
+child. The bag object is never replaced, so its flight colour survives the machine — a wrapped red
+bag is still red.
+
+That matters because the older `ConvertToWrapped(prefab)` swaps the bag for a single colourless
+wrapped prefab, which would throw the colour away. `Wrapper.wrapsAnyLuggage` picks between them:
+on it wraps anything unwrapped in place, off it keeps the legacy Fragile-only prefab swap.
+
+The shell is `Wrap Shell` on `Normal Luggage.prefab` — the same case mesh at 1.07 scale with a
+translucent `LuggageWrap.mat`, shadows off, inactive by default. All three colour variants inherit
+it. `Initialize` re-applies the visual, so a pooled bag never comes back still wearing it.
+
 ## Lifetime (opt-in)
 
 **`LevelConfig.luggageLifetime = 0` disables the countdown entirely, and that is how the
@@ -73,17 +99,28 @@ back to 30 seconds with a warning when no level context exists.
 ## Spawn pacing
 
 `LuggageSpawner` reads `LevelContext.CurrentConfig` and drops **one bag every `spawnInterval`
-seconds** — the belt runs flat, and there are no waves. Which colour comes out is a straight
-random pick from `luggagePrefabs`, so the palette a gate can ask for is simply the set of prefabs
-listed there. Pacing values are documented in [levels](../levels.md).
+seconds** — the belt runs flat, and there are no waves.
 
-**`maxActiveLuggage` is load-bearing.** With no lifetime, a bag only leaves the belt by being
-delivered, so the cap is the only thing stopping an ignored belt from burying the arena.
+**Colour order is a strict round robin, not a random draw.** The spawner walks `luggagePrefabs`
+in order and wraps — red, green, yellow, red, … — so every colour is guaranteed to arrive on a
+fixed cycle and a flight can never become unfillable because a colour refused to show up. Losing
+is on the players, not the dice. Reordering the list reorders the belt. Pacing values are
+documented in [levels](../levels.md).
 
-Reaching the cap does not stall the belt: `RecycleOldest` retires the oldest bag that no player is
-holding and no station is working on, then spawns in its place. Without that the level can
-**deadlock** — once the cap is reached with, say, no yellow bag riding the loop, a flight that
-wants yellow could never be filled because nothing new could spawn.
+**A belt needs a `LuggageSink` on it.** Bags never expire, so without one the belt fills and the
+spawner stalls. Level1's `LuggageSinker` sits across the loop's west run; a bag reaching it is
+returned to the pool and re-rented as the next spawn.
+
+Place a sink so it actually *straddles the lane*: bags ride at about y = 1.2, so a trigger whose
+box starts above that lets nearly everything pass underneath, and one narrower than the belt
+gauge only clips the occasional bag. Both were true of Level1's sink at first, and the symptom is
+a belt that slowly creeps to the cap and then stops spawning.
+
+**`maxActiveLuggage` is a safety valve, not a pacing knob.** It exists for the case where nothing
+is draining — bags abandoned on the floor — and it pauses the belt rather than burying the arena.
+**The spawner never destroys a live bag to make room.** Set it *above* the belt's natural
+in-flight count or it throttles normal flow: Level1 settles at ~19 bags (bags travel nearly a full
+lap before reaching the sink) against a cap of 28.
 
 ## Tutorial luggage (menus)
 

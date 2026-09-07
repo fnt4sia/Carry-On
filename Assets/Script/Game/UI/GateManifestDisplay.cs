@@ -20,6 +20,8 @@ public class GateManifestDisplay : MonoBehaviour
         public Image swatch;
         [Tooltip("Reads 'delivered/required', e.g. 1/3.")]
         public TMP_Text countText;
+        [Tooltip("Shown only on a line that wants wrapped bags. Hidden on plain colour lines.")]
+        public GameObject wrappedBadge;
     }
 
     [SerializeField] private Gate gate;
@@ -80,6 +82,9 @@ public class GateManifestDisplay : MonoBehaviour
 
             if (slot.swatch != null)
                 slot.swatch.color = SwatchFor(line.Color);
+
+            if (slot.wrappedBadge != null && slot.wrappedBadge.activeSelf != line.NeedsWrapped)
+                slot.wrappedBadge.SetActive(line.NeedsWrapped);
 
             if (slot.countText != null)
             {

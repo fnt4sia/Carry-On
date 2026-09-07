@@ -29,6 +29,12 @@ public class Luggage : MonoBehaviour
 
     [SerializeField] private Outline outline;
 
+    [Header("Wrapping")]
+    [Tooltip("Shell shown once the bag has been wrapped. Authored on the prefab, hidden by " +
+             "default, and switched on by MarkWrapped — the bag itself is never swapped, so its " +
+             "flight colour survives the machine.")]
+    [SerializeField] private GameObject wrapVisual;
+
     [Header("Tutorial / Menu")]
     [Tooltip("Menu and tutorial luggage: hides the timer UI and never expires or despawns on its own.")]
     public bool isTutorialLuggage;
@@ -85,6 +91,7 @@ public class Luggage : MonoBehaviour
             InitializeScenePlacedLuggage();
 
         if (outline != null) outline.enabled = false;
+        ApplyWrapVisual();
     }
 
     public void Initialize(LuggageBehaviorType behavior, float lifetime, GameObject prefabKey)
@@ -102,6 +109,7 @@ public class Luggage : MonoBehaviour
         IsWrapped = false;
         fragileGrabImmunity = 0f;
         nextCollisionAudioTime = 0f;
+        ApplyWrapVisual();
         grabbers.Clear();
         lastGrabber = null;
         CachePhysicsComponents();
@@ -263,6 +271,23 @@ public class Luggage : MonoBehaviour
         return ReplaceWithPrefab(washedPrefab, markWashed: true, markWrapped: false);
     }
 
+    /// <summary>
+    /// Wraps this bag in place: sets IsWrapped and reveals the wrap shell, keeping the same object
+    /// so its flight colour is preserved. This is what the redesign's wrapper station uses —
+    /// ConvertToWrapped swaps in a single colourless prefab and would throw the colour away.
+    /// </summary>
+    public void MarkWrapped()
+    {
+        IsWrapped = true;
+        ApplyWrapVisual();
+    }
+
+    private void ApplyWrapVisual()
+    {
+        if (wrapVisual != null && wrapVisual.activeSelf != IsWrapped)
+            wrapVisual.SetActive(IsWrapped);
+    }
+
     public Luggage ConvertToWrapped(GameObject wrappedPrefab)
     {
         if (wrappedPrefab == null)
@@ -350,6 +375,7 @@ public class Luggage : MonoBehaviour
         IsDelivered = source.IsDelivered;
         IsWashed = source.IsWashed || markWashed;
         IsWrapped = source.IsWrapped || markWrapped;
+        ApplyWrapVisual();
         fragileGrabImmunity = source.fragileGrabImmunity;
         nextCollisionAudioTime = source.nextCollisionAudioTime;
         grabbers.Clear();

@@ -25,8 +25,16 @@ public abstract class MachineStation : MonoBehaviour
     [Header("Lifecycle")]
     [Tooltip("Disable for prototype machines that do not have animation events.")]
     [SerializeField] private bool animationDriven = true;
+    [Tooltip("Seconds of work the machine needs. With requiresPlayerCrank this is how long a " +
+             "player must hold the grab button, not wall-clock time.")]
     [SerializeField, Min(0.05f)] private float processDuration = 1.5f;
     [SerializeField, Min(0f)] private float readyDuration = 0.75f;
+
+    [Header("Manual Crank")]
+    [Tooltip("Overcooked-style operation: once a bag is loaded the machine does nothing until a " +
+             "player stands at it and holds the grab button. Progress pauses when they let go and " +
+             "resumes where it left off — it never decays. Off = the machine runs itself on a timer.")]
+    [SerializeField] private bool requiresPlayerCrank;
 
     [Header("Code-Driven Travel")]
     [Tooltip("Point under the machine roof that placed luggage slides to. Empty keeps it at the snap point.")]
@@ -48,6 +56,12 @@ public abstract class MachineStation : MonoBehaviour
     protected Luggage currentLuggage;
     protected bool isProcessing;
 
+    private float crankProgress;
+    private bool crankComplete;
+    // Set by AddCrankProgress and cleared in LateUpdate, so the machine's animation runs only on
+    // the frames someone is actually holding the button. Nothing has to tell it they walked away.
+    private bool crankedThisFrame;
+
     private Vector3 luggageSliderLocalPosition;
     private Quaternion luggageSliderLocalRotation;
     private StationPhase phase;
@@ -57,6 +71,16 @@ public abstract class MachineStation : MonoBehaviour
     public bool IsOccupied => phase != StationPhase.Idle;
     public bool IsProcessing => phase == StationPhase.Processing;
     public StationPhase Phase => phase;
+
+    public bool RequiresPlayerCrank => requiresPlayerCrank;
+
+    /// <summary>A bag is loaded and waiting for a player to hold the button.</summary>
+    public bool IsAwaitingCrank =>
+        requiresPlayerCrank && phase == StationPhase.Processing && !crankComplete;
+
+    /// <summary>0..1 for the progress bar. Reads 0 when there is nothing to crank.</summary>
+    public float CrankProgress01 =>
+        requiresPlayerCrank && processDuration > 0f ? Mathf.Clamp01(crankProgress / processDuration) : 0f;
 
     // Kept as a property because Vector3 has no Min attribute and a negative half-extent
     // silently makes the overlap box empty.
@@ -103,6 +127,8 @@ public abstract class MachineStation : MonoBehaviour
         currentLuggage = luggage;
         isProcessing = true;
         phase = StationPhase.Processing;
+        crankProgress = 0f;
+        crankComplete = false;
         OnLuggagePlaced(luggage);
 
         // For animation-driven machines the flag is the whole lifecycle, so it goes up the moment
@@ -110,10 +136,38 @@ public abstract class MachineStation : MonoBehaviour
         if (animationDriven)
             SetAnimatorTriggered(true);
 
-        if (!animationDriven || machineAnimator == null)
+        if (requiresPlayerCrank)
+        {
+            // Draw the bag in, then stop. Nothing else happens until a player works the machine.
+            if (intakeTransform != null)
+                StartCoroutine(TravelTo(intakeTransform, intakeDuration));
+        }
+        else if (!animationDriven || machineAnimator == null)
+        {
             StartCoroutine(AutomaticProcess());
+        }
 
         return true;
+    }
+
+    /// <summary>
+    /// Called every frame a player holds the button at this machine. Progress is banked, so
+    /// letting go pauses rather than resets and a second player can take over mid-way.
+    /// </summary>
+    public void AddCrankProgress(float deltaTime)
+    {
+        if (!IsAwaitingCrank)
+            return;
+
+        crankProgress += deltaTime;
+        crankedThisFrame = true;
+
+        if (crankProgress < processDuration)
+            return;
+
+        crankComplete = true;
+        AnimEvent_OnDoorClosed();
+        StartCoroutine(EjectSequence());
     }
 
     // Animation Event: the gameplay operation occurs when the luggage is sealed.
@@ -154,6 +208,13 @@ public abstract class MachineStation : MonoBehaviour
 
     private void LateUpdate()
     {
+        if (requiresPlayerCrank)
+        {
+            // The machine animates only while someone is actually working it.
+            SetAnimatorTriggered(crankedThisFrame);
+            crankedThisFrame = false;
+        }
+
         if (!isProcessing || currentLuggage == null || sliderTransform == null)
             return;
 
@@ -174,6 +235,12 @@ public abstract class MachineStation : MonoBehaviour
 
         AnimEvent_OnDoorClosed();
 
+        yield return EjectSequence();
+    }
+
+    // Hands the finished bag back. Shared by the timed path and the cranked one.
+    private IEnumerator EjectSequence()
+    {
         // The bag goes in on the entry lane and comes back out on the exit lane. Both points sit
         // under the machine roof behind the curtains, so this hard cut is never on screen.
         if (releaseTransform != null && currentLuggage != null)

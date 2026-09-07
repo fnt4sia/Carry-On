@@ -69,6 +69,10 @@ public class PlayerGrab : MonoBehaviour
     private bool isGrabInputHeld;
     private float grabInputHoldTime;
     private bool throwChargeStarted;
+
+    // The machine this player is currently working with the grab button held. While this is set
+    // the press drives the machine instead of grabbing, dropping or charging a throw.
+    private MachineStation crankedStation;
     private AudioSource throwBuildUpAudioSource;
 
     private ConfigurableJoint configurableJoint;
@@ -121,9 +125,15 @@ public class PlayerGrab : MonoBehaviour
         bool grabDown = grabAction.WasPressedThisFrame();
         bool grabUp   = grabAction.WasReleasedThisFrame();
         Luggage candidate = luggageHeld == null ? FindBestGrabCandidate() : null;
-        ProcessGrabInput(grabDown, grabUp, candidate);
 
-        // A station needs a held bag, a lever is pulled empty-handed, so one press covers both.
+        // Grab is also the machine button. A press near a machine loads the bag you are carrying,
+        // and holding it afterwards works the machine — so one button covers carry, load and crank
+        // the way Overcooked does. Handled before the normal grab logic so loading a bag never
+        // starts a throw charge and cranking never grabs the bag back out.
+        if (!ProcessStationInput(grabDown, grabUp))
+            ProcessGrabInput(grabDown, grabUp, candidate);
+
+        // Legacy secondary button: still loads a station and still pulls levers.
         if (useStationAction.WasPressedThisFrame() && !TryUseStation())
             TryUseLever();
 
@@ -193,6 +203,93 @@ public class PlayerGrab : MonoBehaviour
 
         if (grabDown && objectRigidbody == null)
             TryGrab(candidate);
+    }
+
+    // Returns true when the grab button was consumed by a machine this frame.
+    private bool ProcessStationInput(bool grabDown, bool grabUp)
+    {
+        if (grabUp && crankedStation != null)
+        {
+            // Letting go pauses the machine. Progress stays banked.
+            crankedStation = null;
+            isGrabInputHeld = false;
+            grabInputHoldTime = 0f;
+            return true;
+        }
+
+        if (crankedStation != null)
+        {
+            // Walking away, or the machine finishing, ends the session on its own.
+            if (!crankedStation.IsAwaitingCrank || !IsWithinReach(crankedStation.transform))
+            {
+                crankedStation = null;
+                return true;
+            }
+
+            crankedStation.AddCrankProgress(Time.deltaTime);
+            return true;
+        }
+
+        if (!grabDown)
+            return false;
+
+        if (luggageHeld != null)
+        {
+            MachineStation loaded = TryLoadStation();
+            if (loaded == null)
+                return false;
+
+            // Keep the press alive into the crank, so loading and working the machine are one
+            // continuous hold rather than two separate presses.
+            if (loaded.IsAwaitingCrank)
+                crankedStation = loaded;
+            return true;
+        }
+
+        // Empty-handed at a loaded machine: start working it rather than grabbing.
+        MachineStation waiting = FindStationAwaitingCrank();
+        if (waiting == null)
+            return false;
+
+        crankedStation = waiting;
+        crankedStation.AddCrankProgress(Time.deltaTime);
+        return true;
+    }
+
+    private MachineStation FindStationAwaitingCrank()
+    {
+        int hitCount = Physics.OverlapSphereNonAlloc(grabPoint.position, grabRadius, nearbyHits);
+        MachineStation found = null;
+        for (int i = 0; i < hitCount; i++)
+        {
+            Collider hit = nearbyHits[i];
+            nearbyHits[i] = null;
+            if (found != null) continue;
+
+            MachineStation station = hit != null ? hit.GetComponentInParent<MachineStation>() : null;
+            if (station != null && station.IsAwaitingCrank)
+                found = station;
+        }
+
+        return found;
+    }
+
+    private bool IsWithinReach(Transform target)
+    {
+        int hitCount = Physics.OverlapSphereNonAlloc(grabPoint.position, grabRadius, nearbyHits);
+        bool inReach = false;
+        for (int i = 0; i < hitCount; i++)
+        {
+            Collider hit = nearbyHits[i];
+            nearbyHits[i] = null;
+            if (inReach || hit == null) continue;
+
+            MachineStation station = hit.GetComponentInParent<MachineStation>();
+            if (station != null && station.transform == target)
+                inReach = true;
+        }
+
+        return inReach;
     }
 
     private void UpdateOutline(Luggage candidate)
@@ -560,25 +657,32 @@ public class PlayerGrab : MonoBehaviour
         Arrow.transform.localPosition = new Vector3(0, ArrowHeight, arrowZPos);
     }
 
-    private bool TryUseStation()
+    private bool TryUseStation() => TryLoadStation() != null;
+
+    // Puts the carried bag into a nearby machine. Returns the machine it went into, so the caller
+    // can carry the same button press straight on into cranking it.
+    private MachineStation TryLoadStation()
     {
-        if (luggageHeld == null) return false;
+        if (luggageHeld == null) return null;
 
         int hitCount = Physics.OverlapSphereNonAlloc(grabPoint.position, grabRadius, nearbyHits);
+        MachineStation loaded = null;
         for (int i = 0; i < hitCount; i++)
         {
             Collider hit = nearbyHits[i];
             nearbyHits[i] = null;
+            if (loaded != null || hit == null) continue;
+
             MachineStation station = hit.GetComponentInParent<MachineStation>();
             if (station == null || station.IsOccupied) continue;
             if (!station.CanAccept(luggageHeld)) continue;
 
             // TryPlace will DropAllGrabbers on the luggage, which nullifies luggageHeld via Drop()
             if (station.TryPlace(luggageHeld))
-                return true;
+                loaded = station;
         }
 
-        return false;
+        return loaded;
     }
 
     private bool TryUseLever()

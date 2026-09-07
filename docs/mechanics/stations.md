@@ -140,6 +140,36 @@ the washer and 0.12 on the wrapper, which is the tighter of the two and therefor
 number. The old art cleared its lip by 0.13, so this matches. And `-6` is the only band both
 behind the curtain (x −4.86) and inside the back of the arch (x −7.34).
 
+## Manual crank (the redesign's machine mechanic)
+
+`requiresPlayerCrank` turns a machine Overcooked-style: loading a bag does **nothing** on its own.
+The bag slides to `intakeTransform` and stops there until a player stands at the machine and holds
+the grab button.
+
+- `AddCrankProgress(deltaTime)` is called once per frame by `PlayerGrab` while the button is held.
+- `processDuration` stops being wall-clock time and becomes **seconds of held button**.
+- Letting go **pauses**. Progress is banked and never decays, so a second player can take over
+  half-way through and the first player can wander off to fetch the next bag.
+- At 100% the normal `OnProcessComplete` → eject path runs, shared with the timed path as
+  `EjectSequence`.
+
+`IsAwaitingCrank` is the "there is work here" flag — it drives both the progress bar and the
+player's detection of a machine worth pressing. `CrankProgress01` is the 0..1 bar fill.
+
+The machine animates **only on the frames someone is actually cranking**: `AddCrankProgress` sets
+`crankedThisFrame` and `LateUpdate` feeds that straight to the animator. Nothing has to notice that
+a player walked away, died, or was disconnected.
+
+> The progress bar itself is `StationProgressDisplay` — a scene-authored world-space canvas that
+> only fills and hides, per the UI rule. It shows up when a bag is waiting and disappears the
+> moment the machine finishes, so an idle machine carries no UI at all.
+>
+> **Make it loud.** This is the one thing a player has to read across the arena while being
+> shouted at. Level2's bars are 10 x 3 world units, centred over the machine footprint at y 7.6,
+> built as white frame → dark track → bright fill so the bar reads as a bar even when nearly
+> empty. A small flat bar disappears against the art — the first attempt was half this size and
+> was reported as invisible.
+
 ## Animation-driven or timed
 
 Production machines set `animationDriven` and call:

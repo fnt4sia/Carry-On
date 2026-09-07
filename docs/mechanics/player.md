@@ -157,6 +157,17 @@ and reacquire the scene camera after each load.
 
 ## Grab, carry, and throw
 
+**Grab is also the machine button.** On a redesign level a press near a machine loads the bag you
+are carrying, and *keeping the button down* then works the machine — one continuous hold covers
+carry, load and crank. Empty-handed at a loaded machine, a press starts cranking instead of
+grabbing. `ProcessStationInput` runs before the normal grab logic and consumes the press when it
+acts, so loading a bag never starts a throw charge and cranking never grabs the bag back out.
+Releasing pauses the machine; walking out of range ends the session on its own. See
+[stations](stations.md#manual-crank-the-redesigns-machine-mechanic).
+
+Grab is bound to **E** (and `/` for the second keyboard player). UseStation, on **F**, is the older
+secondary button: it still loads a station and still pulls levers, but it does not crank.
+
 One Grab action covers pickup, hold-to-charge throw, and quick drop. UseStation puts a held bag
 into a compatible machine.
 

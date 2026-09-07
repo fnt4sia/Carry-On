@@ -11,19 +11,37 @@ using UnityEngine;
 // floor instead of scored, so a wrong delivery costs the players time rather than points.
 public class Gate : MonoBehaviour
 {
-    // One colour line of the current flight: what it wants and how much of it has landed.
+    // One line of the current flight: what it wants and how much of it has landed.
+    //
+    // Every line names a colour. A line is then either plain ("3 red") or wrapped ("2 red, wrapped"),
+    // so "wrapped" is a second axis on top of colour rather than a replacement for it — a wrapped
+    // green bag will not fill a wrapped-red line.
     public class ManifestLine
     {
-        public ManifestLine(LuggageColor color, int required)
+        public ManifestLine(LuggageColor color, bool needsWrapped, int required)
         {
             Color = color;
+            NeedsWrapped = needsWrapped;
             Required = required;
         }
 
         public LuggageColor Color { get; }
+
+        /// <summary>Whether the bag must have been through a wrapper.</summary>
+        public bool NeedsWrapped { get; }
+
         public int Required { get; }
         public int Delivered { get; private set; }
         public bool IsFilled => Delivered >= Required;
+
+        public bool Accepts(Luggage luggage)
+        {
+            if (IsFilled) return false;
+            // Exact match on both axes: a wrapped bag does not fill a plain line and a plain bag
+            // does not fill a wrapped one, so over-processing is as wrong as under-processing.
+            if (luggage.IsWrapped != NeedsWrapped) return false;
+            return luggage.color == Color;
+        }
 
         public void CountDelivery()
         {
@@ -52,6 +70,15 @@ public class Gate : MonoBehaviour
     [Tooltip("How many bags a flight asks for of each colour it wants.")]
     [SerializeField, Min(1)] private int minBagsPerColor = 1;
     [SerializeField, Min(1)] private int maxBagsPerColor = 3;
+
+    [Header("Wrapped Lines")]
+    [Tooltip("How many lines of every flight ask for wrapped bags. Each names its own colour, so " +
+             "a wrapped line reads 'red, wrapped'. Fixed, not random: a level that teaches " +
+             "wrapping should always ask for it. 0 = never.")]
+    [SerializeField, Min(0)] private int wrappedLinesPerFlight;
+    [Tooltip("How many wrapped bags such a line asks for.")]
+    [SerializeField, Min(1)] private int minBagsPerWrappedLine = 1;
+    [SerializeField, Min(1)] private int maxBagsPerWrappedLine = 2;
 
     [Header("Rejection")]
     [Tooltip("Horizontal speed a bag the flight does not want is thrown back out at.")]
@@ -90,7 +117,7 @@ public class Gate : MonoBehaviour
             return;
         }
 
-        ManifestLine line = FindOpenLine(luggage.color);
+        ManifestLine line = FindOpenLine(luggage);
         if (line == null || !IsProcessed(luggage))
         {
             RejectLuggage(luggage);
@@ -114,11 +141,11 @@ public class Gate : MonoBehaviour
             ManifestChanged?.Invoke();
     }
 
-    private ManifestLine FindOpenLine(LuggageColor color)
+    private ManifestLine FindOpenLine(Luggage luggage)
     {
         for (int i = 0; i < manifest.Count; i++)
         {
-            if (manifest[i].Color == color && !manifest[i].IsFilled)
+            if (manifest[i].Accepts(luggage))
                 return manifest[i];
         }
 
@@ -195,7 +222,17 @@ public class Gate : MonoBehaviour
             paletteDraw.RemoveAt(pick);
 
             int bags = UnityEngine.Random.Range(minBagsPerColor, maxBagsPerColor + 1);
-            manifest.Add(new ManifestLine(color, bags));
+            manifest.Add(new ManifestLine(color, needsWrapped: false, bags));
+        }
+
+        // Wrapped lines draw from the full palette, independently of the plain lines. A flight may
+        // therefore want both "2 red" and "1 red wrapped" — two different jobs on the same colour,
+        // which is exactly the kind of order that makes the wrapper worth fighting over.
+        for (int i = 0; i < wrappedLinesPerFlight; i++)
+        {
+            LuggageColor color = palette[UnityEngine.Random.Range(0, palette.Count)];
+            int bags = UnityEngine.Random.Range(minBagsPerWrappedLine, maxBagsPerWrappedLine + 1);
+            manifest.Add(new ManifestLine(color, needsWrapped: true, bags));
         }
 
         ManifestChanged?.Invoke();
@@ -205,5 +242,6 @@ public class Gate : MonoBehaviour
     {
         maxColorsPerFlight = Mathf.Max(minColorsPerFlight, maxColorsPerFlight);
         maxBagsPerColor = Mathf.Max(minBagsPerColor, maxBagsPerColor);
+        maxBagsPerWrappedLine = Mathf.Max(minBagsPerWrappedLine, maxBagsPerWrappedLine);
     }
 }

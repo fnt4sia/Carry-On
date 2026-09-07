@@ -32,17 +32,30 @@ Behaviour is defined by each luggage prefab; there is no behaviour list on `Leve
 | Config | Round | Stars | Lifetime | Spawn interval | Max active |
 |---|---:|---|---:|---:|---:|
 | Tutorial | 180s | 20 / 40 / 60 | 35s | 1.0s | 14 |
-| Stage 1 | 120s | 100 / 160 / 220 | **0 (off)** | 1.0s | 14 |
-| Stage 2 | 120s | 40 / 80 / 120 | 24s | 1.0s | 14 |
+| Stage 1 | 120s | 100 / 160 / 220 | **0 (off)** | 1.0s | 28 |
+| Stage 2 | 150s | 80 / 130 / 180 | **0 (off)** | 1.0s | 28 |
 | Stage 3 | 120s | 50 / 100 / 150 | 22s | 1.0s | 14 |
 | Stage 4 | 120s | 60 / 120 / 180 | 19s | 1.0s | 14 |
 | Design | 999s | 10 / 30 / 60 | 30s | 1.0s | 14 |
 
-> **Only Stage 1 has been retuned for the flight redesign.** The wave fields
+**Level2 is Level1 plus wrapping.** Same fixed camera, same belt and round robin; it adds two
+`WrapperStation` prefabs flanking the corridor with `wrapsAnyLuggage` and `requiresPlayerCrank` on,
+and its gate sets `wrappedLinesPerFlight` to 1 so every flight needs wrapped bags of a **named
+colour** — "1 red, wrapped", not "1 anything, wrapped". The stations are
+the level's obstacle: they occupy x −12.9…−3.9, leaving a ~10-unit corridor at z 26.7…37.3 that
+lines up with the gate mouth. The round is longer (150s) and the star bar lower, because wrapping
+roughly halves throughput.
+
+> **Only Stages 1 and 2 have been retuned for the flight redesign.** The wave fields
 > (`waveDelay`, `luggagePerWave`, `intraWaveInterval`) were removed from `LevelConfig`, so every
 > other config lost its pacing and now runs on the script defaults shown above. Tutorial and
-> Stages 2–4 still carry their old lifetimes and old star thresholds and are **not balanced** —
+> Stages 3–4 still carry their old lifetimes and old star thresholds and are **not balanced** —
 > they are next in line for the redesign, not shipped content.
+
+**Level1's belt is red / green / yellow on a round robin.** `luggagePrefabs` lists the three
+colour variants in cycle order, and the gate's `palette` lists the same three. Those two must
+match: a palette colour the pool never spawns makes a flight unfillable. Blue exists as an asset
+but is used by nothing.
 
 **Level1 uses a fixed camera.** The shot is authored on the Main Camera at
 `(-7, 25.1, 7)` rotated `(42.12, 0, 0)`, with `ArenaCamera` replacing `MultiplayerCamera` as a

@@ -24,17 +24,17 @@ MonoBehaviour:
   destinationCode: UPG
   destinationName: MAKASSAR
   previewImage: {fileID: 0}
-  gameTime: 120
-  star1Score: 40
-  star2Score: 80
-  star3Score: 120
+  gameTime: 150
+  star1Score: 80
+  star2Score: 130
+  star3Score: 180
   luggagePrefabs:
-  - {fileID: 2657728768583679652, guid: 3ff59be8ddf8948129c2020ea3ca360c, type: 3}
-  luggageLifetime: 50
-  waveDelay: 9
-  luggagePerWave: 5
-  intraWaveInterval: 1.7
+  - {fileID: 1818504315736707031, guid: 905695df6aa04d46ae99ecd04ad20fc0, type: 3}
+  - {fileID: 4505602499030791835, guid: 5dd4a25230f240c183eae85cfdd219b0, type: 3}
+  - {fileID: 9063756403775074392, guid: eb7455f71e47435bba384405e0fe7e7e, type: 3}
+  luggageLifetime: 0
+  spawnInterval: 1
+  maxActiveLuggage: 28
   scoreCorrectDelivery: 10
   scoreMissingProcess: -5
   scoreTimerExpired: -5
-  scoreWrongGateDelivery: -5
