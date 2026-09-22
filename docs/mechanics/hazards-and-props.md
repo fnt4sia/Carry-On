@@ -1,7 +1,7 @@
 # Hazards and props
 
 **Scripts:** `Game/World/{PressurePlate, Lever, Gateway, SlidingPanel, Elevator, RotatingPlatform,
-OneWayDoor, PoolHazard, WindSway, MarqueeText, SignFlicker, AmbientTrafficSpawner}.cs`,
+OneWayDoor, PoolHazard, WindSway, CloudDrift, MarqueeText, SignFlicker, AmbientTrafficSpawner}.cs`,
 `Game/Core/AmbientAirplaneSpawner.cs`
 
 Reusable logic prefabs. Shared behaviour (colliders, visuals, animation) belongs in Prefab Mode;
@@ -10,8 +10,9 @@ what each instance is *connected to* is per-level scene data.
 > **These are out of the gameplay loop on the `redesign` branch.** The plates and gateways were
 > removed from `Level1` — a gate that idles one player while the other fetches turned out to be
 > the boring half of the playtest. The scripts and prefabs are kept because they still describe
-> working props, but no redesigned level wires them. Don't add them back to a level without a
-> reason that survives a playtest.
+> working props, but no redesigned level wires them — the only scenes that do are in
+> `Assets/Scenes/Archive/` ([levels](../levels.md#archived-scenes)). Don't add them back to a level
+> without a reason that survives a playtest.
 
 ## Pressure plate
 
@@ -63,9 +64,9 @@ when the real model exists; nothing in the script reads the geometry.
 ## Gateway
 
 The sliding double door. `Gateway` exposes `Open`, `Close`, and `Toggle`, driving the cached
-`AnimId.IsOpen` animator parameter. Normally driven by a `PressurePlate`; in `Tutorial` it is
-driven by `TutorialRoom` instead, which opens a room's doors once its luggage is cleared (see
-[levels](../levels.md#tutorial)). Both drivers just call `Open` — the door never knows which.
+`AnimId.IsOpen` animator parameter. Normally driven by a `PressurePlate`; in the archived
+`Tutorial` it is driven by `TutorialRoom` instead, which opens a room's doors once its luggage is
+cleared. Both drivers just call `Open` — the door never knows which.
 `Gateway_Open` /
 `Gateway_Closed` are constant-pose clips that slide `MainLeftDoor` / `MainRightDoor` along local
 Z; the transition blend is the slide.
@@ -462,6 +463,68 @@ Colours are deliberately low-contrast against the dark boards: amber `(0.72, 0.5
 the tickers, pale steel `(0.58, 0.67, 0.76)` for the plaques. Same reasoning as the board rows'
 bronze — the signs should sit in the environment, not glare out of it.
 
+### Logo TV
+
+**Prefab:** `Assets/Prefab/Decoration/LogoTV.prefab` · **Materials:** `Material/World/{TV Casing, TV Screen}.mat`
+
+In `MainMenu` this replaced the `WallSignage` on the pillar above the menu banner (September 2026 —
+the `WallSignage` prefab is kept). It is built from primitives, no FBX: all sizes are world units at
+root scale 1, screen facing local **−Z**.
+
+```text
+LogoTV                     root at (−64.95, 11.59, 92.85), identity rotation
+├── Body                   Cube 8.6 × 5.0 × 0.35, TV Casing
+├── Bezel/Top,Bottom,Left,Right   0.3-wide bars, 0.08 proud of the front — the outline pass
+│                          catches that step, which is what makes the screen read as recessed
+├── Screen                 Quad 8.0 × 4.4, TV Screen (Shader Graphs/TVScreen, unlit CRT)
+├── ScreenCanvas           World Space, 8000 × 4400 at scale 0.001, 0.015 in front of Screen,
+│   │                      CanvasGroup + SignFlicker (same values as WallSignage), layer UI, no raycaster
+│   └── Logo               CarryOnLogo sprite, preserveAspect, anchors 0.1–0.9 × 0.12–0.88
+└── Mount/ArmUpper,ArmLower  2.8-long rods out of the left side at y ±1.6, into the pillar
+```
+
+`TV Casing` is a copy of the `AIRPORT` material with no texture and base colour **`#460046`** —
+the palette texel the signage boards and their arms sample, so the TV matches the other signs.
+The screen is a real mesh rather than a black `Image`: when `SignFlicker` dips the canvas alpha the
+logo fades against the screen, and the outline pass has flat geometry behind the logo instead of
+edge-detecting whatever is behind the canvas. The logo is tinted `(0.88, 0.93, 1)` — a cool
+white-balance so it reads as emitted light rather than a sticker; change `Logo`'s Image colour to
+retune. The arms are sized to this one pillar (the old sign's arms ended at world `x −71.85`), and
+the `WallSignage2` plaque's posts end at `y 10.43` behind the TV — keep the TV's bottom edge below
+that if it moves.
+
+`CarryOnLogo.png` is imported as a **Single** sprite with mipmaps on: it is 3104 px wide (capped to
+2048) and drawn a few hundred pixels wide in the lobby, so without mips it shimmers.
+
+#### The screen shader
+
+`Assets/Shader/TVScreen.shadergraph` (URP **Unlit**, opaque) makes the quad read as a powered CRT
+instead of a black rectangle. It uses the quad's own UV0 — a Unity primitive, so unlike the airport
+meshes its UVs are a clean `0…1` and no world-space trick is needed. Three terms, all on `uv.y`:
+
+```text
+base  = lerp(Dark Colour, Screen Colour, saturate(scan * vignette + sweep))
+scan  = lerp(1 − Scanline Strength, 1, 0.5 + 0.5·sin((uv.y + t·Scanline Speed)·Scanline Count))
+sweep = frac(uv.y − t·Sweep Speed) ^ Sweep Sharpness · Sweep Strength
+vign  = 1 − length(uv − 0.5) · Vignette
+```
+
+| Property | Value | Does |
+|---|---|---|
+| `Screen Colour` | HDR `(0.09, 0.35, 0.46)` | the lit tone; cool so the cream logo still reads warm against it |
+| `Dark Colour` | `(0.012, 0.012, 0.02)` | what the screen falls to between scanlines — the old flat colour |
+| `Scanline Count` / `Speed` / `Strength` | `48` / `−0.06` / `0.5` | band count over the quad, drift, how dark the gaps go |
+| `Sweep Speed` / `Sharpness` / `Strength` | `0.15` / `6` / `0.35` | the slow refresh bar crawling up the screen |
+| `Vignette` | `0.9` | corner falloff; `length(uv−0.5)` maxes at `0.707`, so `0.9` darkens corners ~36% |
+
+**Scanline count is a viewing-distance number, not a taste one.** 48 bands over a 4.4-unit-tall quad
+is about the limit before the lines alias at lobby distance — there is no mip or derivative fade in
+the graph. Raise it only if the camera gets closer, and re-check on a screenshot rather than in the
+graph preview.
+
+The screen is Unlit on purpose: the casing is lit, the screen emits. Bloom picks the bright
+scanlines up through the Global Volume, which is why `Screen Colour` is an HDR field.
+
 ### Don't confuse these with the older prefabs
 
 `StandingSignage.prefab` is a **different sign** — mesh `Signage03`, scale 2.9, facing `+90` — and
@@ -469,6 +532,41 @@ is not what `MainMenu` uses. The menu's standing sign was a loose FBX drop of `S
 it became `StandingSignage2.prefab` rather than overwriting the existing asset. Same story for
 `HangingPlants.prefab` (mesh `HangingPlants`, scale 1.75) versus the menu's
 `HangingPlants2.prefab` (mesh `HangingPlants.001`, scale 2.74).
+
+## Cloud drift
+
+**Script:** `Game/World/CloudDrift.cs` · **Scene object:** `MainMenu` → `Clouds`
+
+**Prefabs:** `Assets/Prefab/Decoration/Cloud1…Cloud6.prefab`
+
+Moving sky for a fixed camera. Each cloud is a `Cloud1…6` prefab whose children are its puffs —
+nested `Bubble.prefab` instances (the `Cloud.001` mesh from `Shader/tests/cloudsculpt2_anim.fbx`)
+with per-puff scale, yaw and shadows-off overrides. `Bubble.prefab` is shared with the character
+bubble, so never restyle it for the sky; restyle a `Cloud` prefab instead.
+
+- **Opening sky.** The six `Cloud1…6` instances under `Clouds` are the hand-composed sky the scene
+  opens on. They drift like the rest and are removed once they leave.
+- **Spawning.** Every `spawnInterval` seconds a random `cloudPrefabs` entry is spawned upwind at a
+  random depth, height and size, unless `maxClouds` are already up. Short intervals with a low cap
+  make clouds arrive in waves (every exit is instantly refilled); 15–35 s with a cap of 12 keeps
+  them spread across the view.
+- **Per-cloud speed.** Each cloud moves at `windSpeed × (1 ± speedVariation)`, so clouds overtake
+  each other, and near clouds still cross the screen faster than far ones — that parallax is what
+  makes the layer read as deep. Negative wind (the default) blows right-to-left: new clouds enter
+  over the open apron on the right, where they are seen arriving, and leave behind the terminal.
+- **Nothing pops.** Spawns are pushed upwind until neither view can see them; a cloud is destroyed
+  only when it is downwind *and* outside both the home view (camera pose at `Awake`, current
+  aspect) and the live view (wherever `CameraFocus` has the camera now). The old mirror-wrap
+  was removed: at a fixed angle it could jump inside the lean-in view.
+- **Billow.** Each puff scales on its own slow sine (golden-angle phases, spread rates), so a
+  cloud's outline keeps changing even while the cloud barely moves.
+
+The deck sits at ~110–140 m altitude, 320–700 m out. **Far + low clouds hide behind the terminal's
+upper floor** on the left half of the frame, which is why the spawn depth stops at 700 — an 830 m
+cap left most spawned clouds invisible. Hand-placed far clouds work only over the open apron on the
+right. When authoring a new cloud prefab: keep its puff bottoms level (cumulus have flat bases) and
+squash puff local Z for flatter far clouds — local Z is world-up at the `(270, y, 0)` import
+rotation.
 
 ## Ambient traffic
 
@@ -545,10 +643,20 @@ used instead.
 
 The anchors are placed and named to match the `1A 1B 1C` / `2A 2B 2C` convention:
 
-| Group | Side one (deep end) | Side two (off right) | Trip | Speed |
-|---|---|---|---|---|
-| `Planes` | `1A/1B/1C` at `y 60`, 280–590 out, all off-frustum | `2A/2B/2C` at `y 60`, viewport `x 1.10` | ~571 u | 60–110 u/s (5–10 s) |
-| `Cars` | `1A/1B/1C` on the apron at `y −3.8`, viewport `x 0.14` | `2A/2B/2C`, viewport `x 1.06` | ~764 u | 45–75 u/s (10–17 s) |
+| Group | Side one | Side two | Trip | Speed | Cooldown |
+|---|---|---|---|---|---|
+| `Planes` | `1A/1B/1C` low on the left (`y 60–100`, 800–850 out), **hidden behind the terminal** | `2A/2B/2C` off-screen right (`y 120–200`, 75–85° right of the lobby camera) | 1310–1480 u | 130–350 u/s | 8–12 s, first after 1 s |
+| `Cars` | `1A/1B/1C` on the apron at `y −3.8`, viewport `x 0.14` | `2A/2B/2C`, viewport `x 1.06` | ~764 u | 45–75 u/s (10–17 s) | 5–10 s |
+
+**Plane anchors (September 2026).** The old side-one anchors sat in open sky at viewport
+`(0.32, 0.78)`, ~820 deep, so every plane popped into existence mid-screen. The planes are huge —
+`Pesawat1` is 206 × 262 u, `Pesawat2` 169 × 162 — so "off-frustum" needs real margin. The anchors
+were placed by render-diff, not by frustum maths: render the camera with and without a plane at the
+anchor and count changed pixels. Every anchor reads 0 (±noise) from the lobby pose **and**
+`MenuFocusPose` (and the proposed square focus pose), at 16:9 **and** 21:9. A plane enters from behind the
+upper-floor structure or the right frame edge, climbs across the windows, and is on screen for
+~40–55% of the trip — so roughly 1–4 s of each trip is hidden lead-in, which the 8–12 s cooldown
+accounts for. **Move the lobby camera or `MenuFocusPose` and these need re-checking.**
 
 Two placement constraints, both learned the hard way:
 
@@ -564,6 +672,11 @@ left edge is asymptotic, so marching that way leaves the far clip before it leav
 `1x` car anchors sit at viewport `x 0.14` instead — far enough to be small and behind the window
 mullion. If a car ever reads as popping into existence, that anchor is the one to nudge.
 
-> `MainMenu` still has the older `AmbientPlanes` object running `AmbientAirplaneSpawner` down the
-> runway. The two do not conflict while `AmbientTraffic`'s plane fleet is empty, but once it is
-> filled, pick one — otherwise two systems fly planes past the same window.
+> The older `AmbientAirplaneSpawner` is no longer in `MainMenu`; it lives only on
+> `GameManager.prefab` (gameplay levels), flying `Airplane.prefab` along `+Z` with
+> `faceTravelDirection` **off** — the plane keeps the spawn anchor's rotation `(0, 0, 0)`. That is
+> correct only because `Airplane`'s nose is authored along `+Z`. It has no `yawOffset`, so a model
+> with any other nose axis will fly sideways there.
+>
+> **Facing verified September 2026:** every fleet entry above was posed exactly as the spawner poses
+> it and rendered side-on, and at runtime the nose and motion direction measured 0.0° apart.

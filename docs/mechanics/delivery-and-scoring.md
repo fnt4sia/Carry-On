@@ -18,8 +18,7 @@ trigger collider
   -> Luggage.TryGetFromCollider
   -> reject an already delivered item
   -> read LevelContext.CurrentConfig
-  -> FindOpenLine(luggage.color)          // null => this flight doesn't want it
-  -> IsProcessed(luggage)                 // unwashed / unwrapped => turned away
+  -> FindOpenLine(luggage)                // colour + wrapped must match; null => bounced
   -> RoundScoreContext.TryRecordDelivery(last player, scoreCorrectDelivery)
   -> count the line, mark delivered, recycle
   -> manifest full? CompleteFlight() -> GenerateFlight()
@@ -49,8 +48,8 @@ Wrapped lines draw their colour from the full palette **independently** of the p
 flight can legitimately want both "2 red" and "1 red wrapped" — two different jobs on the same
 colour, which is what makes the wrapper worth queueing for.
 
-**Rejection, not punishment.** A bag the flight doesn't want — wrong colour, or still filthy or
-bursting — is not scored and not destroyed. `RejectLuggage` drops whoever was holding it and
+**Rejection, not punishment.** A bag the flight doesn't want — wrong colour, or wrapped when the
+line wants plain (or the reverse) — is not scored and not destroyed. `RejectLuggage` drops whoever was holding it and
 throws it back the way it came (`rejectSpeed`, `rejectLift`). A wrong delivery costs the players
 *time and mess*, never points.
 
@@ -96,11 +95,9 @@ rather than letting the gate art occlude it.
 ## Scoring
 
 A gate only ever applies `LevelConfig.scoreCorrectDelivery`. There is no wrong-gate penalty and
-no missing-process penalty at the gate any more — both cases are bounced instead of charged, and
-`ScoringRules`/`LuggageScoreState` were deleted with the flight rewrite.
-
-`scoreTimerExpired` still exists and still fires, but only in levels that set a non-zero
-`luggageLifetime`.
+no missing-process penalty — both cases are bounced instead of charged, and
+`ScoringRules`/`LuggageScoreState` were deleted with the flight rewrite. The expiry penalty went
+with bag lifetime in September 2026, so **nothing in the game subtracts points**.
 
 > **Scoring has no safety net.** There are no tests in this project, and a scoring bug is
 > invisible during playtesting — the game just feels unfair. Re-check the numbers by hand
@@ -111,12 +108,12 @@ no missing-process penalty at the gate any more — both cases are bounced inste
 
 `ScoreBoard` has no `MonoBehaviour`, scene, or UI dependency. It tracks team score (clamped at
 zero), per-player scores (which keep signed deltas), and real team and per-player delivery
-counts. `ApplyScore` handles non-delivery deltas such as expiry; `RecordDelivery` increments the
-real count and then applies the resolved score. Delivery counts are tracked directly, never
+counts. `RecordDelivery` increments the real count and then applies the score through
+`ApplyScore`. Delivery counts are tracked directly, never
 inferred from `score / 10`.
 
-`RoundScoreContext` binds the active board for the round — gates call `TryRecordDelivery`,
-luggage expiry calls `TryApplyScore`. It unbinds when the round ends so a late object can't
+`RoundScoreContext` binds the active board for the round — gates call `TryRecordDelivery`, the
+only way score changes. It unbinds when the round ends so a late object can't
 mutate a finished result.
 
 ## Round flow

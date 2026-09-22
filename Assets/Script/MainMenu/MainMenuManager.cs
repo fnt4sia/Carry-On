@@ -7,20 +7,16 @@ using UnityEngine.UI;
 // Lobby controller. The camera never moves: one fixed pose looks at the menu banner and
 // the character lineup at the same time. The banner's world-space canvas is the whole
 // menu — it opens showing only a "press to join" line, and the first player to press
-// (keyboard half or gamepad) swaps that for the departures list. Further players join
-// into a lineup that re-centres as they arrive.
+// (keyboard half or gamepad) swaps that for the departures list. Each player takes the next
+// authored lobby slot, in join order.
 //
 // Every element referenced here is authored in the scene (Assets/Scenes/Menu/MainMenu)
 // or in BoardMenuRow.prefab. This script only toggles and fills what already exists.
 public class MainMenuManager : MonoBehaviour
 {
     [Header("Player Lineup")]
-    [SerializeField] private Transform spawnCenter;     // row centre, on the floor, +X = row axis
-    [SerializeField] private Camera lobbyCamera;        // characters turn to face this
-    [SerializeField] private float spacing = 2.6f;      // max world units between characters (few players)
-    [SerializeField] private float bandWidth = 4.6f;    // row never spreads wider than this (many players pack in)
-    [SerializeField] private float lobbyScale = 0.55f;  // character display scale in the lobby
-    [SerializeField] private float feetPivotOffset = 1.005f; // model feet sit this far below pivot at scale 1
+    [Tooltip("One authored stand per seat, in join order. Position and rotation are both used.")]
+    [SerializeField] private Transform[] lobbySlots = new Transform[4];
 
     [Header("Menu Banner")]
     [SerializeField] private GameObject joinPrompt;     // "Press ... to Join", shown before anyone joins
@@ -34,6 +30,9 @@ public class MainMenuManager : MonoBehaviour
     [SerializeField] private GameObject savesBackRow;   // fallback selection when every slot is locked
     [SerializeField] private GameObject settingsPanel;
     [SerializeField] private CameraFocus cameraFocus;   // leans the camera in while a panel is open
+
+    [Header("Lobby HUD")]
+    [SerializeField] private TeamPanel teamPanel;       // bottom-of-screen seat strip, hidden until someone joins
 
     [Header("Navigation Defaults")]
     [Tooltip("Row highlighted first in each view when a gamepad is driving.")]
@@ -75,6 +74,8 @@ public class MainMenuManager : MonoBehaviour
         {
             ShowJoinGate();
         }
+
+        RefreshTeamPanel();
     }
 
     private void OnDestroy()
@@ -146,37 +147,33 @@ public class MainMenuManager : MonoBehaviour
             RevealMenu(player);
 
         UpdatePositions();
+        RefreshTeamPanel();
     }
 
-    // Lay the joined characters out as a centred row facing the lobby camera.
+    // The seat strip only exists once someone has joined; before that the banner's join prompt
+    // is the whole screen.
+    private void RefreshTeamPanel()
+    {
+        if (teamPanel == null) return;
+
+        teamPanel.gameObject.SetActive(joinedPlayers.Count > 0);
+        teamPanel.Refresh(joinedPlayers);
+    }
+
+    // Stand each joined character on its own authored slot, in join order. Where a character
+    // stands and which way it faces are both the slot's — re-pose the lobby by moving the slot
+    // objects in the scene, never here. Slots sit on the floor: the character models' pivots
+    // are their soles.
     private void UpdatePositions()
     {
-        if (spawnCenter == null) return;
+        if (lobbySlots == null) return;
 
-        int count = joinedPlayers.Count;
-        Vector3 axis = spawnCenter.right;
-        float feetY = spawnCenter.position.y + feetPivotOffset * lobbyScale;
-
-        // Spread out for few players, pack tighter so the row never exceeds bandWidth.
-        float effSpacing = count > 1 ? Mathf.Min(spacing, bandWidth / (count - 1)) : 0f;
-
-        for (int i = 0; i < count; i++)
+        for (int i = 0; i < joinedPlayers.Count && i < lobbySlots.Length; i++)
         {
-            float offset = (i - (count - 1) / 2f) * effSpacing;
-            Vector3 pos = spawnCenter.position + axis * offset;
-            pos.y = feetY;
+            Transform slot = lobbySlots[i];
+            if (slot == null) continue;
 
-            Transform t = joinedPlayers[i].transform;
-            t.position = pos;
-            t.localScale = Vector3.one * lobbyScale;
-
-            if (lobbyCamera != null)
-            {
-                Vector3 look = lobbyCamera.transform.position - pos;
-                look.y = 0;
-                if (look.sqrMagnitude > 0.0001f)
-                    t.rotation = Quaternion.LookRotation(look);
-            }
+            joinedPlayers[i].transform.SetPositionAndRotation(slot.position, slot.rotation);
         }
     }
 

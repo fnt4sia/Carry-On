@@ -318,6 +318,94 @@
                     "action": "UseStation",
                     "isComposite": false,
                     "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "12d4d1a7-79e9-4600-a486-ba10b087a575",
+                    "path": "<Gamepad>/leftStick",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "GamepadLeft",
+                    "action": "Move",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "7361341a-355f-4d3f-a27c-ad4ac8e21c2c",
+                    "path": "<Gamepad>/rightStick",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "GamepadRight",
+                    "action": "Move",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "67d0ef62-1dd6-465e-a3c2-32c18589ce3a",
+                    "path": "<Gamepad>/leftTrigger",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "GamepadLeft",
+                    "action": "Dash",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "6bf82e2a-40f5-4434-8486-16cc74d4bdce",
+                    "path": "<Gamepad>/rightTrigger",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "GamepadRight",
+                    "action": "Dash",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "8a5092bf-7aeb-4be6-810a-bf27ca469e1c",
+                    "path": "<Gamepad>/leftShoulder",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "GamepadLeft",
+                    "action": "Grab",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "61addcd0-3ec6-4977-9a88-ae1a0a673b7b",
+                    "path": "<Gamepad>/rightShoulder",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "GamepadRight",
+                    "action": "Grab",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "c659c40f-478d-4f9c-9b36-c9e5ba5c7a24",
+                    "path": "<Gamepad>/leftStickPress",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "GamepadLeft",
+                    "action": "UseStation",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "063b80a8-338e-4546-bd7e-5fa92b312d84",
+                    "path": "<Gamepad>/rightStickPress",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "GamepadRight",
+                    "action": "UseStation",
+                    "isComposite": false,
+                    "isPartOfComposite": false
                 }
             ]
         },
@@ -353,7 +441,7 @@
                     "path": "<Gamepad>/start",
                     "interactions": "",
                     "processors": "",
-                    "groups": "Gamepad",
+                    "groups": "Gamepad;GamepadLeft;GamepadRight",
                     "action": "Pause",
                     "isComposite": false,
                     "isPartOfComposite": false
@@ -509,7 +597,7 @@
                     "path": "<Gamepad>/leftStick",
                     "interactions": "",
                     "processors": "",
-                    "groups": "Gamepad",
+                    "groups": "Gamepad;GamepadLeft;GamepadRight",
                     "action": "Move",
                     "isComposite": false,
                     "isPartOfComposite": false
@@ -520,7 +608,7 @@
                     "path": "<Gamepad>/dpad",
                     "interactions": "",
                     "processors": "",
-                    "groups": "Gamepad",
+                    "groups": "Gamepad;GamepadLeft;GamepadRight",
                     "action": "Move",
                     "isComposite": false,
                     "isPartOfComposite": false
@@ -553,7 +641,7 @@
                     "path": "<Gamepad>/buttonSouth",
                     "interactions": "",
                     "processors": "",
-                    "groups": "Gamepad",
+                    "groups": "Gamepad;GamepadLeft;GamepadRight",
                     "action": "Confirm",
                     "isComposite": false,
                     "isPartOfComposite": false
@@ -564,7 +652,7 @@
                     "path": "<Gamepad>/start",
                     "interactions": "",
                     "processors": "",
-                    "groups": "Gamepad",
+                    "groups": "Gamepad;GamepadLeft;GamepadRight",
                     "action": "Confirm",
                     "isComposite": false,
                     "isPartOfComposite": false
@@ -586,7 +674,7 @@
                     "path": "<Gamepad>/buttonEast",
                     "interactions": "",
                     "processors": "",
-                    "groups": "Gamepad",
+                    "groups": "Gamepad;GamepadLeft;GamepadRight",
                     "action": "Back",
                     "isComposite": false,
                     "isPartOfComposite": false
@@ -620,6 +708,28 @@
         {
             "name": "Gamepad",
             "bindingGroup": "Gamepad",
+            "devices": [
+                {
+                    "devicePath": "<Gamepad>",
+                    "isOptional": false,
+                    "isOR": false
+                }
+            ]
+        },
+        {
+            "name": "GamepadLeft",
+            "bindingGroup": "GamepadLeft",
+            "devices": [
+                {
+                    "devicePath": "<Gamepad>",
+                    "isOptional": false,
+                    "isOR": false
+                }
+            ]
+        },
+        {
+            "name": "GamepadRight",
+            "bindingGroup": "GamepadRight",
             "devices": [
                 {
                     "devicePath": "<Gamepad>",

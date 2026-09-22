@@ -25,6 +25,8 @@ public class PlayerSystem : SingletonBehaviour<PlayerSystem>
     public const string SchemeKeyboardLeft  = "KeyboardLeft";
     public const string SchemeKeyboardRight = "KeyboardRight";
     public const string SchemeGamepad       = "Gamepad";
+    public const string SchemeGamepadLeft   = "GamepadLeft";
+    public const string SchemeGamepadRight  = "GamepadRight";
 
     [SerializeField] private string lobbySceneName = "MainMenu";
 
@@ -109,7 +111,57 @@ public class PlayerSystem : SingletonBehaviour<PlayerSystem>
                 Join(SchemeGamepad, pad);
                 return;
             }
+
+            // North splits a pad that is already in use into two halves, Overcooked style:
+            // the sitting player keeps the left stick and shoulders, a new player takes the right.
+            if (pad.buttonNorth.wasPressedThisFrame && FullPadPlayer(pad) != null)
+            {
+                SplitPad(pad);
+                return;
+            }
         }
+    }
+
+    private void SplitPad(Gamepad pad)
+    {
+        PlayerInput owner = FullPadPlayer(pad);
+        if (owner == null) return;
+
+        owner.SwitchCurrentControlScheme(SchemeGamepadLeft, pad);
+
+        PlayerInput partner = JoinPlayer(SchemeGamepadRight, pad);
+        if (partner != null)
+            LastJoinFrame = Time.frameCount;
+        else
+            owner.SwitchCurrentControlScheme(SchemeGamepad, pad); // refused: hand the whole pad back
+    }
+
+    /// <summary>The player driving this pad as one whole controller, if there is one.</summary>
+    public static PlayerInput FullPadPlayer(Gamepad pad)
+    {
+        foreach (var p in PlayerInput.all)
+        {
+            if (p.currentControlScheme != SchemeGamepad) continue;
+            foreach (var device in p.devices)
+                if (device == pad) return p;
+        }
+        return null;
+    }
+
+    /// <summary>A pad nobody has joined on yet, for the lobby's "press to join" hint.</summary>
+    public static Gamepad FirstFreeGamepad()
+    {
+        foreach (var pad in Gamepad.all)
+            if (!IsDeviceTaken(pad)) return pad;
+        return null;
+    }
+
+    /// <summary>Is any pad still whole, so the split hint is worth showing?</summary>
+    public static bool AnyPadCanSplit()
+    {
+        foreach (var pad in Gamepad.all)
+            if (FullPadPlayer(pad) != null) return true;
+        return false;
     }
 
     private void Join(string scheme, InputDevice device)

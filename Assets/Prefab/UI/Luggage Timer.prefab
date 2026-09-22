@@ -299,7 +299,6 @@ GameObject:
   - component: {fileID: 3116911075590152416}
   - component: {fileID: 4528520652413913700}
   - component: {fileID: 7906021307916547595}
-  - component: {fileID: 2839133607961312155}
   m_Layer: 0
   m_Name: Luggage Timer
   m_TagString: Untagged
@@ -392,28 +391,3 @@ MonoBehaviour:
   m_BlockingMask:
     serializedVersion: 2
     m_Bits: 4294967295
---- !u!114 &2839133607961312155
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6252088296781975643}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ad58d601b7ea6466e9a89bc0f1b0a8b0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: CarryOn.Game::LuggageTimerDisplay
-  luggage: {fileID: 0}
-  sourceCollider: {fileID: 0}
-  visualRoot: {fileID: 763554627500255740}
-  fillImage: {fileID: 1502468137887518268}
-  timeText: {fileID: 0}
-  gateNumberText: {fileID: 5233632927409221600}
-  worldUiLayerName: WorldUI
-  hoverHeight: 0.35
-  normalColor: {r: 0.98, g: 0.18, b: 0.18, a: 1}
-  warningColor: {r: 1, g: 0.58, b: 0.12, a: 1}
-  dangerColor: {r: 0.88, g: 0.08, b: 0.08, a: 1}
-  warningThreshold: 10
-  dangerThreshold: 5

@@ -1,8 +1,7 @@
 # UI
 
-**Scripts:** `MainMenu/{MainMenuManager, InputModeManager, BoardMenuRow, UIPulse, CameraFocus}.cs`
-(`PlayerSlotView.cs` is kept but no longer used by any scene),
-`ChooseStage/{MapMover, LevelNode, LevelInfoPopup}.cs`, `Game/UI/GameHUD.cs`
+**Scripts:** `MainMenu/{MainMenuManager, InputModeManager, BoardMenuRow, UIPulse, CameraFocus, TeamPanel}.cs`,
+`ChooseStage/{MapController, MapPlane, LevelNode, LevelTicket}.cs`, `Game/UI/GameHUD.cs`
 
 **Every UI element is authored in the scene or in a prefab — never built in code.** No
 `new GameObject()`, no `AddComponent<Image>()`, no `Instantiate` for UI. The only exception is a
@@ -14,10 +13,12 @@ offsets that die on an aspect-ratio change.
 
 **Scene:** `Assets/Scenes/Menu/MainMenu.unity`
 
-There is **no screen-space canvas and no camera movement**. One fixed `Main Camera` pose frames
-both the menu banner and the character lineup, and the entire menu is a world-space canvas drawn
-onto the banner's poster face. The old `Canvas`, `StartView`, and `MenuView` objects were deleted
-in the August 2026 board-menu rebuild, along with the per-player `PlayerUI.prefab` cards.
+The authored `Main Camera` pose frames both the menu banner and the character lineup; it only
+leaves that pose to lean in on a panel ([views](#views-and-the-camera-lean)). The entire menu is a
+world-space canvas drawn onto the banner's poster face. The one screen-space element is the
+[team panel](#team-panel) at the bottom of the screen, on its own overlay canvas `LobbyHUD`. The
+old `Canvas`, `StartView`, and `MenuView` objects were deleted in the August 2026 board-menu
+rebuild, along with the per-player `PlayerUI.prefab` cards.
 
 > **The menu moved off `DepartureBoard` in August 2026.** The board carried the first version of
 > this menu; it is gone from the scene and `DepartureBoard.prefab` is referenced by nothing. The
@@ -89,11 +90,27 @@ not by eye:
 
 ```text
 distance = (posterHeight / fill) * 0.5 / tan(fov/2)
-         = (6.696 / 0.82) * 0.5 / tan(30°)  =  7.072
+         = (7.533 / 1.05) * 0.5 / tan(30°)  =  6.213
 ```
 
-placed along `−banner.right` from the canvas centre, looking back down `+banner.right` — which
-puts the poster at viewport `y 0.090…0.910`, dead centre, with the line of sight clear.
+The canvas faces world **+Z**, so the pose is `(−66.250, 1.098, 72.334)` with **zero rotation** —
+straight down the poster's normal from its own centre. `fill` is **1.05**: the poster overruns the
+screen top and bottom by 5%, which costs nothing (its own `Content` inset is 3.3% a side) and
+leaves no strip of environment above or below it. `Content` lands at viewport `y 0.009…0.991`.
+
+> **Zooming cannot hide the side environment, and that is geometry, not tuning.** The poster is
+> portrait, `5.288 × 7.533`, so once its height fills a 16:9 screen its width can only cover
+> `5.288 / (7.533 × 16/9) ≈ 39%`. At `fill 1.05` it covers 41%; the remaining ~59% is terminal
+> either side, and a narrower FOV does not help — pulling the camera back to compensate keeps the
+> same ratio. The ways out are **dressing what shows either side**, a **wider board**, or
+> **dimming the world** behind the canvas during the lean (a full-screen Image on `LobbyHUD` faded
+> by the focus blend). The dressing is done — see [below](#what-the-zoom-frames) — the other two
+> are not.
+
+> **Re-measure after any banner change.** This was re-placed in September 2026: the banner went
+> from scale 4 to 4.5 (poster `6.696` → `7.533` tall) and the old pose was left behind at yaw 10°
+> and too close, clipping the top of the poster off the screen. `posterHeight` is the height of
+> `MenuCanvas`'s **world corners**, not a number to guess from the Inspector.
 
 State is one `0…1` blend driven by `MoveTowards`, not a tween to a destination: interrupting a
 move part-way reverses it from where it is, and the camera can never end up off its two poses.
@@ -103,6 +120,42 @@ It runs on **unscaled** time so the lean still plays if the lobby is ever paused
 > intermediate frames of the lean — an unfocused Editor doesn't run the player loop, so the whole
 > 0.55 s move collapses into one enormous-`deltaTime` frame. Eyeball the motion with the Game view
 > focused.
+
+### What the zoom frames
+
+Since the poster can only cover ~41% of a 16:9 screen, the remaining band either side of it **is**
+the shot. The right band already had midground — the escalator at `43` units and the platform at
+`51` — but the left band was floor, then nothing until `WallBelakang` **200 units away**, which
+read as a flat pink slab. `MenuEnvironment/Interior/Decor/BannerLeftDressing` fills it, all of it
+instances of existing decoration prefabs at the scales the rest of the lobby already uses:
+
+| Prop | Position | Scale |
+|---|---|---|
+| `StackedChairs` | `(−78.0, −3.80, 101.0)`, yaw 90 | `1.1` — the seat rows run across the view |
+| `TrolleyStack1` | `(−77.0, −2.86, 94.0)`, yaw 200 | `2.2` |
+| `IndoorTree` | `(−82.5, −1.43, 99.0)` | `0.45` |
+| `StandingSignage` | `(−81.5, 6.48, 103.0)`, yaw 250 | `2.0` |
+| `HousePlant2` | `(−78.5, −3.80, 90.5)` | `1.4` |
+
+**The banner hides more of the floor than it looks like it does, and that is what makes placement
+here unintuitive.** The poster's left edge is at world `x −68.89`, the focus camera at
+`x −66.25, z 72.334`, the poster at `z 78.97` — so the shadow it casts widens with depth:
+
+```text
+hidden if   x  >  −66.25 − 2.64 * (z − 72.334) / 6.64
+```
+
+At `z 94` everything right of `x −74.9` is behind the board; at `z 101`, right of `x −77.9`. A prop
+dropped at `x −72` reads fine in the Scene view and is invisible in the shot. Props also grow fast
+as they come forward — the first pass put the trolleys at `z 85` and they swallowed the whole
+bottom-left corner — so the pocket that works is roughly **`z 90…105`, `x −77…−84`**.
+
+Every prop is floor-snapped by its renderer bounds, not by its pivot, because these prefabs' pivots
+disagree with each other (`StandingSignage` and `IndoorTree` both pivot *above* their base). The
+floor under the pocket is `y −3.80`.
+
+This dressing barely shows at the home pose — the pocket sits just outside the left edge of the
+lobby framing — so it costs the main shot nothing.
 
 ### Save and settings panels
 
@@ -147,7 +200,7 @@ FLIGHT column is 224**, so the slot name lives in DESTINATION (483 px) and FLIGH
 `SettingsPanel` is deliberately a title, a placeholder line and a back row — the panel and its
 plumbing exist so adding a real control is a scene edit.
 
-Joined characters are arranged in a centred row, frozen with kinematic rigidbodies, facing the
+Joined characters each take an authored lobby slot, frozen with kinematic rigidbodies, facing the
 camera. Starting with zero players is rejected with the wrong-action SFX.
 
 `InputModeManager` switches between pointer mode (mouse movement and clicks, nothing selected)
@@ -225,35 +278,39 @@ refuses, with the wrong-action SFX, if no player has joined, since the stage wou
 characters. Device ownership is
 in [player](mechanics/player.md#joining).
 
-### Sizing and standing the lobby characters
+### Standing the lobby characters
 
-`PlayerSpawnTransform` is the lineup anchor — move that object to reposition the characters. Four
-numbers on `MainMenuManager` control the rest:
+**The lineup is authored, not computed.** `PlayerSpawnTransform` holds four empties,
+`LobbySlot_1…4`, wired into `MainMenuManager.lobbySlots` in join order. `UpdatePositions` copies
+slot *i*'s position **and rotation** onto the *i*-th joined player and does nothing else — move a
+slot object to move a character, turn it to turn one. There are no spacing, band-width or scale
+numbers left on the component; the centred-row solver, `spacing`, `bandWidth`, `lobbyScale`,
+`feetPivotOffset`, `spawnCenter` and `lobbyCamera` all went with it in September 2026, because the
+generated row read as awkward and was easier to place by hand.
 
-| Field | Value | Does |
+Slots are seeded on an **arc at a constant distance from the lobby camera** (radius `16.54` from
+the camera's pivot, bearing `40.3°`, at `±6°` and `±18°`), each facing the camera:
+
+| Slot | Position | Yaw |
 |---|---|---|
-| `lobbyScale` | `0.9` | **display size.** Annie is `4.26` world units tall at scale 1, so this shows her at `3.83` |
-| `feetPivotOffset` | `0` | how far the model's soles sit **below** its pivot at scale 1 |
-| `spacing` | `2.6` | max gap between characters when only a few joined |
-| `bandWidth` | `7` | the row never spreads wider than this; raise it with `lobbyScale` or big characters will overlap |
+| `LobbySlot_1` | `(−61.59, −3.65, 76.08)` | `202.3` |
+| `LobbySlot_2` | `(−58.55, −3.65, 74.44)` | `214.3` |
+| `LobbySlot_3` | `(−55.91, −3.65, 72.20)` | `226.3` |
+| `LobbySlot_4` | `(−53.79, −3.65, 69.47)` | `238.3` |
 
-Retuned August 2026 for the new bodies: the row was tiny and half under the camera's bottom
-edge. `PlayerSpawnTransform` moved from `(-60.10, -3.70, 68.40)` to `(-60.10, -3.70, 71.80)` —
-farther along the camera's view direction, so the characters stand full-height in front of the
-carousel, right of the departures board. `spawn.y` stays `-3.70` (floor height, see below).
+Equal camera distance is the point: the old row ran diagonally away from the camera, so the fourth
+character rendered visibly smaller than the first and the shoulders overlapped. On the arc all four
+read the same size with a clear gap between them.
 
-`UpdatePositions` sets the pivot to `spawn.y + feetPivotOffset * lobbyScale`, so when
-`feetPivotOffset` matches the model, **the soles land exactly on `spawn.y`** — which means the
-spawn object belongs at floor height, not at hip height.
+**Slots fill left to right in join order, so one player stands on the leftmost slot, not in the
+middle.** That is the price of manual placement; re-order the array if a solo player should stand
+somewhere else.
 
-Both were wrong until August 2026. Measured off a baked `Annie.prefab`: her `MainBody` spans
-`y 0.0000 … 2.5563`, so **her pivot already is her soles** and the drop is `0`, not the `1.005`
-that was set. The floor under the spawn is `Floor_Ground.002` at `y −3.70`, and the spawn sat at
-`−3.44`. Together she floated `0.813` — a third of her height. Now `feetPivotOffset 0` and
-`spawn.y −3.70`, verified: soles land at `−3.7000`, gap `0.0000`.
-
-> Re-measure `feetPivotOffset` if the character prefab is ever replaced — it is a property of the
-> model's pivot, not a feel value, and a wrong one floats or sinks every lobby character at once.
+`y` is `−3.65`, on the floor: the character models' pivots **are** their soles (Annie's `MainBody`
+spans `y 0.0000 … 2.5563`), so a slot sits at floor height, not hip height. The floor under the
+lineup is `Floor_Ground.002` at `y −3.70`. Re-check this if a character prefab is ever replaced —
+a wrong pivot floats or sinks every lobby character at once. Nothing scales the characters in the
+lobby; they stand at prefab scale, ~`5.3` world units tall.
 
 **Player pin.** The `1P/2P` pin over each head is the `Player Indicator` child on the character
 prefab (`PlayerIndicator.cs`). Its height comes from the character's **renderer bounds, not the
@@ -274,16 +331,83 @@ in Unity-MCP camera-render screenshots** (the URP overlay stack is skipped); use
 > `MeshFilter` sitting on `PlayerSpawnTransform`. `LogoCanvas` had already gone. The join hint
 > that used to live on the player-list panel now sits at the bottom of the banner canvas.
 >
-> **Scene-only — the assets are all still in the project on purpose.** `PlayerSlot.prefab`,
-> `PlayerSlotView.cs`, `DepartureBoard.prefab` and
-> `Assets/UI/{Multiplayer1,Multiplayer2,Multiplayer3,CarryOnLogo}.png` are now referenced by
-> nothing and are kept for re-use. Don't treat "no references" here as dead weight to prune.
+> **Scene-only — the assets are still in the project on purpose.** `DepartureBoard.prefab` is
+> referenced by nothing and is kept for re-use. Don't treat "no references" here as dead weight to
+> prune. (`Assets/UI/MainMenu/Multiplayer1-3.png` were in the same boat until the
+> [team panel](#team-panel) put them back to work in September 2026.)
+> (`PlayerSlot.prefab` had already gone; its orphaned `PlayerSlotView.cs` was deleted in the
+> September 2026 cleanup.)
+
+### Team panel
+
+A four-seat strip in the screen's **bottom-right corner**: one head-and-body figure per seat, lit
+white when a player holds it and dim grey when it is free, with a line under each seat naming the
+device that holds it or the button that would take it. Seats fill left to right in join order.
+
+```text
+LobbyHUD                 Canvas, Screen Space - Overlay, sort 10, CanvasScaler 1920x1080 match 0.5
+  TeamPanel              Multiplayer2.png at native 289x172, anchored bottom-right, (-16, +12); TeamPanel.cs
+    Slots                HorizontalLayoutGroup, spacing 5 (57 px seats -> 62 px pitch)
+      Slot_1..Slot_4     TeamSlot.prefab (57 x 100); TeamSlot.cs
+                           Head  Multiplayer1 41x40
+                           Body  Multiplayer3 49x30
+                           Tag   TMP 13, CanvasGroup + UIPulse (disabled), one line, 57x16
+```
+
+| Seat | Figure | Tag |
+|---|---|---|
+| taken | lit `joinedColor` | device: `WASD` · `ARROW` · `PAD 1` · `PAD 1 L` / `PAD 1 R` |
+| taken, whole pad, a seat still free | lit | device **+ `(Y) SPLIT`** in prompt colour at 85% size, on a second line |
+| next free seat | dim `emptyColor` | the key alone — `(A)` / `SPACE` / `R-SHIFT` — pulsing |
+| free, not next | dim | blank |
+
+**Even margins are measured, not eyeballed.** The seat block is `40 + 7 + 30 + 7 + 16 = 100` tall,
+sat at `y −32` inside the panel's dark inner area (`y 13…149`), which renders as **19 px above the
+heads and 19 px below the tag** at 1920x1080. The `−32` is one pixel past centring the rect,
+because a caps-only line leaves ~2 px of empty rect under its baseline. Re-measure off a render
+after any font or size change; the split hint's second line deliberately eats into the bottom
+margin (8 px left under it) and is the one case that is not even.
+
+- **Shown only once someone has joined.** `TeamPanel` is saved **inactive**; `MainMenuManager.
+  RefreshTeamPanel` switches it on and refreshes it on every join, and once in `Start` so a
+  return to the lobby with players already joined shows it straight away. `TeamPanel` also
+  refreshes on `InputSystem.onDeviceChange`, because plugging a pad in changes what the free seat
+  should ask for with nobody touching anything.
+- **The scripts only tint and set text.** Every rect, sprite and layout group is authored.
+  `TeamPanel` decides what each seat says; `TeamSlot` draws it, tinting `joinedColor` /
+  `emptyColor` (white / `0.41` grey, from the design mock) and switching its `UIPulse` on only for
+  the seat that is asking to be filled — recolour on the components, not in code. The slot art is
+  white for exactly this reason; leave the prefab's own Image colours white.
+- **A seat pitch is 62 px (57 + 5 spacing), and that is the whole budget for a tag.** At font 13
+  the widest label allowed is ~51 px, which is why the join prompt is the bare key with no `JOIN`
+  after it, why the keyboard-right seat reads `ARROW` and not `ARROWS` (59 px — it touched its
+  neighbour), and why the split hint is `<size=85%>`. Measure a new label with
+  `TMP_Text.GetPreferredValues` before using it; the tag deliberately does not wrap or clip, so an
+  over-long one silently runs into the next seat.
+- **Button names follow the Xbox layout** (`A` to join, `Y` to split) since that is what PC games
+  label generically. They are plain text in `TeamPanel`; swap them for glyph sprites, chosen per
+  connected pad, when the art exists.
+- **Everything is at the sprites' native pixel size**, which is also 1:1 with the design mock
+  (measured to within ~8%). The panel sprite is not 9-sliced; it doesn't need to be at native size.
+  If the panel ever has to grow, give `Multiplayer2` a sprite border first (≈32 px keeps its
+  rounded corners) and switch the Image to *Sliced*.
+- **Overlay, not World Space**, for the reason in the next section. The canvas has no
+  `GraphicRaycaster` — the panel is display-only, and without one it can never swallow a click
+  meant for the banner.
+- **Placement was checked against the lineup** at 2 and 4 players; in the bottom-right corner the
+  panel is clear of the characters entirely. It was bottom-centre first, where it sat right under
+  their feet.
+- `Multiplayer1` and `Multiplayer3` were imported as *Multiple* sprite mode with no rects sliced,
+  i.e. they held **no sprite at all**. Both are *Single* now.
+- `ButtonPrompt.png` (a generated 64 px white disc) is left in the project unused: it was the
+  circle in the `MANAGE TEAM` row this panel started with, and it is the obvious base for a real
+  button glyph.
 
 ### Overlay vs world space, and the outline pass
 
-The lobby's one screen-space element used to be a **Screen Space - Overlay** canvas for the logo,
-and that mode was not a style choice. It started as World Space and the outlines of scene objects
-behind it drew straight over the artwork. The cause is render order, not parenting:
+The lobby's team panel is a **Screen Space - Overlay** canvas, as the old logo canvas was before
+it, and that mode is not a style choice. The logo started as World Space and the outlines of scene
+objects behind it drew straight over the artwork. The cause is render order, not parenting:
 
 1. `URP-HighFidelity-Renderer` runs a `FullScreenPassRendererFeature` with the
    `OutlinePostProcessing` material at injection point **`AfterRenderingPostProcessing`** — the
@@ -306,11 +430,13 @@ underneath for stray edges to spoil, only the `Backdrop` fill.
 
 ### Decorative world canvases
 
-`MenuCanvas` is not the only world-space canvas in the lobby. The three airport signs
-(`WallSignage`, `WallSignage2`, `StandingSignage2`) each carry their own text canvas as a child of
-their **decoration prefab**, with a scrolling ticker or a flicker on it. They are display-only —
+`MenuCanvas` is not the only world-space canvas in the lobby. The airport signs
+(`WallSignage2`, `StandingSignage2`) and the `LogoTV` on the pillar above the banner each carry
+their own canvas as a child of their **decoration prefab**, with a scrolling ticker or a flicker on
+it. (The `WallSignage` ticker that used to hang there was swapped for `LogoTV` in September 2026.)
+They are display-only —
 no `GraphicRaycaster`, nothing selectable — and they are documented with the props, not here: see
-[hazards and props](mechanics/hazards-and-props.md#signage-text). They copy this section's canvas
+[hazards and props](mechanics/hazards-and-props.md#signage-text). The signs copy this section's canvas
 convention (`localRotation (0, 90, 0)`, ConstantPixelSize scaler, `LiberationSans SDF`), so change
 one and check the other.
 
@@ -318,30 +444,29 @@ one and check the other.
 
 **Scene:** `Assets/Scenes/Menu/ChooseStage.unity`
 
-An airplane token moves over `LevelNode` instances. Parking inside a node's detection radius
-shows its card; Confirm loads an unlocked level, Back returns to the lobby.
+`MapController` spawns one `MapPlane` token per joined player over a flat map of `LevelNode`s.
+The `LevelTicket` card appears only once **every** plane is parked within `nodeRadius` of the same
+node; Confirm then loads that node's level and Back returns to the lobby. The map camera is a
+`MultiplayerCamera` framing the planes.
 
-`MapMover` reads `Map/Move`, `Map/Confirm`, and `Map/Back` from the shared input asset. Input is
-shared, so any joined device can drive the token. Movement is constant-speed and snaps to face
-direction. Persisted player GameObjects are deactivated while the map is open and reactivated
-before either transition, so the target scene's `PlayerSpawner` can position them.
+Persisted players are deactivated while the map is open, so their own `PlayerInput` can't drive
+anything. Each plane instead gets a runtime clone of the shared input asset, masked to that
+player's control scheme and paired to their devices — which is what lets two halves of one
+keyboard fly two planes. Confirm and Back stay on the shared asset so any device can press them.
+`MapPlane` movement is deliberately unsmoothed: full speed the frame the stick moves, zero the
+frame it stops.
 
 Each `LevelNode` references one `LevelConfig` — display strings, scene name, default unlock, save
 key, and next-stage relationship all come from that asset. The node asks `ProgressionService` for
 unlocked state and best stars, and owns only its locked/unlocked visuals, refreshing them on
-`ProgressChanged`.
+`ProgressChanged`. `LevelTicket` fills its boarding-pass labels from the same config; the prefab
+owns every label and the presenter only fills and fades them.
 
-Confirming a locked node plays the wrong-action SFX; confirming an invalid config logs an error.
-Loading is delegated to `SceneLoader` and guarded against double submission.
+Confirming a locked node plays the wrong-action SFX; a node with no loadable config logs an error.
+Loading is delegated to `SceneLoader`, which refuses scenes that aren't in Build Settings.
 
-One reusable `LevelInfoPopup` card follows the currently detected node. It fills title and
-description from the config, slides and fades in, and hides when the token leaves. Unlocked cards
-show the description and best saved stars; locked cards append a locked label and explain that
-the previous stage must be completed. Re-showing the same node is ignored so the animation
-doesn't restart every frame.
-
-> Because every stage config currently names a deleted scene, confirming a stage node will fail
-> the `SceneLoader` Build Settings check. See [levels](levels.md#dangling-configs).
+> Nodes 3 and 4 still point at the archived `LevelConfig_Stage3/4` and stay locked. See
+> [levels](levels.md#config--scene-mapping).
 
 ## Game HUD
 
@@ -384,9 +509,9 @@ the widest that still fits inside the bar.
 > 100 puts the icon's left edge at ~41, which is what actually mirrors the score side.
 
 `GameHUD.gameTimerFill` drives `Timer/Icon/Fill` from `OnTimeChanged`, as
-`timeRemaining / LevelConfig.gameTime`. It is a plain drain in one authored colour — unlike the
-[luggage dial](mechanics/luggage.md#timer-ui) it has **no warning/danger thresholds**. Both
-dials use the built-in `Knob` sprite, `Filled` / `Radial360`, origin Top, counter-clockwise.
+`timeRemaining / LevelConfig.gameTime`. It is a plain drain in one authored colour with **no
+warning/danger thresholds**, using the built-in `Knob` sprite, `Filled` / `Radial360`, origin Top,
+counter-clockwise.
 
 Buttons call the `SceneLoader` API. Next uses `GameManager.Config.nextLevel` when present and
 otherwise returns to stage select.

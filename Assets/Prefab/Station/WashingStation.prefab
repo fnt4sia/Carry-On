@@ -166,8 +166,6 @@ GameObject:
   m_Component:
   - component: {fileID: 8758825926248134395}
   - component: {fileID: 3348678316286966760}
-  - component: {fileID: 1924560570692525128}
-  - component: {fileID: 8759285480873569752}
   m_Layer: 0
   m_Name: WashingStation
   m_TagString: Untagged
@@ -217,56 +215,6 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
---- !u!114 &1924560570692525128
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1445714927145585798}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 62860e150e6514c11a30677f15bcaa23, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::WashingMachine
-  snapTransform: {fileID: 5483896576954166835}
-  sliderTransform: {fileID: 0}
-  machineAnimator: {fileID: 3348678316286966760}
-  animationDriven: 0
-  processDuration: 1.65
-  readyDuration: 1.4
-  intakeTransform: {fileID: 3521034135731854551}
-  releaseTransform: {fileID: 9174126020411868379}
-  outputTransform: {fileID: 4046490411155793452}
-  intakeDuration: 1.1
-  shoveBlockingLuggageOnPlace: 1
-  obstacleCheckTransform: {fileID: 4046490411155793452}
-  obstacleCheckHalfExtents: {x: 1.5, y: 1, z: 1.5}
-  obstacleShoveImpulse: 5
-  obstacleShoveUpImpulse: 1.5
-  obstacleShoveRandomness: 0.65
-  washedLuggagePrefab: {fileID: 2657728768583679652, guid: 3ff59be8ddf8948129c2020ea3ca360c,
-    type: 3}
---- !u!114 &8759285480873569752
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1445714927145585798}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9ae8b799fa6b84a7f95493a7f9360ab3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::StationLamps
-  entryLamp: {fileID: 1886184580747110974}
-  entryLight: {fileID: 7258662574061524130}
-  exitLamp: {fileID: 2062801532094854289}
-  exitLight: {fileID: 8061714096531143934}
-  readyColor: {r: 0.45, g: 1, b: 0.5, a: 1}
-  busyColor: {r: 1, g: 0.35, b: 0.3, a: 1}
-  emissionStrength: 2.5
-  lightIntensity: 2
 --- !u!1 &1458867043241720094
 GameObject:
   m_ObjectHideFlags: 0

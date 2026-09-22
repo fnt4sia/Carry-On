@@ -23,6 +23,8 @@ namespace CarryOn.EditorTools
         private const float DeckGauge = 4f;
         private const float HeightTolerance = 0.01f;
         private const string BeltSurfaceMaterialName = "BeltSurface";
+        private const string BeltShaderName = "Shader Graphs/ConveyorBelt";
+        private const string BeltAxisProperty = "_BeltAxis";
 
         private class Report
         {
@@ -88,13 +90,20 @@ namespace CarryOn.EditorTools
             // Only gameplay scenes have a level to validate.
             LevelContext context = FindInScene<LevelContext>(scene).FirstOrDefault();
             if (context == null)
+            {
+                // A menu scene has no level rules to check, but it can still carry belts — and a
+                // belt whose stripes scroll the wrong way under the luggage looks broken anywhere.
+                foreach (Conveyor conveyor in FindInScene<Conveyor>(scene))
+                    ValidateBeltStripes(conveyor, report);
+
                 return;
+            }
 
             LevelConfig config = ReadObject<LevelConfig>(context, "levelConfig");
 
             ValidateContext(scene, context, config, report);
             ValidateRequiredSystems(scene, report);
-            ValidateStationsMatchContent(scene, config, report);
+            ValidateLuggagePool(scene, config, report);
             ValidateStations(scene, report);
             ValidateConveyors(scene, report);
             ValidateGates(scene, report);
@@ -146,16 +155,11 @@ namespace CarryOn.EditorTools
                 report.Error($"{scene.name}: no {typeof(T).Name} in the scene.", null);
         }
 
-        /// <summary>
-        /// The check that matters most: a level that spawns Sticky bags but has no washer
-        /// is unwinnable — every delivery of those bags is a guaranteed penalty.
-        /// </summary>
-        private static void ValidateStationsMatchContent(Scene scene, LevelConfig config, Report report)
+        private static void ValidateLuggagePool(Scene scene, LevelConfig config, Report report)
         {
             if (config == null || config.luggagePrefabs == null)
                 return;
 
-            HashSet<LuggageBehaviorType> spawned = new();
             foreach (GameObject prefab in config.luggagePrefabs)
             {
                 if (prefab == null)
@@ -164,30 +168,9 @@ namespace CarryOn.EditorTools
                     continue;
                 }
 
-                Luggage luggage = prefab.GetComponent<Luggage>();
-                if (luggage == null)
-                {
+                if (prefab.GetComponent<Luggage>() == null)
                     report.Error($"{scene.name}: luggage prefab '{prefab.name}' has no Luggage component.", config);
-                    continue;
-                }
-
-                spawned.Add(luggage.behaviorType);
             }
-
-            if (spawned.Contains(LuggageBehaviorType.Sticky) && FindInScene<WashingMachine>(scene).Count == 0)
-            {
-                report.Error(
-                    $"{scene.name}: spawns Sticky luggage but has no WashingMachine. " +
-                    "Those bags can never be processed — every delivery is a penalty.", config);
-            }
-
-            if (spawned.Contains(LuggageBehaviorType.Fragile) && FindInScene<Wrapper>(scene).Count == 0)
-            {
-                report.Error(
-                    $"{scene.name}: spawns Fragile luggage but has no Wrapper. " +
-                    "Those bags can never be processed — every delivery is a penalty.", config);
-            }
-
         }
 
         private static void ValidateStations(Scene scene, Report report)
@@ -225,19 +208,6 @@ namespace CarryOn.EditorTools
                     report.Error(
                         $"{station.name}: animationDriven is on but no Animator is assigned — " +
                         "it will never finish processing and the slot will stay occupied.", station);
-                }
-
-                switch (station)
-                {
-                    case WashingMachine washer
-                        when new SerializedObject(washer).FindProperty("washedLuggagePrefab")?.objectReferenceValue == null:
-                        report.Warn($"{washer.name}: no washedLuggagePrefab — falls back to an in-place swap.", washer);
-                        break;
-
-                    case Wrapper wrapper
-                        when new SerializedObject(wrapper).FindProperty("wrappedLuggagePrefab")?.objectReferenceValue == null:
-                        report.Warn($"{wrapper.name}: no wrappedLuggagePrefab — falls back to an in-place swap.", wrapper);
-                        break;
                 }
             }
         }
@@ -283,6 +253,8 @@ namespace CarryOn.EditorTools
                         "Friction will fight the belt's velocity steering.", conveyor);
                 }
 
+                ValidateBeltStripes(conveyor, report);
+
                 float deckHeight = conveyor.transform.position.y + DeckGauge * scale.y;
                 float rounded = Mathf.Round(deckHeight * 100f) / 100f;
                 deckHeights.TryGetValue(rounded, out int count);
@@ -298,6 +270,47 @@ namespace CarryOn.EditorTools
                 report.Warn(
                     $"{scene.name}: conveyor pieces sit at {deckHeights.Count} different deck heights — {detail}. " +
                     "Pieces that are meant to connect must share one height or the seam will step.", null);
+            }
+        }
+
+        /// <summary>
+        /// The belt's stripes scroll along a world-space axis stored on the material, while the
+        /// luggage travels along the piece's own forward. Nothing links the two, so rotating a
+        /// piece without swapping its material leaves the stripes crawling sideways or backwards
+        /// under the bags. This is the check that catches it.
+        /// </summary>
+        private static void ValidateBeltStripes(Conveyor conveyor, Report report)
+        {
+            Material belt = null;
+            foreach (Renderer renderer in conveyor.GetComponentsInChildren<Renderer>(true))
+            {
+                foreach (Material material in renderer.sharedMaterials)
+                {
+                    if (material != null && material.shader != null && material.shader.name == BeltShaderName)
+                        belt = material;
+                }
+            }
+
+            if (belt == null)
+            {
+                report.Warn(
+                    $"{conveyor.name}: no '{BeltShaderName}' material anywhere on the piece, so its deck renders " +
+                    "static while the belt still carries luggage. The belt material goes on the 'Model' child, " +
+                    "not on the conveyor root.", conveyor);
+                return;
+            }
+
+            if (!belt.HasProperty(BeltAxisProperty))
+                return;
+
+            Vector3 axis = belt.GetVector(BeltAxisProperty);
+            Vector3 forward = conveyor.transform.forward;
+            if (Vector3.Dot(axis.normalized, forward) < 0.9f)
+            {
+                report.Error(
+                    $"{conveyor.name}: belt material '{belt.name}' scrolls along {Format(axis)} but the piece " +
+                    $"faces {Format(forward)} — the stripes run sideways or backwards under the luggage. " +
+                    "Assign the belt material whose axis matches the facing.", conveyor);
             }
         }
 

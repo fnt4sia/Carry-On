@@ -41,11 +41,17 @@ fade works at all, since `EndRound` sets `timeScale` to 0 on the same frame.
 
 ## Camera
 
-**Scripts:** `Game/Core/ArenaCamera.cs`, `MultiplayerCamera.cs`, `WorldUIOverlayCamera.cs`
+**Scripts:** `Game/Core/ArenaCamera.cs`, `ArenaFollowCamera.cs`, `MultiplayerCamera.cs`,
+`WorldUIOverlayCamera.cs`
 **Prefab:** `Assets/Prefab/Manager/Main Camera.prefab`
 
-There are two camera behaviours, and which one a scene uses is a **scene override on the Main
+There are three camera behaviours, and which one a scene uses is a **scene override on the Main
 Camera prefab instance** — the prefab itself still carries `MultiplayerCamera`.
+
+None of the three ever writes rotation. The authored angle is the shot, and two other systems read
+it as a fixed basis: `PlayerMovement` builds its movement axes from the camera's forward/right, and
+the world-space UI (gate manifest board, station progress bars) is authored to face that same
+angle. Re-aiming a level's camera means re-aiming its world UI and turning the controls with it.
 
 ### ArenaCamera — the gameplay camera (redesign)
 
@@ -58,9 +64,51 @@ Drift is meant to be *below* conscious notice: at the default 0.35 units and ~34
 distance it moves the picture about 1.5% of screen width. If you can see it as camera movement it
 is too strong. Zero either amplitude to switch that half off.
 
-**Only `Level1` uses it.** Because the shot is fixed, every spawn point, the belt and the gate must
-all sit inside the frustum — moving any of them means re-checking the framing. `RebaseToCurrentPose`
-exists for moving the camera at runtime; nothing calls it yet.
+Because the shot is fixed, every spawn point, the belt and the gate must all sit inside the
+frustum — moving any of them means re-checking the framing.
+
+**In `Level1` and `Level2` it is present but disabled** — it is the other half of the camera A/B
+described below. Its authored pose is untouched, so re-enabling it restores the shot exactly.
+
+### ArenaFollowCamera — the Moving Out-style shot (Level1, Level2)
+
+`ArenaFollowCamera` tracks the players' midpoint and dollies back along its own view axis as they
+spread. Enabled in `Level1` and `Level2`; `ArenaCamera` sits beside it disabled. **Never enable
+both** — they each write `transform.position` in `LateUpdate` and will fight.
+
+It is a separate component rather than a retune of `MultiplayerCamera` on purpose: that script is
+still live in `ChooseStage` (and in the archived scenes), and its `(offset, 0, offset)` pull-back
+is only a view-axis dolly at the 45° yaw those scenes use.
+At the redesign's 0° yaw it is a pure sideways slide that shoves the players toward the frame edge.
+
+Three things it does that the older rig does not:
+
+- **Fits the real frustum.** `framingMargin` is a world-unit gap around the outermost player,
+  solved against fov and aspect, so the shot survives a change of screen. There is no
+  `zoomLimiter` magic number, and `bounds.size.magnitude` — which mixed X, Z *and* Y, so standing
+  on the raised gate platform zoomed the camera out — is gone. The pivot is flattened to one
+  height for the same reason.
+- **Damps zoom asymmetrically.** Pulling back is quick (`zoomOutSmoothTime`), coming back in is
+  slow (`zoomInSmoothTime`). The level is a shuttle between the belt and the gate, so an honest
+  zoom breathes in and out every few seconds — right in the band that makes people queasy. With
+  the shipped values the zoom moves about 1.1× in normal two-player play.
+- **Frames on the first tick.** The round opens on a three-second countdown at `timeScale` 0, and
+  it damps on `unscaledDeltaTime`, so the shot is correct *during* the countdown instead of
+  swooping into place on "GO".
+
+`minDistance` is doing real work: the arena is sparse and the billboard props are tall, so a
+closer shot fills the frame with empty floor and lets props cut across it. `maxDistance` is sized
+to hold four players across the whole belt-to-gate run; past that a straggler goes off-screen
+rather than shrinking the level to a postage stamp. **The floor is not fenced** (a player can walk
+~87 × 58 units), so a wanderer will eventually leave the frame — the fix for that is level
+colliders, not camera code.
+
+**`extraTargets` and the Clone marker.** Anything in `extraTargets` is framed exactly as if it
+were a joined player. `Level1` and `Level2` each carry a `Clone` object at spawn point 2 — an
+empty transform with a collider-less capsule child sized like a character — wired into that array,
+so the two-player framing can be judged with one controller. Deactivating `Clone` returns the solo
+shot, which makes it a one-click A/B. **It is a development marker and renders in game; deactivate
+or delete it before a build.**
 
 ### MultiplayerCamera — stage select, and the not-yet-redesigned levels
 
@@ -77,12 +125,12 @@ Players persist between scenes, so the camera resolves its set per stage rather 
 prefab references.
 
 `MapController` in stage select drives it through `SetTargets`, framing the map planes instead of
-players. **That is why the script still exists** — don't delete it when converting the remaining
-levels to `ArenaCamera`.
+players. **That is why the script still exists** — no gameplay level uses it any more, but stage
+select does.
 
 `WorldUIOverlayCamera` self-installs on `Camera.main`. It removes the `WorldUI` layer from the
 base camera, creates a child URP overlay camera that renders only `WorldUI`, and keeps projection
-synchronised. The luggage timer uses this so its world-space UI stays readable over level
+synchronised. `PlayerIndicator` uses this so its world-space pin stays readable over level
 geometry. If layer 10 is removed or renamed, the system warns and world UI can be occluded.
 
 Per-level framing tunables may legitimately differ when a level's footprint does. Never drag
@@ -179,8 +227,8 @@ later. Verified: instance ID unchanged after `LoadStageSelect()`, `ActiveSlot` s
 live instance.
 
 > **Entering a stage without going through the lobby writes to slot 1.** Pressing Play directly in
-> `DesignScene` never calls `UseSlot`/`StartNewGame`, so `ActiveSlot` is still its default. Harmless
-> for sandbox work — just don't read slot 1 as "the player's real save" when debugging.
+> `Level1` or `Level2` never calls `UseSlot`/`StartNewGame`, so `ActiveSlot` is still its default.
+> Harmless for testing — just don't read slot 1 as "the player's real save" when debugging.
 
 ### When it writes
 
@@ -207,9 +255,10 @@ Unlocking is driven by `LevelConfig.nextLevel`, not by an index — finishing `s
 `stage-2` because Stage 1's config points at Stage 2's. Current `levelId`s are all unique
 (`design-sandbox`, `stage-1`…`stage-4`, `tutorial`), which is what keeps slots coherent.
 
-> Unlocking `stage-2` currently leads to a **missing scene** — Stage 2–4 and Tutorial still name
-> scenes deleted in the July 2026 consolidation. See [levels](levels.md). The save layer is fine;
-> the scenes are not there yet.
+> The chain stops at `stage-2`: its `nextLevel` is empty while Level3 is archived. A save from
+> before the archive may already hold `stage-3`/`stage-4` unlocked; clicking those nodes logs
+> `Scene 'Level3' is not enabled in Build Settings.` and does nothing. See
+> [levels](levels.md#config--scene-mapping).
 
 Don't change a shipped `levelId` casually: the old record stops matching and the player silently
 loses progress. Corrupt or unreadable JSON falls back to a fresh in-memory save with a warning.

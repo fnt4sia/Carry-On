@@ -3,7 +3,7 @@
 // No bag is ever assigned to a particular gate.
 //
 // Set on the prefab — there is one luggage prefab variant per colour — and never changed
-// at runtime, the same way LuggageBehaviorType is fixed at spawn.
+// at runtime.
 public enum LuggageColor
 {
     Red,

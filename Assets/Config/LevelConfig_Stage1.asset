@@ -32,9 +32,6 @@ MonoBehaviour:
   - {fileID: 1818504315736707031, guid: 905695df6aa04d46ae99ecd04ad20fc0, type: 3}
   - {fileID: 4505602499030791835, guid: 5dd4a25230f240c183eae85cfdd219b0, type: 3}
   - {fileID: 9063756403775074392, guid: eb7455f71e47435bba384405e0fe7e7e, type: 3}
-  luggageLifetime: 0
   spawnInterval: 1
   maxActiveLuggage: 28
   scoreCorrectDelivery: 10
-  scoreMissingProcess: -5
-  scoreTimerExpired: -5

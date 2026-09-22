@@ -103,7 +103,7 @@ public class PlayerGrab : MonoBehaviour
 
     private void OnDisable()
     {
-        Drop(forceRelease: true);
+        Drop();
     }
 
     private void Awake()
@@ -173,11 +173,8 @@ public class PlayerGrab : MonoBehaviour
     {
         if (grabDown && objectRigidbody != null)
         {
-            if (luggageHeld == null || luggageHeld.behaviorType != LuggageBehaviorType.Sticky)
-            {
-                isGrabInputHeld = true;
-                grabInputHoldTime = 0f;
-            }
+            isGrabInputHeld = true;
+            grabInputHoldTime = 0f;
         }
 
         if (grabUp && objectRigidbody != null && isGrabInputHeld)
@@ -370,17 +367,6 @@ public class PlayerGrab : MonoBehaviour
         {
             if (luggageHeld != null)
             {
-                // Sticky luggage cannot be thrown
-                if (luggageHeld.behaviorType == LuggageBehaviorType.Sticky)
-                {
-                    isGrabInputHeld = false;
-                    grabInputHoldTime = 0f;
-                    StopThrowBuildUpAudio();
-                    animator.SetBool(AnimId.IsThrowing, false);
-                    if (Arrow) Arrow.SetActive(false);
-                    return;
-                }
-
                 DisableBridgeCollider();
                 luggageHeld.RemoveGrabber(this);
                 luggageHeld = null;
@@ -702,18 +688,10 @@ public class PlayerGrab : MonoBehaviour
         return false;
     }
 
-    public void Drop(bool forceRelease = false)
+    public void Drop()
     {
         if (Arrow) Arrow.SetActive(false);
         StopThrowBuildUpAudio();
-
-        // Sticky luggage cannot be dropped unless forced (e.g. by another player grabbing it, or station placement)
-        if (!forceRelease && luggageHeld != null && luggageHeld.behaviorType == LuggageBehaviorType.Sticky)
-        {
-            grabInputHoldTime = 0f;
-            isGrabInputHeld = false;
-            return;
-        }
 
         grabInputHoldTime = 0f;
         isGrabInputHeld = false;

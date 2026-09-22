@@ -98,7 +98,6 @@ public class LuggageSpawner : MonoBehaviour
                 return;
             }
 
-            Debug.LogError($"{nameof(LuggageSpawner)} on {name} has no {nameof(LevelConfig)} assigned.");
             enabled = false;
             return;
         }
@@ -113,21 +112,24 @@ public class LuggageSpawner : MonoBehaviour
 
         WaitForSeconds wait = new(levelConfig.spawnInterval);
 
+        // Spawn first, wait after. The belt should already be carrying a bag when the countdown
+        // clears instead of opening on an empty run — the wait is scaled time, so a leading
+        // yield spends the whole countdown frozen and then costs another spawnInterval on "GO".
         while (true)
         {
-            yield return wait;
-
             // Bags leave down the belt's sink, so the belt drains on its own. This cap only
             // catches the case where nothing is draining — abandoned bags piled on the floor —
             // and pauses the belt instead of burying the arena. Nothing is ever destroyed to
             // make room: a bag on the floor stays there until a player deals with it.
             PruneLive();
-            if (live.Count >= levelConfig.maxActiveLuggage)
-                continue;
+            if (live.Count < levelConfig.maxActiveLuggage)
+            {
+                Luggage spawned = SpawnOne(prefabs);
+                if (spawned != null)
+                    live.Add(spawned);
+            }
 
-            Luggage spawned = SpawnOne(prefabs);
-            if (spawned != null)
-                live.Add(spawned);
+            yield return wait;
         }
     }
 
@@ -143,14 +145,15 @@ public class LuggageSpawner : MonoBehaviour
 
         while (true)
         {
-            yield return wait;
-
             PruneLive();
-            if (live.Count >= fallbackMaxActive) continue;
+            if (live.Count < fallbackMaxActive)
+            {
+                Luggage spawned = SpawnOne(fallbackLuggagePrefabs);
+                if (spawned != null)
+                    live.Add(spawned);
+            }
 
-            Luggage spawned = SpawnOne(fallbackLuggagePrefabs);
-            if (spawned != null)
-                live.Add(spawned);
+            yield return wait;
         }
     }
 
@@ -175,10 +178,8 @@ public class LuggageSpawner : MonoBehaviour
         Luggage luggage = pool.RentLuggage(prefab, spawnPosition, spawnRotation);
         if (luggage == null) return null;
 
-        // Set before Initialize: Initialize refreshes the timer readout, which reads the flag.
         luggage.isTutorialLuggage = levelConfig == null;
-        float lifetime = levelConfig != null ? levelConfig.luggageLifetime : 0f;
-        luggage.Initialize(prefabLuggage.behaviorType, lifetime, prefab);
+        luggage.Initialize(prefab);
         return luggage;
     }
 
@@ -241,13 +242,6 @@ public class LuggageSpawner : MonoBehaviour
         luggage.transform.SetParent(PoolRoot, worldPositionStays: false);
         queue.Enqueue(luggage.gameObject);
         return true;
-    }
-
-    public bool TryGetConfiguredLifetime(out float lifetime)
-    {
-        ResolveLevelConfig();
-        lifetime = levelConfig != null ? levelConfig.luggageLifetime : 0f;
-        return lifetime > 0f;
     }
 
     private void ResolveLevelConfig()

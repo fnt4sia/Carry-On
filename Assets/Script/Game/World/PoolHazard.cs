@@ -44,7 +44,7 @@ public class PoolHazard : MonoBehaviour
 
         PlayerGrab grab = player.GetComponent<PlayerGrab>();
         if (grab != null)
-            grab.Drop(forceRelease: true);
+            grab.Drop();
 
         Rigidbody rb = player.GetComponent<Rigidbody>();
         if (rb != null)

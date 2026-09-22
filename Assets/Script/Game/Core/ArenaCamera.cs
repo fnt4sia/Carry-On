@@ -53,16 +53,4 @@ public class ArenaCamera : MonoBehaviour
             basePosition + drift,
             baseRotation * Quaternion.Euler(0f, 0f, sway));
     }
-
-    /// <summary>
-    /// Re-reads the current transform as the shot to hold. Call this after moving the camera at
-    /// runtime, otherwise the drift keeps pulling it back to the pose captured on Awake.
-    /// </summary>
-    public void RebaseToCurrentPose()
-    {
-        basePosition = transform.position;
-        baseRotation = transform.rotation;
-        driftRight = baseRotation * Vector3.right;
-        driftUp = baseRotation * Vector3.up;
-    }
 }

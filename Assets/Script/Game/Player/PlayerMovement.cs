@@ -100,7 +100,7 @@ public class PlayerMovement : MonoBehaviour
     public void ResetRuntimeState()
     {
         StopAllCoroutines();
-        playerGrab?.Drop(forceRelease: true);
+        playerGrab?.Drop();
 
         moveInput = Vector2.zero;
         movementDirection = Vector3.zero;

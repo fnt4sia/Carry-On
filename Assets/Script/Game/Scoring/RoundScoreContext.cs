@@ -19,18 +19,6 @@ public static class RoundScoreContext
             Active = null;
     }
 
-    public static bool TryApplyScore(int delta, int playerIndex = -1)
-    {
-        if (Active == null)
-        {
-            Debug.LogWarning("No active round score model; score outcome was ignored.");
-            return false;
-        }
-
-        Active.ApplyScore(delta, playerIndex);
-        return true;
-    }
-
     public static bool TryRecordDelivery(int playerIndex, int scoreDelta)
     {
         if (Active == null)

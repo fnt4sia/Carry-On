@@ -118,7 +118,7 @@ public class Gate : MonoBehaviour
         }
 
         ManifestLine line = FindOpenLine(luggage);
-        if (line == null || !IsProcessed(luggage))
+        if (line == null)
         {
             RejectLuggage(luggage);
             return;
@@ -161,15 +161,6 @@ public class Gate : MonoBehaviour
         }
 
         return manifest.Count > 0;
-    }
-
-    // A bag that still carries an unprocessed problem is turned away like a wrong colour.
-    // Levels with no washer or wrapper only spawn Normal luggage, so this is always true there.
-    private static bool IsProcessed(Luggage luggage)
-    {
-        bool missingWash = luggage.RequiresWashing && !luggage.IsWashed;
-        bool missingWrap = luggage.RequiresWrapping && !luggage.IsWrapped;
-        return !missingWash && !missingWrap;
     }
 
     private void RejectLuggage(Luggage luggage)

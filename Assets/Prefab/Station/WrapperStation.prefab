@@ -729,9 +729,6 @@ MonoBehaviour:
   obstacleShoveImpulse: 5
   obstacleShoveUpImpulse: 1.5
   obstacleShoveRandomness: 0.65
-  wrapsAnyLuggage: 1
-  wrappedLuggagePrefab: {fileID: 3038766662974888717, guid: df2fd58c6463a4f6ca2c77e2b21d642d,
-    type: 3}
 --- !u!114 &1450255989805225222
 MonoBehaviour:
   m_ObjectHideFlags: 0

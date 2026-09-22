@@ -3,8 +3,8 @@
 **Scripts:** `MainMenu/PlayerSystem.cs`, `MainMenu/DebugAutoJoin.cs`,
 `Game/Player/{PlayerSpawner, PlayerMovement, PlayerGrab, PlayerHandIK, JointBreakHandler,
 PlayerIndicator, PlayerRingIndicator}.cs`
-**Prefabs:** `Assets/Prefab/Character/{Annie, Bun Jovi, Scannor}.prefab` — all feel values are
-serialized per prefab (the three currently share Annie's tuning; they were cloned from her).
+**Prefabs:** `Assets/Prefab/Character/{Annie, Bun Jovi, Scannor, ZipZub}.prefab` — all feel values
+are serialized per prefab (the four currently share Annie's tuning; they were cloned from her).
 
 One to four players share a screen. Everything a player *is* — body, movement feel, grab rules,
 animator — lives on that player's character prefab.
@@ -17,11 +17,40 @@ Joining is polled only in `MainMenu`, because one physical keyboard is shared by
 |---|---|---|
 | Space | `KeyboardLeft` | WASD, Left Shift, E, F |
 | Right Shift | `KeyboardRight` | arrows, Right Shift, `/`, L |
-| gamepad South | `Gamepad` | one unpaired gamepad |
+| gamepad South (A / Cross) | `Gamepad` | one unpaired gamepad, whole |
+| gamepad North (Y / Triangle) on a pad already in use | `GamepadLeft` + `GamepadRight` | that pad, halved — see below |
 
 A keyboard scheme is free when no current player uses its scheme name; a gamepad is free when no
 player has paired that device. `LastJoinFrame` stops a join press from also submitting a menu
 button in the same frame.
+
+### Splitting one pad between two players
+
+Overcooked-style, added September 2026. Pressing **North** on a pad that one player is already
+using whole hands that player the left half and joins a second player on the right half of the
+**same device** — the same trick the two keyboard schemes have always used, since the Input System
+is happy to pair one device to two users.
+
+| | `GamepadLeft` | `GamepadRight` |
+|---|---|---|
+| Move | left stick | right stick |
+| Grab | left shoulder | right shoulder |
+| Dash | left trigger | right trigger |
+| UseStation | left stick press | right stick press |
+
+`Pause` and the whole stage-select map work from either half, so those bindings just gained the two
+new groups rather than being duplicated.
+
+`PlayerSystem.SplitPad` switches the sitting player's scheme with `SwitchCurrentControlScheme`
+**before** joining the partner, and switches it back if that join is refused (roster full), so a
+refused split can never leave a player holding half a pad with nobody on the other half. Splitting
+a pad is one-way: there is no un-split, because nothing in the lobby can drop a player yet.
+
+> **Verified** in Play mode against a virtual pad: South joined one player on the whole pad, North
+> split it into `GamepadLeft` + `GamepadRight` on the same device, and each half then read its own
+> stick and its own shoulder. **Not verified on real hardware** — trigger and stick-press feel, and
+> what a real pad's North button is called on a PlayStation or Switch layout, still need a
+> playtest.
 
 `PlayerSystem` owns a persistent `PlayerInputManager`. Joined player objects, paired devices,
 control schemes, and `playerIndex` values survive every menu and scene transition. Always use
@@ -32,9 +61,14 @@ control schemes, and `playerIndex` values survive every menu and scene transitio
 Bodies are handed out in **join order** from `PlayerSystem`'s **Character Prefabs** roster on
 `Assets/Prefab/Manager/PlayerSystem.prefab`: player 1 gets element 0, player 2 element 1, and
 so on, wrapping around when players outnumber entries. The roster is `[Annie, Bun Jovi,
-Scannor]` (August 2026 model drop — the new-style Annie replaced the old one in place, same
-prefab GUID). Use that roster field — not the manager's own *Player Prefab*, which Unity hides
-while Join Behavior is *Manual*.
+Scannor, ZipZub]` (August 2026 model drop — the new-style Annie replaced the old one in place,
+same prefab GUID; ZipZub joined September 2026), one body per player slot. Use that roster
+field — not the manager's own *Player Prefab*, which Unity hides while Join Behavior is *Manual*.
+The copy that actually boots is `Assets/Resources/Runtime/PlayerSystem.prefab`, a variant of the
+Manager prefab with no roster override — edit the roster on the Manager prefab.
+
+The results screen names each player after their body's prefab (`GameHUD.PlayerDisplayName`
+strips `(Clone)`), so the prefab name is the character's display name.
 
 `PlayerSystem.JoinPlayer(scheme, device)` is the single join entry point — it swaps
 `PlayerInputManager.playerPrefab` to the next roster body right before each
@@ -48,6 +82,26 @@ Each character prefab is the same component stack cloned from Annie; the model l
 child named `Model` (a nested instance of that character's FBX), and the **Animator sits on
 `Model`, not the prefab root** — the FBX clips bind bone paths relative to it.
 `PlayerGrab`/`PlayerMovement` reach it through their serialized `animator` fields.
+
+### Adding a body
+
+Every body so far shares one Rigify `DEF-` skeleton, so a new one is a copy job, not a rig job:
+
+1. FBX in `Assets/Model/Characters/<Name>/Model/`, textures in `<Name>/Textures/`. Importer:
+   Scale Factor **5**, Generic, No Avatar, the same clip list and loop flags as the others (the
+   artist's take names can drift — ZipZub's jog take is `AN_2-jog_loop`, renamed to `AN_2-jog`
+   on the importer). Materials copied from an existing body's (URP Lit + `_BaseMap`) into
+   `<Name>/Materials/` and remapped on the importer.
+2. Copy an existing controller to `Assets/Animation/<Name>/<Name>.controller` and swap the
+   seven motions to the new FBX's clips — the graph stays identical.
+3. Copy an existing character prefab, replace the `Model` child with the new FBX (identity
+   transform, add an `Animator` with the new controller, no avatar, no root motion), then
+   re-point `PlayerGrab.animator`, `PlayerMovement.animator` and `PlayerHandIK`'s eight arm and
+   four spine bones at the new Model.
+4. Add it to the roster. A value diff against Annie should differ only in the controller.
+
+If the new skeleton's proportions differ from the table under [Hand IK](#hand-ik), the capsule,
+`GrabAnchor` and IK values need a real look instead.
 
 ### Shared input asset
 
@@ -70,8 +124,8 @@ valid points even if you usually test with two players.
 
 ## Indicators
 
-Two pieces of art say which body is yours. Both are nested prefab instances on all three
-character prefabs, and both take their colour from one palette so they can never disagree
+Two pieces of art say which body is yours. Both are nested prefab instances on every
+character prefab, and both take their colour from one palette so they can never disagree
 about who is 1P.
 
 | | Pin | Ring |
@@ -194,8 +248,6 @@ forced drop if Unity breaks the joint.
 - Charge feedback — the arrow child, the looping buildup SFX, and the `isThrowing` throw
   pose — starts only once the press outlives `throwMinHoldTime`, so a quick tap reads as a
   plain drop with no wind-up (changed 2026-07-27; it used to start on press).
-- Sticky luggage can't be voluntarily dropped or thrown. Station placement, stealing, hazards,
-  and joint breaks can still force it loose.
 
 **Station use** reuses the same non-allocating buffer, finds a `MachineStation` that is free and
 accepts the held bag, and calls `TryPlace`. Placement force-releases the player first. See
@@ -225,7 +277,7 @@ plays the raw animation.
 
 ### The hands reach toward the case, not onto it
 
-Measured on the August 2026 bodies (all three share skeleton proportions at import scale 5):
+Measured on the August 2026 bodies (all four share skeleton proportions at import scale 5):
 
 | | |
 |---|---|
@@ -235,13 +287,15 @@ Measured on the August 2026 bodies (all three share skeleton proportions at impo
 Better than the old model (0.763 against ~1.76) but the grip still sits beyond the arm, so the
 `maxReach` clamp still does the work — the hands get close enough to read as holding the case.
 
-### All three bodies are one rig
+### All four bodies are one rig
 
-Annie, Bun Jovi and Scannor share the **same skeleton at the same proportions** — shoulder
-`2.358`, head bone `2.681`, feet `0.182`, identical on all three. Only the silhouette differs:
-Annie's hat and hair reach `4.27`, Bun Jovi's ears `4.89`, Scannor's bare head `3.84`.
+Annie, Bun Jovi, Scannor and ZipZub share the **same skeleton at the same proportions** —
+shoulder `2.358`, head bone `2.681`, feet `0.182`, identical on all four. Only the silhouette
+differs: Annie's hat and hair reach `4.27`, Bun Jovi's ears `4.89`, Scannor's bare head `3.84`,
+ZipZub's UFO head `3.44`. ZipZub's rig also carries 45 extra `A_*` bones under `DEF-head` — the
+alien pilot in the UFO. Its clips animate them; nothing in code touches them.
 
-Because of that, **every gameplay value on the three prefabs is identical, deliberately** — the
+Because of that, **every gameplay value on the four prefabs is identical, deliberately** — the
 capsule included (`height 3.85`, `center y 1.925`, `radius 0.726`). A capsule sized to each
 mesh would size it to hair and ears, giving Bun Jovi a collider `1.2` taller than Scannor's for
 the same body, so one character would be stopped by gaps another walks through. `3.85` wraps
@@ -250,9 +304,10 @@ the game originally shipped with, so it cannot collide with anything the old cap
 Hair, hat and ears intentionally poke above it.
 
 > If you change a feel value — speed, grab radius, joint spring, capsule — **change it on all
-> three prefabs.** (Ring and pin are the exception that proves the rule: they are nested
-> prefabs now, so editing one asset covers all three bodies.) They are meant to be interchangeable bodies, not balance variants. A diff of
-> all 1020 serialized properties across the three should come back empty.
+> four prefabs.** (Ring and pin are the exception that proves the rule: they are nested
+> prefabs now, so editing one asset covers every body.) They are meant to be interchangeable
+> bodies, not balance variants. A diff of every serialized property across the four should
+> differ only in the Animator's controller.
 
 `maxReach` is what keeps the out-of-reach case safe (2026-07-27; it replaced the older
 `reachFade`, which faded the solve out entirely and left the arms playing the plain clip). When
@@ -268,13 +323,19 @@ land on the grip exactly.
 
 ## Animator
 
-**Controllers:** `Assets/Animation/{Annie/Annie, Bun Jovi/Bun Jovi, Scannor/Scannor}.controller`
-— three copies of the same graph, each pointing at its own FBX's clips (takes named
-`AN_1-idle-Loop`, `AN_2-jog`, `AN_4-throw_Enter`, `AN_5-throw-Loop`, `AN_6-throw-End`,
-`AN_7-throw-loop-jog`, `AN_8-dash`, with loop flags set on the importer). Annie's spare
-`AN_3-jog-Stop` and the others' `AN_1-idle-RARE` are imported but unused. Parameters
-`isMoving`, `isDashing`, `isGrabbing`, `isThrowing`, all bool, all hashed once in `AnimId`.
-A graph change must be made three times — or made once and re-copied with motions swapped.
+**Controllers:** `Assets/Animation/{Annie/Annie, Bun Jovi/Bun Jovi, Scannor/Scannor,
+ZipZub/ZipZub}.controller` — four copies of the same graph, each pointing at its own FBX's clips
+(clips named `AN_1-idle-Loop`, `AN_2-jog`, `AN_4-throw_Enter`, `AN_5-throw-Loop`,
+`AN_6-throw-End`, `AN_7-throw-loop-jog`, `AN_8-dash`, with loop flags set on the importer).
+Annie's spare `AN_3-jog-Stop` and the others' `AN_1-idle-RARE` are imported but unused (the rare
+idle is reserved for later). Parameters `isMoving`, `isDashing`, `isGrabbing`, `isThrowing`, all
+bool, all hashed once in `AnimId`. A graph change must be made four times — or made once and
+re-copied with motions swapped.
+
+**Scannor's clips run slower.** Every FBX keys the same frame counts, but Scannor was exported at
+**24 fps** while Annie, Bun Jovi and ZipZub are **30 fps**, so Scannor's idle is 4.25 s against
+3.40 s and every state of his plays at 0.8× the others' speed. The poses are identical at the
+same normalized time — only the timing differs.
 
 ```text
 Idle ⇄ Move                     isMoving

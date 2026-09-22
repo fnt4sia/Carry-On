@@ -14,9 +14,9 @@ same pass.
 | Doc | Covers |
 |---|---|
 | [Player](mechanics/player.md) | joining, spawning, movement, dash, grab / carry / throw, hand IK, the Annie animator |
-| [Luggage](mechanics/luggage.md) | behaviour types, washing and wrapping, lifetime, waves, pooling, the timer UI |
+| [Luggage](mechanics/luggage.md) | colour, wrapping, spawn pacing, pooling, what was removed |
 | [Conveyors](mechanics/conveyors.md) | belt steering, straight and turn pieces, seam rules, the two-collider design |
-| [Stations](mechanics/stations.md) | washer and wrapper lifecycle, placement, output clearance |
+| [Stations](mechanics/stations.md) | wrapper lifecycle, manual crank, placement, output clearance |
 | [Delivery and scoring](mechanics/delivery-and-scoring.md) | gates, scoring priority, round flow, results |
 | [Hazards and props](mechanics/hazards-and-props.md) | pressure plates, gateways, rotating platforms, one-way doors, water |
 
@@ -49,13 +49,12 @@ Assets/
     Game/UI/         HUD presenter
     Game/{Player,Luggage,Stations,World}/
     MainMenu/        persistent player join and lobby
-    ChooseStage/     map token, nodes, popup
+    ChooseStage/     map planes, nodes, level ticket
     Editor/          level validator (editor-only, excluded from builds)
   Config/            LevelConfig assets
   Prefab/            Character, Decoration, Environment, Luggage, Manager, Map, Station, UI
   Resources/Runtime/ persistent service bootstrap prefabs
-  Scenes/{Menu,Stages}/
-  _Deprecated/       quarantined unused assets, safe to delete
+  Scenes/{Menu,Stages,Archive}/   Archive = old-design scenes, reference only
 ```
 
 Every script compiles into Unity's single default assembly, `Assembly-CSharp`. There are **no
@@ -66,27 +65,19 @@ Unity's `Editor/` folder-name rule rather than from any config file.
 
 ## Scenes
 
-Build Settings contains **eight scenes**:
+Build Settings contains **four scenes**:
 
 | Index | Scene |
 |---:|---|
 | 0 | `Menu/MainMenu` |
 | 1 | `Menu/ChooseStage` |
-| 2 | `Stages/DesignScene` |
-| 3 | `Stages/Tutorial` |
-| 4 | `Stages/Level1` |
-| 5 | `Stages/Level2` |
-| 6 | `Stages/Level3` |
-| 7 | `Stages/Level4` |
+| 2 | `Stages/Level1` |
+| 3 | `Stages/Level2` |
 
-`DesignScene` is the mechanic sandbox. The second-generation stage scenes were wired to their own
-configs in September 2026 — `Tutorial` and `Level1..4` each point their `LevelContext` at
-`LevelConfig_Tutorial` / `LevelConfig_Stage1..4`, and each of those configs names its scene back.
-`DesignScene` no longer doubles as Stage 1. The original `Stage_1..4` and `Stage Tutorial` scenes
-were deleted in the July 2026 consolidation; their configs were reused for the new scenes. See
-[levels](levels.md#config--scene-mapping).
-
-`Level3 1` (a duplicate of `Level3`) and `Test` (decoration staging) stay out of the build.
+`Level1` and `Level2` are the flight-manifest redesign and point their `LevelContext` at
+`LevelConfig_Stage1` / `_Stage2`. `Tutorial`, `Level3`, `Level4` and `DesignScene` were built for
+the old rules and moved to `Scenes/Archive/` in September 2026 — reference only, out of the build.
+`Test` (decoration staging) also stays out. See [levels](levels.md#archived-scenes).
 
 ```text
 MainMenu -> ChooseStage -> gameplay stage -> next stage or ChooseStage
@@ -152,10 +143,10 @@ plain C#, keep it free of scene and UI dependencies — that's what makes `Score
 |---|---|---|
 | Shared logic and child wiring | base prefab | colliders, animator, HUD texts, machine children |
 | Feel and balance | serialized field on the component, edited on its prefab | player speed, grab joint, belt speed, station shove |
-| Per-level rules and content | `LevelConfig` | timer, stars, luggage pool, waves, scoring, next level |
+| Per-level rules and content | `LevelConfig` | timer, stars, luggage pool, spawn pacing, scoring, next level |
 | Which config a scene uses | scene `LevelContext` | one per gameplay scene |
 | Placement and identity | scene override | transform, gate number, turn direction, connected gateways |
-| Replaceable art | visual child or nested prefab | machine shell, luggage timer, loading screen |
+| Replaceable art | visual child or nested prefab | machine shell, wrap shell, loading screen |
 
 Use a prefab variant for a deliberate reusable family (a fast conveyor, a two-door gateway).
 Don't retype values on a scene instance to make one object different unless that difference is
@@ -166,5 +157,5 @@ override explicitly — nothing detects override drift, including the validator.
 
 Logic identifies luggage by its `Luggage` component, never by tag. Layers only narrow physics
 queries. Custom layers: `Water` (4), `Luggage` (6), `Player` (7), `GrabbedLuggage` (8),
-`Wall` (9), `WorldUI` (10). `WorldUI` is required for the world-space luggage timer and any
-station overlay.
+`Wall` (9), `WorldUI` (10). `WorldUI` is required for the player indicator pins and any other
+world-space overlay.

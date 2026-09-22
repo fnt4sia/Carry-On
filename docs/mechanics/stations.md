@@ -1,7 +1,8 @@
 # Machine stations
 
-**Scripts:** `Game/Stations/{MachineStation, WashingMachine, Wrapper, StationLamps}.cs`
-**Prefabs:** `WashingStation.prefab`, `WrapperStation.prefab`
+**Scripts:** `Game/Stations/{MachineStation, Wrapper, StationLamps}.cs`,
+`Game/UI/StationProgressDisplay.cs`
+**Prefabs:** `WrapperStation.prefab` (live), `WashingStation.prefab` (model only — see below)
 
 The pre-July-2026 `WashingMachine`/`WrapperMachine` prefabs, their controllers and their
 door/slider clips were deleted in the same pass that shipped these; `Animation/Machine/` now holds
@@ -11,19 +12,23 @@ stations moved to `WashingWrapperModel01.fbx`). Nothing references either — bu
 was *copied out of* `WashingWrapperAnim.fbx` before it was retired, so deleting it is safe while
 re-deriving the curve from it is no longer possible.
 
-In `DesignScene` the stations sit at `(37.3, 0, 47.6)` and `(48.9, 0, 47.6)`, both `rotY 90` so
-the open faces point at the player spawns. The shell is 9.0 × 6.5 × 8.3.
+The shell is 9.0 × 6.5 × 8.3.
 
 Every station shares one explicit `Idle -> Processing -> Ready -> Idle` lifecycle.
 
 | Station | Accepts | Completion |
 |---|---|---|
-| `WashingMachine` | Sticky | swaps to washed luggage, sets `IsWashed` |
-| `Wrapper` | Fragile | swaps to wrapped luggage, sets `IsWrapped` |
+| `Wrapper` | any bag not already wrapped | `MarkWrapped` — wraps in place, the bag keeps its colour |
 
-A level needs the stations its luggage pool implies — Sticky in the pool means a washer, Fragile
-means a wrapper. The [level validator](../levels.md#level-validator) enforces this, because
-getting it wrong makes the level unwinnable rather than merely wrong.
+A level needs a wrapper when any of its gates asks for wrapped lines
+(`Gate.wrappedLinesPerFlight` > 0). Nothing checks this yet — see
+[levels](../levels.md#authoring-a-level).
+
+**`WashingStation.prefab` has no machine component.** Its `WashingMachine` script existed only to
+wash Sticky luggage and was deleted with it in September 2026, taking the `StationLamps` that
+required it. The prefab keeps the model, animator, curtains and every anchor child
+(`snap`, intake, release, output), so a future washer is a new `MachineStation` subclass on the
+root with those anchors dragged back in. Only the archived scenes place it.
 
 > A `Scanner` station existed until 2026-07-14 and was removed with the bomb mechanic. Adding a
 > third type later means subclassing `MachineStation` and overriding `CanAccept` plus the
@@ -33,15 +38,14 @@ getting it wrong makes the level unwinnable rather than merely wrong.
 
 1. `PlayerGrab` finds a nearby station, checks `CanAccept`, and calls `TryPlace`.
 2. The station clears its output area, force-drops the held bag, zeros its body, makes it
-   kinematic, snaps it to the station, and pauses its timer.
+   kinematic, and snaps it to the station.
 3. Phase becomes `Processing`; progress runs 0 → 1.
 4. Completion runs the station operation and phase becomes `Ready`.
-5. Output completion restores a dynamic rigidbody, resumes the timer, resets the animator, and
-   returns the station to `Idle`.
+5. Output completion restores a dynamic rigidbody, resets the animator, and returns the station
+   to `Idle`.
 
-The pause and the resume are both `Luggage.SetInStation`, and the same flag hides the bag's
-[timer readout](luggage.md#timer-ui) and blocks `PlayerGrab`. One flag means the
-dial is on screen exactly when the bag is grabbable — don't add a second one.
+Docking and release are both `Luggage.SetInStation`. `PlayerGrab` and `Conveyor` both ignore a
+docked bag — one flag, so don't add a second one.
 
 An occupied station rejects further items. The bag follows `sliderTransform` in `LateUpdate`, so
 animated doors and trays can move it safely.
@@ -259,14 +263,14 @@ property — it cannot be authored on the prefab, which is why this needs a scri
 Before placement, an overlap box finds other free luggage in the output zone and shoves it away.
 Half extents, impulse, upward impulse, and randomness are serialized on the station prefab under
 the `Output Clearance` header — the old `Station_Default.asset` went with `Assets/Config/Tuning/`
-in July 2026. Snap and slider transforms, animator, process timing, and the replacement prefab
-are likewise per-prefab references.
+in July 2026. Snap and slider transforms, animator, and process timing are likewise per-prefab
+references.
 
 Edit `WashingStation.prefab` / `WrapperStation.prefab`. Never the scene copy.
 
 ## Feedback
 
-The [lamps](#indicator-lamps) are the only station feedback. There is no progress readout — a
-`StationFeedback` prefab (a billboarded PROCESSING/READY label and bar) existed until 2026-07-14
-and was removed as prototype UI nobody asked for. Anything added later should read
-`MachineStation.Phase` the way `StationLamps` does, rather than touch the state machine.
+Two things: the [lamps](#indicator-lamps), and on cranked machines the `StationProgressDisplay`
+bar described under [manual crank](#manual-crank-the-redesigns-machine-mechanic). Anything added
+later should read `MachineStation.Phase` or `CrankProgress01` the way those do, rather than touch
+the state machine.
