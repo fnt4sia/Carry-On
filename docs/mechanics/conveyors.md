@@ -114,7 +114,7 @@ collider. It's `centerRadius`, `centeringGain`, or `turnPivot` on the `Conveyor 
 
 ## Authoring rules
 
-- The deck needs `Assets/Material/Map/BeltSurface.physicMaterial`.
+- The deck needs `Assets/Material/Physics/BeltSurface.physicMaterial`.
 - The trigger volume enrols luggage; the solid deck is what the surface ray finds. Both must be
   descendants of the conveyor root.
 - Mating pieces need compatible **uniform** scale and the same deck height. A non-uniform scale

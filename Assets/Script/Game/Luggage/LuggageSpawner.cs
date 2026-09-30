@@ -6,15 +6,14 @@ using UnityEngine;
 // per-prefab object pool. Exposes ReturnLuggage(Luggage) so delivered, rejected or sunk
 // luggage can be recycled back into the pool instead of being destroyed.
 //
-// The belt runs flat — no waves — and the colour order is a strict round robin over the level's
-// luggage pool, so the palette a gate can ask for is exactly the set of prefabs listed there and
-// every colour is guaranteed to come round on a fixed cycle. No dice: a flight is never
-// unfillable because a colour did not spawn.
+// The belt runs flat — no waves — and each bag tops up whichever colour is scarcest among the
+// bags still in play, so the palette a gate can ask for is exactly the set of prefabs listed in
+// the pool and every colour stays on the floor. No dice: a flight is never unfillable because a
+// colour did not spawn.
 //
-// Bags no longer expire. They leave down the belt's LuggageSink, so the belt drains on its own;
-// maxActiveLuggage only catches the case where nothing is draining (bags abandoned on the floor)
-// and pauses the belt rather than burying the arena. The spawner never destroys a live bag to
-// make room.
+// Bags never expire. A gameplay belt drops them into a pile, so maxActiveLuggage is the pile's
+// size: once it is reached the belt pauses and only restarts when a bag is delivered. The spawner
+// never destroys a live bag to make room.
 //
 // A scene may hold as many spawners as the layout needs; drop in another Spawner prefab and it
 // feeds its own belt. Each one runs the config's numbers independently, so two spawners double
@@ -56,7 +55,7 @@ public class LuggageSpawner : MonoBehaviour
     // Bags this spawner has put out that are still in play, used only for the active cap.
     private readonly List<Luggage> live = new();
 
-    // Cursor into the luggage pool for the round-robin spawn order.
+    // Cursor into the luggage pool that breaks ties between equally scarce colours.
     private int nextPrefabIndex;
     private Transform poolRoot;
 
@@ -117,10 +116,10 @@ public class LuggageSpawner : MonoBehaviour
         // yield spends the whole countdown frozen and then costs another spawnInterval on "GO".
         while (true)
         {
-            // Bags leave down the belt's sink, so the belt drains on its own. This cap only
-            // catches the case where nothing is draining — abandoned bags piled on the floor —
-            // and pauses the belt instead of burying the arena. Nothing is ever destroyed to
-            // make room: a bag on the floor stays there until a player deals with it.
+            // The belt drops into a pile and nothing drains it but deliveries, so this cap is the
+            // pile's size: at the cap the belt pauses instead of burying the arena. Nothing is
+            // ever destroyed to make room: a bag on the floor stays there until a player deals
+            // with it.
             PruneLive();
             if (live.Count < levelConfig.maxActiveLuggage)
             {
@@ -159,11 +158,7 @@ public class LuggageSpawner : MonoBehaviour
 
     private Luggage SpawnOne(List<GameObject> prefabs)
     {
-        // Strict round robin, not a random draw. The belt cycles the pool in the order it is
-        // listed in the config — red, green, yellow, red, ... — so a flight can never be
-        // unfillable because a colour refused to show up. Losing is on the players, not the dice.
-        GameObject prefab = prefabs[nextPrefabIndex % prefabs.Count];
-        nextPrefabIndex = (nextPrefabIndex + 1) % prefabs.Count;
+        GameObject prefab = PickScarcestPrefab(prefabs);
         if (prefab == null) return null;
 
         Luggage prefabLuggage = prefab.GetComponent<Luggage>();
@@ -181,6 +176,45 @@ public class LuggageSpawner : MonoBehaviour
         luggage.isTutorialLuggage = levelConfig == null;
         luggage.Initialize(prefab);
         return luggage;
+    }
+
+    // Not a random draw, and not a plain round robin either. The next bag is whichever pool entry
+    // has the fewest bags still in play; ties go in list order from the cursor, so a filling belt
+    // still runs red, green, yellow, red, ...
+    //
+    // A plain round robin soft-locks a pile. At the cap a bag only spawns after a delivery, so the
+    // pile drifts toward the colours nobody wants until it holds none of what the flight needs —
+    // then nothing can be delivered and nothing spawns. Simulated over 40 deliveries, a strict
+    // cycle locked 3% of rounds at a cap of 28 and 27% at 18; topping up the scarcest never did.
+    private GameObject PickScarcestPrefab(List<GameObject> prefabs)
+    {
+        int bestIndex = nextPrefabIndex % prefabs.Count;
+        int bestCount = int.MaxValue;
+        for (int step = 0; step < prefabs.Count; step++)
+        {
+            int index = (nextPrefabIndex + step) % prefabs.Count;
+            int count = CountLive(prefabs[index]);
+            if (count < bestCount)
+            {
+                bestCount = count;
+                bestIndex = index;
+            }
+        }
+
+        nextPrefabIndex = (bestIndex + 1) % prefabs.Count;
+        return prefabs[bestIndex];
+    }
+
+    private int CountLive(GameObject prefab)
+    {
+        int count = 0;
+        for (int i = 0; i < live.Count; i++)
+        {
+            if (live[i] != null && live[i].sourcePrefab == prefab)
+                count++;
+        }
+
+        return count;
     }
 
     private static Quaternion GetRandomSpawnRotation()

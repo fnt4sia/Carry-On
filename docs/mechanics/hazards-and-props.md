@@ -540,7 +540,7 @@ it became `StandingSignage2.prefab` rather than overwriting the existing asset. 
 **Prefabs:** `Assets/Prefab/Decoration/Cloud1…Cloud6.prefab`
 
 Moving sky for a fixed camera. Each cloud is a `Cloud1…6` prefab whose children are its puffs —
-nested `Bubble.prefab` instances (the `Cloud.001` mesh from `Shader/tests/cloudsculpt2_anim.fbx`)
+nested `Bubble.prefab` instances (the `Cloud.001` mesh from `Model/Effects/cloudsculpt2_anim.fbx`)
 with per-puff scale, yaw and shadows-off overrides. `Bubble.prefab` is shared with the character
 bubble, so never restyle it for the sky; restyle a `Cloud` prefab instead.
 
@@ -567,6 +567,16 @@ cap left most spawned clouds invisible. Hand-placed far clouds work only over th
 right. When authoring a new cloud prefab: keep its puff bottoms level (cumulus have flat bases) and
 squash puff local Z for flatter far clouds — local Z is world-up at the `(270, y, 0)` import
 rotation.
+
+## Window dust
+
+**Scene object:** `MainMenu` → `MenuEnvironment/Interior/WindowDust` (a plain `ParticleSystem`, no script)
+
+Sunlit specks drifting just inside the glass facade, kept deliberately faint. Mesh particles on the
+`Cloud.001` bubble mesh with `Bubble Colour`, so they are lit by the sun like everything else and
+need no texture. A 17 × 16 × 70 box centred at `(−29.5, 6, 105)`, 7/s, 10–16 s lives, size
+1.2–2.4 (≈0.15–0.3 u), slow noise drift, prewarmed so the menu opens with dust already up. Against
+the bright window sky they read as snow if they get bigger or denser than this.
 
 ## Ambient traffic
 
@@ -671,6 +681,22 @@ Unlike the planes, the cars' deep end cannot be pushed fully off-frustum: on the
 left edge is asymptotic, so marching that way leaves the far clip before it leaves the screen. The
 `1x` car anchors sit at viewport `x 0.14` instead — far enough to be small and behind the window
 mullion. If a car ever reads as popping into existence, that anchor is the one to nudge.
+
+### Contrail puffs
+
+The `Planes` fleet flies `Pesawat1 Flying` / `Pesawat2 Flying` — prefab **variants** of the plain
+planes that add one nested `ContrailPuffs.prefab` at the tail (root-local `(0, 24, −125)` on
+`Pesawat1`, nose `+Z`; `(−78, 22, 0)` on `Pesawat2`, nose `+X`). Same `yawOffset`s as the bases.
+Variants, not an edit to the base prefabs, because `Level1` has a **parked** `Pesawat2` that must
+not puff.
+
+`ContrailPuffs` is a world-space mesh-particle system on the `Cloud.001` bubble mesh with
+`Bubble Colour` — the exact mesh and material the `Cloud` prefabs are built from — so the trail
+reads as a line of small cartoon clouds rather than a ribbon. 18/s by **time**, not distance:
+a pooled plane teleports back to its start anchor, and rate-over-distance risks spraying a line of
+puffs along that jump. Puffs live 1.0–1.6 s (≈1–2 plane lengths at trip speed) and shrink to
+nothing. Known limit: when a plane reaches its far, occluded anchor and is pooled, the tail still
+in open sky vanishes with it — kept short so that pop is small and far away.
 
 > The older `AmbientAirplaneSpawner` is no longer in `MainMenu`; it lives only on
 > `GameManager.prefab` (gameplay levels), flying `Airplane.prefab` along `+Z` with

@@ -45,15 +45,18 @@ public class PlayerIndicator : MonoBehaviour
     /// <summary>
     /// This player's identity colour. <see cref="PlayerRingIndicator"/> reads it instead of
     /// keeping a second palette, so the pin and the floor ring can never disagree about who
-    /// is 1P. Computed on demand, so it does not depend on script execution order.
+    /// is 1P. Computed on demand, so it does not depend on script execution order — the
+    /// lobby's onPlayerJoined fires from PlayerInput.OnEnable, before this pin's Awake has run,
+    /// so the owner is looked up here too rather than trusting Awake to have cached it.
     /// </summary>
     public Color CurrentColor
     {
         get
         {
-            if (player == null || playerColors == null || playerColors.Length == 0)
+            PlayerInput owner = player != null ? player : GetComponentInParent<PlayerInput>(true);
+            if (owner == null || playerColors == null || playerColors.Length == 0)
                 return Color.white;
-            return playerColors[Mathf.Clamp(player.playerIndex, 0, playerColors.Length - 1)];
+            return playerColors[Mathf.Clamp(owner.playerIndex, 0, playerColors.Length - 1)];
         }
     }
 

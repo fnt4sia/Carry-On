@@ -1,8 +1,9 @@
 # Carry On — technical documentation
 
 Carry On is a chaotic 1–4 player local co-op airport baggage-handling game by Unbounded Souls.
-The loop: luggage arrives in waves, players identify and process it, deliver it to the correct
-gate before it expires, then earn a score and up to three stars.
+The loop: a belt drops luggage into a pile, players dig out the colours the departing flight wants
+(wrapping them first when a line asks for it) and carry them to the gate, then earn a score and up
+to three stars.
 
 These docs are organised by **mechanic** — one file per thing the game actually does. Open the
 one that matches your task; don't load the folder. Code and serialized Unity assets are the
@@ -52,9 +53,14 @@ Assets/
     ChooseStage/     map planes, nodes, level ticket
     Editor/          level validator (editor-only, excluded from builds)
   Config/            LevelConfig assets
-  Prefab/            Character, Decoration, Environment, Luggage, Manager, Map, Station, UI
+  Prefab/            Character, Decoration, Environment, Luggage, Manager, StageSelect, Station, UI
+  Material/          .mat only, by area; Physics/ holds every physic material
+  Texture/           loose textures our own materials use (Floor, Luggage, Machine)
+  Model/             FBX files, each beside the textures/materials it imports
+  Shader/            shader graphs, .shader, .hlsl
+  Settings/          URP assets, renderers, volume profiles, global settings
   Resources/Runtime/ persistent service bootstrap prefabs
-  Scenes/{Menu,Stages,Archive}/   Archive = old-design scenes, reference only
+  Scenes/{Menu,Stages,Archive}/   Archive = old-design scenes, reference only — except Level2
 ```
 
 Every script compiles into Unity's single default assembly, `Assembly-CSharp`. There are **no
@@ -72,12 +78,15 @@ Build Settings contains **four scenes**:
 | 0 | `Menu/MainMenu` |
 | 1 | `Menu/ChooseStage` |
 | 2 | `Stages/Level1` |
-| 3 | `Stages/Level2` |
+| 3 | `Archive/Level2` |
 
 `Level1` and `Level2` are the flight-manifest redesign and point their `LevelContext` at
-`LevelConfig_Stage1` / `_Stage2`. `Tutorial`, `Level3`, `Level4` and `DesignScene` were built for
-the old rules and moved to `Scenes/Archive/` in September 2026 — reference only, out of the build.
-`Test` (decoration staging) also stays out. See [levels](levels.md#archived-scenes).
+`LevelConfig_Stage1` / `_Stage2`. **Level2 is live despite its folder**: its file moved into
+`Scenes/Archive/` in `0f39a36` (22 Sep 2026) and Build Settings followed it. `Tutorial`, `Level3`,
+`Level4` and `DesignScene` were built for the old rules and are genuinely archived — reference
+only, out of the build. `Menu/Debug-ChooseStage` is a stage-select test scene, also out of the
+build. The old `Test` decoration-staging scene was deleted in `0f39a36`. See
+[levels](levels.md#archived-scenes).
 
 ```text
 MainMenu -> ChooseStage -> gameplay stage -> next stage or ChooseStage

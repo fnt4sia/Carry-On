@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -17,6 +18,12 @@ public class MainMenuManager : MonoBehaviour
     [Header("Player Lineup")]
     [Tooltip("One authored stand per seat, in join order. Position and rotation are both used.")]
     [SerializeField] private Transform[] lobbySlots = new Transform[4];
+
+    [Header("Join Pop")]
+    [Tooltip("Seconds a joining character takes to grow out of its slot's bubbles.")]
+    [SerializeField, Min(0.01f)] private float joinPopDuration = 0.35f;
+    [Tooltip("How far the join bubbles lean from their material colour toward the player's colour.")]
+    [SerializeField, Range(0f, 1f)] private float joinBubbleTint = 0.5f;
 
     [Header("Menu Banner")]
     [SerializeField] private GameObject joinPrompt;     // "Press ... to Join", shown before anyone joins
@@ -43,8 +50,11 @@ public class MainMenuManager : MonoBehaviour
     // because nothing is selectable yet and the camera must stay home.
     private enum View { JoinGate, Menu, Saves, Settings }
 
+    private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+
     private readonly List<PlayerInput> joinedPlayers = new();
     private PlayerInputManager manager;
+    private MaterialPropertyBlock bubbleTint;
     private bool started;
 
     // Both New Game and Load Game open the same list; this is the only difference between them.
@@ -147,7 +157,53 @@ public class MainMenuManager : MonoBehaviour
             RevealMenu(player);
 
         UpdatePositions();
+        PlayJoinBubbles(player);
         RefreshTeamPanel();
+    }
+
+    // A joining character grows up out of a burst of bubbles on its slot. The burst is the
+    // JoinBubbles prefab parked under each lobby slot in the scene; a slot without one still
+    // pops the character, just with no bubbles. The bubbles lean toward the player's pin
+    // colour so each seat's burst reads as that player's.
+    private void PlayJoinBubbles(PlayerInput player)
+    {
+        int seat = joinedPlayers.IndexOf(player);
+        Transform slot = lobbySlots != null && seat < lobbySlots.Length ? lobbySlots[seat] : null;
+        ParticleSystem burst = slot != null ? slot.GetComponentInChildren<ParticleSystem>() : null;
+
+        if (burst != null)
+        {
+            PlayerIndicator pin = player.GetComponentInChildren<PlayerIndicator>(true);
+            if (pin != null)
+            {
+                bubbleTint ??= new MaterialPropertyBlock();
+                foreach (ParticleSystemRenderer bubbles in burst.GetComponentsInChildren<ParticleSystemRenderer>())
+                {
+                    Color baseColor = bubbles.sharedMaterial.GetColor(BaseColorId);
+                    Color tint = Color.Lerp(baseColor, pin.CurrentColor, joinBubbleTint);
+                    tint.a = baseColor.a;
+                    bubbleTint.SetColor(BaseColorId, tint);
+                    bubbles.SetPropertyBlock(bubbleTint);
+                }
+            }
+            burst.Play(true);
+        }
+
+        StartCoroutine(PopIn(player.transform));
+    }
+
+    // Scale up from nothing with a small overshoot (ease-out-back, peaks near 110%), so the
+    // character bursts out of the bubbles instead of already standing there.
+    private IEnumerator PopIn(Transform body)
+    {
+        Vector3 fullScale = body.localScale;
+        for (float t = 0f; t < joinPopDuration; t += Time.deltaTime)
+        {
+            float k = t / joinPopDuration - 1f;
+            body.localScale = fullScale * (1f + 2.70158f * k * k * k + 1.70158f * k * k);
+            yield return null;
+        }
+        body.localScale = fullScale;
     }
 
     // The seat strip only exists once someone has joined; before that the banner's join prompt

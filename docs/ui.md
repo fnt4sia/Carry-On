@@ -309,8 +309,22 @@ somewhere else.
 `y` is `−3.65`, on the floor: the character models' pivots **are** their soles (Annie's `MainBody`
 spans `y 0.0000 … 2.5563`), so a slot sits at floor height, not hip height. The floor under the
 lineup is `Floor_Ground.002` at `y −3.70`. Re-check this if a character prefab is ever replaced —
-a wrong pivot floats or sinks every lobby character at once. Nothing scales the characters in the
-lobby; they stand at prefab scale, ~`5.3` world units tall.
+a wrong pivot floats or sinks every lobby character at once. Apart from the join pop below, nothing
+scales the characters in the lobby; they stand at prefab scale, ~`5.3` world units tall.
+
+**Join bubbles.** Each `LobbySlot_n` carries a `JoinBubbles.prefab` child
+(`Assets/Prefab/Character/`). On join, `MainMenuManager.PlayJoinBubbles` plays the slot's burst and
+`PopIn` grows the character from zero to its own scale over `joinPopDuration` (0.35 s, ease-out-back,
+peaks ~110%) so it reads as bursting out of the bubbles. A slot with no burst still pops. The burst
+is two mesh-particle systems on the `Cloud.001` bubble mesh — a 14-puff cloud around the body and a
+14-puff fizz rising from the feet — using `Airplane1`, the **opaque** puff material `WalkSmoke`
+already uses. Don't switch it to the transparent `Bubble Colour`: the outline pass works off the
+depth texture, which transparent puffs don't write, so the character's outlines draw *through* the
+bubbles as a grey ghost figure. Each burst is tinted per player through a MaterialPropertyBlock,
+`joinBubbleTint` (0.5) of the way from the material colour to `PlayerIndicator.CurrentColor`.
+`onPlayerJoined` fires from `PlayerInput.OnEnable`, **before** the pin's `Awake`, so `CurrentColor`
+resolves its owner lazily — before that fix every burst came out white. Returning to the lobby with
+players already joined replays the pop for each of them.
 
 **Player pin.** The `1P/2P` pin over each head is the `Player Indicator` child on the character
 prefab (`PlayerIndicator.cs`). Its height comes from the character's **renderer bounds, not the

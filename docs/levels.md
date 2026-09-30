@@ -32,13 +32,14 @@ penalties — a flight bounces a bag it doesn't want instead.
 
 | Config | Round | Stars | Spawn interval | Max active |
 |---|---:|---|---:|---:|
-| Stage 1 | 120s | 100 / 160 / 220 | 1.0s | 28 |
+| Stage 1 | 120s | 100 / 160 / 220 | 1.0s | 12 |
 | Stage 2 | 150s | 80 / 130 / 180 | 1.0s | 28 |
 
 `LevelConfig_Tutorial`, `_Stage3`, `_Stage4` and `_Design` still exist but belong to
 [archived scenes](#archived-scenes) and are not balanced for anything.
 
-**Level2 is Level1 plus wrapping.** Same camera rig, same belt and round robin; it adds
+**Level2 is the old Level1 plus wrapping.** Same camera rig, and the looping belt with a sink that
+Level1 ran before it switched to a pile (see below); it adds
 `WrapperStation` prefabs with `requiresPlayerCrank` on,
 and its gate sets `wrappedLinesPerFlight` to 1 so every flight needs wrapped bags of a **named
 colour** — "1 red, wrapped", not "1 anything, wrapped". The round is longer (150s) and the star
@@ -55,10 +56,25 @@ bar lower, because wrapping roughly halves throughput.
 > were built for the old rules and moved to `Assets/Scenes/Archive/` in September 2026 — see
 > [Archived scenes](#archived-scenes).
 
-**Level1's belt is red / green / yellow on a round robin.** `luggagePrefabs` lists the three
-colour variants in cycle order, and the gate's `palette` lists the same three. Those two must
-match: a palette colour the pool never spawns makes a flight unfillable. Blue exists as an asset
-but is used by nothing.
+**Level1's belt runs red / green / yellow, topped up scarcest-first.** `luggagePrefabs` lists the
+three colour variants, and the gate's `palette` lists the same three. Those two must match: a
+palette colour the pool never spawns makes a flight unfillable. Blue exists as an asset but is
+used by nothing.
+
+**Level1 is a pile, not a loop** (September 2026, following a layout sketch from Fitra). West to
+east:
+
+| Piece | Where | Notes |
+|---|---|---|
+| `Environment/Functional/Baggage Feed` | through the west wall, belt end x −35.7 | the old loop prefab instance, unpacked and cut down to its five feed straights, spawner and door. The door is now the `ConveyorDoorOut` prefab, whose curtain strips carry `BaggageDoorCurtain`; the old copies froze open |
+| `Environment/Functional/LuggageDropPen` | at the belt end | the pile — see [luggage](mechanics/luggage.md#the-pile) |
+| `Obstacles/Fountain (Centre)` | (−15.3, 32.8), 7 m across | splits the walk between pile and gate into a north and a south lane |
+| `Obstacles/Palm (North)` | (−12, 43.5) | |
+| `Obstacles/Bench (South)` | (−19.2, 21) | a bench, not a second palm: from the 42° camera a palm's canopy hides players behind it |
+| `Environment/Floor Zones/Gate Runway` | x −11.5…6, z 27.6…35.6 | red carpet from the fountain to the gate |
+
+There is no belt `LuggageSink` any more; `Gameplay Stations/Luggage Sink` is only the void catcher
+under the map, which is what the validator's sink check finds.
 
 **Level1 and Level2 run a follow camera, with the fixed one kept beside it for comparison.** The
 Main Camera carries both `ArenaFollowCamera` (enabled) and `ArenaCamera` (disabled) as scene
@@ -70,7 +86,7 @@ The rotation is shared ground: `PlayerMovement` derives its movement axes from i
 manifest board is authored to face it, so changing the angle means re-aiming the world UI and
 turning the controls too.
 
-Under the **fixed** shot everything playable must sit inside one frustum — belt loop, all four
+Under the **fixed** shot everything playable must sit inside one frustum — belt and pile, all four
 spawn points, gate and manifest board — and nothing enforces it. Under the **follow** shot that
 constraint relaxes, but a new one appears: the manifest board is world-space at the gate, so it
 leaves the frame while players are out at the belt. Each level also carries a `Clone` marker wired
@@ -95,14 +111,16 @@ never enough.
 | `LevelConfig_Stage1` | `Level1` | 2 | Red, Green, Yellow |
 | `LevelConfig_Stage2` | `Level2` | 3 | Red, Green, Yellow |
 
-Build Settings is `MainMenu`, `ChooseStage`, `Level1`, `Level2` — nothing else.
+Build Settings is `MainMenu`, `ChooseStage`, `Level1`, `Level2` — nothing else. Level2's file is
+`Assets/Scenes/Archive/Level2.unity`; it is live all the same.
 
 Stage select still routes Node 1–4 at `LevelConfig_Stage1..4`. Nodes 3 and 4 point at archived
 configs and stay locked, because Stage 2 no longer unlocks Stage 3. A save that unlocked them
 before the archive can still click them; `SceneLoader` then refuses the load with
 `Scene 'Level3' is not enabled in Build Settings.` rather than crashing.
 
-`Test` is decoration staging with no `LevelContext`, and stays out of the build.
+`Menu/Debug-ChooseStage` is a stage-select test scene with no `LevelContext`, out of the build. The
+old `Test` decoration-staging scene was deleted in `0f39a36`.
 
 ## Authoring a level
 
@@ -112,8 +130,9 @@ before the archive can still click them; `SceneLoader` then refuses the load wit
 3. Add a fresh `GameManager.prefab` instance. Its nested `GameHUD` already owns all UI refs.
 4. Add a fresh `Spawner.prefab` instance — it reads the level context.
 5. Add a `PlayerSpawner` with four ordered spawn points.
-6. Add camera, delivery gates, sink/void coverage, conveyors, and a `WrapperStation` if any gate
-   asks for wrapped lines.
+6. Add camera, delivery gates, void coverage, conveyors, and a `WrapperStation` if any gate
+   asks for wrapped lines. A feed belt ends in a `LuggageDropPen` with its root at the belt's end
+   and +X along it; a looping belt needs a `LuggageSink` across it instead.
 7. Add the scene to Build Settings *before* routing a node or `nextLevel` to it.
 
 Never place a per-level `AudioManager`, `PlayerSystem`, `SceneLoader`, or `ProgressionService` —
@@ -127,6 +146,38 @@ a flight that asks for it can never be filled. A gate with `wrappedLinesPerFligh
 points, and connected interactables. Apply single intended properties from Unity's Overrides
 panel; never Apply All from a configured instance. When a field moves from a prefab into a config
 asset, revert the stale override explicitly — nothing detects override drift.
+
+### Floors
+
+`Assets/Prefab/Decoration/FloorTile.prefab` is a 1 × 1 m floor piece: the root's X/Z scale is its
+size in metres (default 10 × 10), the walkable surface sits at the root's Y, and a 0.5 m
+`BoxCollider` hangs below it. Change the look by dragging any `Assets/Material/Map/Floor_*.mat`
+onto it (it lands on the `Surface` child). The artist's source images are in
+`Assets/Texture/Floor/`.
+
+The `Floor_*` materials use `Shader Graphs/FloorTexture`, which maps the texture in **world
+space** (`_TileSize` = metres per texture repeat). Scaling a piece never stretches the pattern,
+neighbouring pieces line up, and the materials also work on the older `Floor.prefab` meshes, whose
+UVs are collapsed onto one palette texel. Because the mapping ignores the object's rotation, use
+`_PatternRotation` to turn a pattern, and `_BaseColor` (Tint) to pull a texture toward the palette.
+Checkers default to a 24 m repeat (2 m squares, like `FloorChecker`); carpets to 8 m.
+
+Keep the `Floor_*` catalog untinted. For a place-specific look, make a **Material Variant** of a
+catalog material and override only what differs — `MainMenu` uses
+`Assets/Material/Map/Floor_MainMenu.mat`, a variant of `Floor_Checkered3_BiggerBlue` with a
+lavender Tint. There the floor is `MenuEnvironment/Interior/Floor_Terminal` plus a blue-carpet
+`Rug_Lineup` under the lobby slots, both with their collider switched off (the menu's physics
+ground is a separate mesh at y −3.80). The old checker slab, `Floor_Terminal_Indoor`, is kept
+disabled next to them.
+
+`Level1` zones its floor by job, under `Environment/Floor Zones`. The hall is
+`Assets/Material/Map/Floor_Level1.mat`, a variant of `Floor_Checkered3_BiggerBlue` with a purple
+Tint (0.62, 0.52, 0.85). The gate approach is `Floor_RedCarpet`, and the pile is navy carpet inside
+the pen prefab. The hall is two tiles, `Hall West` and `Hall East`, split at x = −21, because the
+old floor steps from y 0.00 to 0.10 there. Every tile sits 2–5 cm above the old `Floor` meshes with
+its collider off; physics stays on the old meshes. Stack zones by height — hall 0.02 / 0.12, pen
+0.05, runway 0.15 — or they z-fight. Pick zone colours against the bags, not in isolation: a colour
+that swallows red, green or yellow luggage makes the level harder to read.
 
 ### Route QA
 
@@ -210,7 +261,8 @@ reproduce the shipped setup.
 
 `Assets/Scenes/Archive/` holds `Tutorial`, `Level3`, `Level4` and `DesignScene`, moved there in
 September 2026. They are **reference only** — out of Build Settings, not validated, not
-maintained. Their configs (`LevelConfig_Tutorial`, `_Stage3`, `_Stage4`, `_Design`) are kept so
+maintained. (`Level2` sits in the same folder but is live and in the build; none of this applies
+to it.) Their configs (`LevelConfig_Tutorial`, `_Stage3`, `_Stage4`, `_Design`) are kept so
 the scenes still open wired.
 
 They were built for the old rules — bag lifetimes, waves, Sticky/Fragile luggage, washers,

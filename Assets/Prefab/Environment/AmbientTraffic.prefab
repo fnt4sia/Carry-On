@@ -371,10 +371,10 @@ MonoBehaviour:
   groups:
   - name: Planes
     fleet:
-    - prefab: {fileID: 2459860842923952459, guid: 2dd595fa6abbb483ab54421e41672d48,
+    - prefab: {fileID: 6034223650659889099, guid: 279783ee47e804b6c8ca4b49c26a5d29,
         type: 3}
       yawOffset: 0
-    - prefab: {fileID: 1022260407120475374, guid: 7ef565df72597415a9c33e7af678615f,
+    - prefab: {fileID: 8789181848256935079, guid: 9541c006fdd7e46d1b27b228748dac75,
         type: 3}
       yawOffset: 270
     sideOne:

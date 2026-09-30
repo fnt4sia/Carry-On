@@ -15,7 +15,8 @@ MonoBehaviour:
   levelId: stage-1
   sceneName: Level1
   displayName: Stage 1
-  description: Learn the baggage flow with forgiving waves and longer luggage timers.
+  description: Dig the right colours out of the baggage pile and load each departing
+    flight.
   unlockedByDefault: 1
   nextLevel: {fileID: 11400000, guid: fb48f04fc3c064b54a19f787b92b9c00, type: 2}
   flightCode: AB01
@@ -33,5 +34,5 @@ MonoBehaviour:
   - {fileID: 4505602499030791835, guid: 5dd4a25230f240c183eae85cfdd219b0, type: 3}
   - {fileID: 9063756403775074392, guid: eb7455f71e47435bba384405e0fe7e7e, type: 3}
   spawnInterval: 1
-  maxActiveLuggage: 28
+  maxActiveLuggage: 12
   scoreCorrectDelivery: 10
