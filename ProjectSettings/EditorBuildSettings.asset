@@ -10,7 +10,7 @@ EditorBuildSettings:
     guid: dbd16920b44940c47b2eadebf6d72c10
   - enabled: 1
     path: Assets/Scenes/Menu/ChooseStage.unity
-    guid: d3c4b14a1e2c24010b61834d9676977e
+    guid: 27a4b6f80f1a347e9aee76f77661ba6e
   - enabled: 1
     path: Assets/Scenes/Stages/Level1.unity
     guid: 609974bf27be1469e85aa6f4632323b8

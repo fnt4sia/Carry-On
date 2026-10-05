@@ -18,7 +18,8 @@ public class ProgressionService : SingletonBehaviour<ProgressionService>
     private class SaveData
     {
         // 2 added lastScore. A version-1 file still loads: the missing field reads 0.
-        public int version = 2;
+        // 3 added completed. An older file reads false until the level is finished again.
+        public int version = 3;
         public List<LevelProgress> levels = new();
     }
 
@@ -31,6 +32,9 @@ public class ProgressionService : SingletonBehaviour<ProgressionService>
         // The most recent run, not the best one — the stage-select ticket shows both.
         public int lastScore;
         public bool unlocked;
+        // Finished at least once — the same moment the next level unlocks, stars or not.
+        // Unlocking alone creates an entry too, so an entry existing doesn't mean this.
+        public bool completed;
     }
 
     /// <summary>What the save list needs to draw one row. Read-only view, never written back.</summary>
@@ -81,6 +85,9 @@ public class ProgressionService : SingletonBehaviour<ProgressionService>
         return progress != null && progress.unlocked;
     }
 
+    public bool IsCompleted(LevelConfig level)
+        => level != null && (Find(level.levelId)?.completed ?? false);
+
     public int GetBestStars(LevelConfig level)
         => level == null ? 0 : Find(level.levelId)?.bestStars ?? 0;
 
@@ -98,6 +105,7 @@ public class ProgressionService : SingletonBehaviour<ProgressionService>
 
         LevelProgress current = GetOrCreate(level.levelId);
         current.unlocked = true;
+        current.completed = true;
         current.bestStars = Mathf.Max(current.bestStars, result.Stars);
         current.bestScore = Mathf.Max(current.bestScore, result.Score);
         // Best is a maximum, last is an overwrite — a worse run must still show up as the latest.

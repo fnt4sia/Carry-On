@@ -13,8 +13,9 @@ using UnityEngine.InputSystem;
 // Rotating this camera at runtime would turn the controls under the player's thumb and skew the UI.
 //
 // This is deliberately a separate component from MultiplayerCamera rather than a retune of it:
-// that one is still live in ChooseStage (and the archived scenes), and its (offset, 0, offset)
-// pull-back only makes sense at the 45-degree yaw those scenes use.
+// that one is still used by the archived scenes, and its (offset, 0, offset) pull-back only makes
+// sense at the 45-degree yaw those scenes use. Stage select runs this rig too, framing the map
+// planes it is handed through SetTargets.
 [DisallowMultipleComponent]
 [RequireComponent(typeof(Camera))]
 public class ArenaFollowCamera : MonoBehaviour
@@ -116,6 +117,21 @@ public class ArenaFollowCamera : MonoBehaviour
         }
 
         transform.position = pivot - transform.forward * distance;
+    }
+
+    /// <summary>
+    /// Frame these instead of the joined players. Stage select needs it: its planes are not
+    /// PlayerInput objects, and the players themselves are deactivated while the map is open.
+    /// </summary>
+    public void SetTargets(IReadOnlyList<Transform> targets)
+    {
+        roster.Clear();
+        foreach (Transform target in targets)
+            if (target != null)
+                roster.Add(target);
+
+        // Cut straight to the new group rather than gliding in from the authored pose.
+        hasFramedOnce = false;
     }
 
     private void FindPlayers()

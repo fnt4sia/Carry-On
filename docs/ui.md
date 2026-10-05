@@ -458,26 +458,231 @@ one and check the other.
 
 **Scene:** `Assets/Scenes/Menu/ChooseStage.unity`
 
-`MapController` spawns one `MapPlane` token per joined player over a flat map of `LevelNode`s.
-The `LevelTicket` card appears only once **every** plane is parked within `nodeRadius` of the same
-node; Confirm then loads that node's level and Back returns to the lobby. The map camera is a
-`MultiplayerCamera` framing the planes.
+An Overcooked-style island map (Carstenz's 3D archipelago, which replaced the old flat map on
+30 Sep 2026). `MapController` spawns one `MapPlane` per joined player — up to four — and each
+player flies their own. Level nodes sit on the airport islands. There is **no Confirm press**:
+boarding together is the confirmation.
+
+Every node's **landing ring** on the sea shows where that stage stands (Fitra's spec, 5 Oct 2026):
+
+| Stage | Ring | Badge | Planes |
+|---|---|---|---|
+| completed — finished at least once | yellow | yes | land, can board (replay) |
+| current — unlocked, not yet completed | white, scaling up and down (`pulseAmount` 6 %, `pulsePeriod` 1.6 s) | yes | land, can board |
+| locked — not reached yet | grey | none | fly straight over: no landing, ticket, sound or slot |
+
+"Completed" is `ProgressionService.IsCompleted`: a `completed` flag (save version 3) set by
+`RecordResult` — the same moment the next stage unlocks, stars or not. Unlocking alone creates a
+save entry too, so an entry existing doesn't mean completed. Saves written before version 3 read
+every level as not completed until it's finished again.
+
+On an unlocked node:
+
+| Planes on it | What the player sees |
+|---|---|
+| none | badge shows best stars |
+| some | badge shows one slot per plane, lit in that player's colour if their plane is here, grey if not; those planes touch down on the island |
+| all, node boardable | the same, while the ring and the badge border fill over `boardingSeconds` (2 s) — gold on a white ring, white on a yellow one, so the fill shows on both |
+| ring full | the group is committed: the `LevelTicket` boarding pass pops up over the node, every plane's stick and Back are ignored, and `ticketSeconds` (3 s) later the level loads |
+
+If any plane leaves before the ring is full, it drains at the fill rate instead of snapping to
+empty. A node is boardable when it is unlocked **and** its scene is in Build Settings; the group
+arriving on an unlocked one whose scene can't load plays the wrong-action SFX, logs an error, and
+the ring never fills. Back returns to the lobby.
+
+**The boarding pass is the transition into the level** (Fitra, 5 Oct 2026): it doesn't show while
+planes gather or the ring fills — only once the ring is full. `MapController.Board` then locks the
+planes (`MapPlane.Locked`), calls `LevelTicket.Show`, waits `ticketSeconds`, and hands over to
+`SceneLoader.Load`, whose own fade and progress bar take it from there (measured: ring full at
+2.0 s, ticket on the same frame, Level 1 active at 5.5 s). The card **pops**: a damped spring from
+nothing to full size — 1.25× at 0.18 s, 0.94× at 0.36 s, settled at `popSeconds` (0.45 s);
+`popOvershoot` (0.25) sets the first bounce. It sits at `worldOffset` `(0, 12, 30)` from the node.
+If the load can't start (another load already running), the card fades out and the map hands
+control back. The card and the badges sit on the WorldUI layer, so the overlay camera draws them
+on top and the outline pass never draws over them.
+
+**Being "on" a node** means inside its landing ring on the flat — `LevelNode.RingCenter` and
+`RingRadius` are read straight off the `Landing Ring` canvas (half its width × its scale), so
+**scaling or moving the ring is how you resize a stage's area**; there is no separate radius to
+keep in step. Select `Landing Ring` under a `Map Node` and scale it uniformly (scale 0.065 =
+26 m across; the canvas is 400 units wide). Edit the `Map Node` prefab to change every island, or
+override one node in the scene for an island of another shape; the `MapController` gizmo draws
+each ring's area. Node pivots are the islands' own pivots (y 5.2, on the terminal, about 4 m north
+of the runway), but the airport island's footprint is centred about 3 m south of that, so the
+prefab's ring sits at local `(0, -2.9, -2.96)`: sea level, on the island's centre. At 26 m the
+ring's band lies just outside the shore foam — any smaller and the white ring vanishes into it.
+A landed plane settles at the pivot's height plus `landingClearance` (3.6 m, half the plane
+model), wherever it is inside the ring — which can put it through the terminal and control tower.
+
+`Plane Spawn` (-34, 17.5, -64) must stay outside every ring, or the group boards Level 1 two
+seconds after the map opens. It's also far enough south that the plane doesn't *look* parked on
+Node 1: at 45° a plane cruising 15.2 m above the sea appears about 15 m up the screen from the
+spot below it, which is the spot the rings measure. Its height is the cruise height: 17.5 m keeps
+the plane's belly (3.6 m below its pivot) just over the tallest control tower (13.3 m). Planes
+cruised at 24 m while the cloud sea existed; it was lowered on 5 Oct 2026 to shrink that offset.
+
+**Camera.** The map runs the levels' `ArenaFollowCamera` (the Moving Out rig), handed the planes
+through `SetTargets`: rotation `(45, 0, 0)`, FOV 50, pulled back along its own view axis from 75 m
+with the group together (about 124 m of map across the frame) to 140 m when they spread out;
+margin 14. Fitra asked for 45° and a Moving Out-wide shot on 1 Oct 2026, replacing the tighter
+60° / FOV 40 / 50 m first pass. Yaw stays 0: the runways run east–west and the water glints are
+world-x dashes, so both stay horizontal only at yaw 0, stick-up is north, and the nodes read left to
+right. At 45° the top of the frame shows the mainland terrain, and with the group far north (or
+spread out to the 140 m zoom) the terrain's north edge (z 113) and the camera's flat background
+colour beyond it — the cloud sea used to cover that until it was removed on 5 Oct 2026.
+
+The rig only writes position, so it can be tuned live: in Play mode, change the Main Camera's
+rotation, FOV or the rig's distances and the shot follows on the next frame. Copy the values back
+after exiting Play mode. The authored pose is the rig's first frame at `Plane Spawn`. Shadows
+reach 150 m on the High Fidelity URP asset; Balanced and Performant stop at 50 m, so at this zoom
+they lose the plane and cloud shadows.
 
 Persisted players are deactivated while the map is open, so their own `PlayerInput` can't drive
 anything. Each plane instead gets a runtime clone of the shared input asset, masked to that
 player's control scheme and paired to their devices — which is what lets two halves of one
-keyboard fly two planes. Confirm and Back stay on the shared asset so any device can press them.
-`MapPlane` movement is deliberately unsmoothed: full speed the frame the stick moves, zero the
-frame it stops.
+keyboard fly two planes. Back stays on the shared asset so any device can press it. The plane
+takes its colour from the player's `PlayerIndicator.CurrentColor` before the player is hidden.
+`MapPlane` moves with `PlayerMovement`'s feel — the same `movementLerpSpeed` (0.15) and
+`rotationSpeed` (4), converted from per-physics-step to per-frame — and its bubble trail is a copy
+of the characters' `WalkSmoke` particle system on a `Trail` child at the tail. Stick-up follows the
+camera's flattened **up** vector, not its forward, so a camera pitched past vertical can't invert it.
+
+**Whose plane is whose.** The `Map Plane` prefab's model is Carstenz's `plane1` (`Model/Plane`,
+nested `Prefab/StageSelect/plane1`, nose +Z; `Model` at scale 0.18, 3× the FBX — it was 0.12 until
+5 Oct 2026, when a blue plane on the blue sea was too hard to find). `MapPlane` paints its
+`paintedParts` — the body, wings and tail fin, the renderers on the FBX's `Material.001` — in the
+player's colour with a property block, and fills in `Player Pin` (4.4 m up, clear of the plane's
+top): the characters' `Prefab/UI/Player Indicator` nested with its `PlayerIndicator` component
+removed (that one follows a `PlayerInput`), on the WorldUI layer and turned to the camera every
+frame, labelled `1P`–`4P` in the same colour. The 1P colour is almost exactly the deep sea's blue,
+so a player-coloured ring on the water would vanish for 1P.
+
+`Model/Plane` carries a white **QuickOutline** (`Outline`, OutlineAll, width 4 — screen-space, so it
+reads at any zoom). It sits on `Plane`, not `Model`, so the bubble trail's particle renderer stays
+out of it. QuickOutline bakes smoothed normals into the meshes at `Awake`, which is why
+`plane1.fbx` imports with **Read/Write enabled** — without it every plane logs "Not allowed to
+access vertices" and Error Pause stops play. It costs about 64 ms per plane at map load, two extra
+draws per renderer (72 materials on the plane instead of 24), and the mesh data kept in memory.
+
+The **propeller** (`Circle.004`, three blades and the spinner) spins at `propellerSpeed` (900°/s;
+much faster and three blades strobe at 60 fps) about `Model/Propeller Hub` — a marker at the
+propeller's centre, forward along the nose. The propeller's own pivot isn't on its axis, so it
+can't simply rotate in place. `plane1` is heavy — about 313k triangles a plane, so four planes are
+over a million triangles; the game's own `Pesawat1` / `Pesawat2` are 19k / 14k.
+
+Opened directly in the editor with nobody joined, the map spawns one plane on the unmasked shared
+asset, in `soloPlaneColor` (1P blue). To test several planes, start in `MainMenu`, join, then go to
+stage select — `DebugAutoJoin` players joined inside a level aren't persisted and die on the scene
+change. Virtual gamepads (`InputSystem.AddDevice<Gamepad>()`) joined as `Gamepad` cover 3P and 4P.
 
 Each `LevelNode` references one `LevelConfig` — display strings, scene name, default unlock, save
 key, and next-stage relationship all come from that asset. The node asks `ProgressionService` for
-unlocked state and best stars, and owns only its locked/unlocked visuals, refreshing them on
-`ProgressChanged`. `LevelTicket` fills its boarding-pass labels from the same config; the prefab
-owns every label and the presenter only fills and fades them.
+unlocked state and best stars, refreshing on `ProgressChanged`, and draws what `MapController`
+drives. The `Map Node` prefab owns all of it:
 
-Confirming a locked node plays the wrong-action SFX; a node with no loadable config logs an error.
-Loading is delegated to `SceneLoader`, which refuses scenes that aren't in Build Settings.
+| Child | Role |
+|---|---|
+| `Badge` | world-space canvas 9 m above and 16 m behind the node, on the WorldUI layer, turned to the camera every frame: `Stars`, `Players` (four slots), radial `BorderFill`. Hidden on a locked node |
+| `Landing Ring` | a flat world-space canvas on the sea, always shown; its size and position are the stage's area. `Pulse` holds `Ring` (the `LandingRing` sprite, tinted by stage state) and `Ring Fill` (the same sprite, radial-filled with boarding); `LevelNode` scales `Pulse` while the stage is current, so the fill pulses with the ring and the area never changes |
+| `Route` | the dashed route from this stage to the next (below) |
+
+**Level islands.** Every stage on the map is one prefab instance that carries everything — the
+island art, the badge, the landing ring and the route out — so a stage is placed, moved and
+re-ordered as one object (5 Oct 2026, Fitra's ask). The five templates in
+`Prefab/StageSelect/Level Islands/` are **Prefab Variants of `Map Node`**, each adding the islands
+of one cluster that was already on the map. The `LevelNode` sits on the variant's root, so picking
+the stage is one field on the object you dragged in; badge, ring and route changes go on
+`Map Node` and reach all five.
+
+| Template | Islands (offsets from the airport island's pivot) |
+|---|---|
+| `Level Island - Solo` | `Island_airport` alone |
+| `Level Island - Rock` | + one `Island_Rock` to the south-east |
+| `Level Island - Lighthouse` | + `Island_LightHouse` to the south-west |
+| `Level Island - Lighthouse Bay` | + `Island_LightHouse` to the west, two `Island_Rock` to the south |
+| `Level Island - Twin Rocks` | + two `Island_Rock` to the east, `Island_LightHouse` to the north |
+
+`Island_airport` sits at local `(0, -0.14, 0)`, rotated 180°; the root is the node pivot (y 5.2).
+`Island_Rock` (`Prefab/StageSelect/`) is the `island.fbx` islet as a prefab — the scene used to
+hold nine loose copies of the FBX. To add a stage: drag a template under `Level Islands`, set its
+`Level`, and set the previous stage's `LevelConfig.nextLevel` to it if it isn't already. To
+re-order, swap the `Level` on two islands; the routes follow.
+
+**Routes.** Each `Map Node`'s `Route` child draws one dashed route: a `LineRenderer` (Tile texture
+mode, world-space, flat on the sea, 2.6 m wide) with `Material/World/Route Dash.mat` on
+`Shader/RouteDash.shader`, laid out by `MapRoute`. **The route finds its own end**: it runs from
+its node to whichever node holds that level's `nextLevel`, so the routes always match the real
+unlock chain, and a stage with no next level (or one that isn't on the map) draws nothing — which
+is why there is no 2 → 3 route while Stage 2 doesn't unlock the archived Stage 3. It runs a cubic
+curve from 7.5 m off one node to 7.5 m off the next, measured from the node pivots, bent by its
+own `bendStart` / `bendEnd`: the same sign curves it one way, opposite signs make an S. The bends
+are per-instance overrides on each island's `Route` (Level 1: 12 / 4, Level 2: −8 / 8, Level 3:
+−10 / −4, picked to miss the lighthouse islets) — re-tune them after moving an island. The shader
+draws each dash from the UVs as a rounded capsule in metres with a navy outline, fades the ends,
+and marches the dashes slowly toward the next stage. `MapRoute` runs in the editor too, so a route
+follows an island as it's dragged (the editor only ticks it while the Scene view repaints).
+
+### The map environment
+
+| Piece | What it is |
+|---|---|
+| `Terrain` | Unity Terrain, `Terrain/ChooseStage TerrainData.asset` (400 × 400 m, heightmap 1025): a coastline framing the sea and mesa islets where the old volcano and rock mountains stood; the sea floor is about −5.8 m. The airport and lighthouse islands have **no** shelves in it any more — they carry their own (`IslandShallows`, below). Terraced in 2.4 m steps so it matches the islands' flat tiers; layers are flat sand / grass / beige-cliff textures in `Texture/Terrain/`. Generated once over Unity MCP — sculpt it by hand from here |
+| `Water` | `Material/World/Water.mat` on `Shader/StylizedWater.shader`, a 400 m plane. `WaterSeabed` feeds it the terrain's live heightmap and every island's shelf each frame, so shallows, foam and shore waves follow any sculpting or moved island with no bake |
+| `Clouds` | the cloud prefabs as **shadow-only** casters 45–55 m up, moved and wrapped by `CloudShadowDrift`; the sun is at `(50, 330)`, so shadows fall up and to the left on screen |
+| `Global Volume` | the same `Settings/PostProcessing Profile` as MainMenu and the levels |
+
+Planes cruise at the `Plane Spawn` height, **17.5 m**, clear of the terrain rim (10.7 m) and the
+control towers (13.3 m). The cloud-sea fog of war that covered every locked region (1 Oct 2026)
+was removed on 5 Oct 2026 at Fitra's request, with its script, shaders, materials and meshes —
+stage progress now lives on the landing rings.
+
+The water is written to avoid the outline pass's ghosting: that pass draws edges from the depth
+and normals textures, so anything under a surface that doesn't write them (the old water) had its
+silhouette traced across the sea. `StylizedWater` sits at `Geometry+450` — inside the opaque range
+the depth-normals prepass renders — with its own `DepthOnly` / `DepthNormals` passes writing one
+flat up-normal, while its colour pass still alpha-blends so the shallows show the sand below. Since
+the depth texture then holds the water itself, depth-based colour comes from the terrain heightmap
+instead.
+
+**Island shallows move with the islands** (5 Oct 2026, Fitra's ask). Each island prefab
+(`Island_airport`, `Island_LightHouse`, `Island_Rock`) has an `IslandShallows`: a shelf centre
+(`centerOffset`, the footprint's middle — 2.96 m off the airport's pivot), a flat `platformRadius`
+just under the surface (airport 8.2 m, islets 4.8 m) and a `slopeWidth` down to the sea floor
+(6 / 6.5 m). `WaterSeabed` hands every enabled one to the water each frame (in the editor too) and
+`StylizedWater` takes the higher of the terrain and the shelves, so an island dragged anywhere
+brings its foam rim, turquoise shallows and shore waves with it, and shelves that overlap merge
+into one. The platform sits `_ShelfDepth` (0.26 m) under the surface — inside the foam depth, so
+it reads as a white rim — and the edge wobbles so no shelf is a clean circle. The water takes 32
+shelves at most (26 now) and warns once if there are more; raise `MaxIslands` in `WaterSeabed` and
+`MAX_ISLAND_SHALLOWS` in the shader together. The old terrain-sculpted platforms were flattened to
+the sea floor the same day; the mesas' and coast's own shores were left alone.
+
+The scene's roots, as cleaned up on 5 Oct 2026:
+
+| Root | Holds |
+|---|---|
+| `Main Camera`, `Directional Light`, `Global Volume` | the shot, the sun (`(50, 330)`), post-processing |
+| `Map System` | `MapController` |
+| `Plane Spawn`, `Level Ticket` | where the planes start; the boarding pass |
+| `Level Islands` | `Level 1 Island` … `Level 4 Island`: Lighthouse Bay, Solo, Rock and Solo templates on the four northern airport islands, about 34 m apart, left to right across the top of the bay |
+| `Decorations` | everything without a stage: `Island Group 1`–`6` (each airport island with no node, plus its own islets, pivoted on the airport island so a group moves as one) and three loose lighthouse islets |
+| `Environment` | `Terrain`, `Water`, `Clouds` (the shadow casters) |
+
+(A move of the nodes to the spread-out southern islands was planned on 1 Oct 2026 but never
+applied.) `mapCenter` / `mapHalfExtents` cover every island, so planes can fly anywhere on the map.
+The islands and props come from `Prefab/StageSelect/` with their FBX files in
+`Model/Environment/StageSelect/`. The clean-up deleted scene objects nobody could see — the
+inactive `Map Board` sprite of the old flat map, Carstenz's `plane1`–`plane4` model options parked
+under the sea (two `plane1` copies alone were over 600k triangles) and the `Corals` — but not their
+prefabs or models.
+
+`plane1.fbx` and `could2.fbx` came out of Blender with the scene's camera and lights, and
+`plane1` used to bring its `Camera` into the map: a full-screen Base camera at depth 0 that drew
+after the Main Camera (−1) and covered it with a fixed view of the sea. Both models now import with
+**Cameras and Lights unticked** (1 Oct 2026). If the map ever shows a still view that ignores the
+planes, list `Camera.allCameras` in Play mode. Carstenz's hand-made
+`Shader/Water.shadergraph` is no longer used. `Prefab/StageSelect/vfx_Tornado_01` isn't placed
+anywhere, and its particle material was never committed, so it renders magenta.
 
 > Nodes 3 and 4 still point at the archived `LevelConfig_Stage3/4` and stay locked. See
 > [levels](levels.md#config--scene-mapping).

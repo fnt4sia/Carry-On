@@ -53,11 +53,17 @@ Assets/
     ChooseStage/     map planes, nodes, level ticket
     Editor/          level validator (editor-only, excluded from builds)
   Config/            LevelConfig assets
-  Prefab/            Character, Decoration, Environment, Luggage, Manager, StageSelect, Station, UI
+  Prefab/            by area: Character, Decoration, Environment, Luggage, Manager, StageSelect,
+                     Station, UI (VFX prefabs included)
   Material/          .mat only, by area; Physics/ holds every physic material
   Texture/           loose textures our own materials use (Floor, Luggage, Machine)
   Model/             FBX files, each beside the textures/materials it imports
-  Shader/            shader graphs, .shader, .hlsl
+  Shader/            shader graphs, .shader, .hlsl — no materials
+  Animation/         clips and controllers, one folder per character or animated prop
+  Audio/             music and SFX clips
+  Font/              .ttf files and their TextMesh Pro SDF assets
+  InputAction/       GameInput.inputactions
+  UI/                sprites, by screen (Gameplay, MainMenu, StageEnd, StageSelect)
   Settings/          URP assets, renderers, volume profiles, global settings
   Resources/Runtime/ persistent service bootstrap prefabs
   Scenes/{Menu,Stages,Archive}/   Archive = old-design scenes, reference only — except Level2
@@ -84,8 +90,9 @@ Build Settings contains **four scenes**:
 `LevelConfig_Stage1` / `_Stage2`. **Level2 is live despite its folder**: its file moved into
 `Scenes/Archive/` in `0f39a36` (22 Sep 2026) and Build Settings followed it. `Tutorial`, `Level3`,
 `Level4` and `DesignScene` were built for the old rules and are genuinely archived — reference
-only, out of the build. `Menu/Debug-ChooseStage` is a stage-select test scene, also out of the
-build. The old `Test` decoration-staging scene was deleted in `0f39a36`. See
+only, out of the build. `Menu/ChooseStage` is Carstenz's 3D island map: on 30 Sep 2026 it
+replaced the old flat map and took its name, so `SceneNames.ChooseStage` didn't change
+([ui](ui.md#stage-select)). The old `Test` decoration-staging scene was deleted in `0f39a36`. See
 [levels](levels.md#archived-scenes).
 
 ```text

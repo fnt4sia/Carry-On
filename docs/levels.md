@@ -116,11 +116,17 @@ Build Settings is `MainMenu`, `ChooseStage`, `Level1`, `Level2` — nothing else
 
 Stage select still routes Node 1–4 at `LevelConfig_Stage1..4`. Nodes 3 and 4 point at archived
 configs and stay locked, because Stage 2 no longer unlocks Stage 3. A save that unlocked them
-before the archive can still click them; `SceneLoader` then refuses the load with
-`Scene 'Level3' is not enabled in Build Settings.` rather than crashing.
+before the archive still can't start them: a node whose scene isn't in Build Settings never fills
+its boarding border, and the group landing on it gets the wrong-action SFX plus an error log.
 
-`Menu/Debug-ChooseStage` is a stage-select test scene with no `LevelContext`, out of the build. The
-old `Test` decoration-staging scene was deleted in `0f39a36`.
+To put a new level on the map, drag one of the five templates in
+`Prefab/StageSelect/Level Islands/` under `ChooseStage`'s `Level Islands` (y 5.2 — landed planes
+and the sea-level landing ring both hang off that), set its `Level`, and make sure the previous
+stage's `LevelConfig.nextLevel` points at the new config: the routes are drawn from that chain, not
+wired by hand. Each template carries its own islands, badge, landing ring and route, so moving it
+moves the whole stage, shallows included ([ui](ui.md#stage-select)). The old flat stage-select
+scene was deleted on 30 Sep 2026; Carstenz's 3D map took its name. The old `Test`
+decoration-staging scene was deleted in `0f39a36`.
 
 ## Authoring a level
 

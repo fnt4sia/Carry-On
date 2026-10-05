@@ -4,10 +4,12 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// The boarding-pass card that appears over a node once every plane has parked on it.
+/// The boarding-pass card that pops up over a node once the group has boarded it — the moment
+/// its border fills — and stays up as the transition into the level (<see cref="MapController"/>
+/// holds it a few seconds, then loads).
 ///
 /// The prefab owns the printed frame and every label; this presenter only fills them in,
-/// keeps the card over the node, and fades it. Nothing here is built at runtime.
+/// keeps the card over the node, and animates it. Nothing here is built at runtime.
 /// </summary>
 [DisallowMultipleComponent]
 public class LevelTicket : MonoBehaviour
@@ -37,8 +39,13 @@ public class LevelTicket : MonoBehaviour
              "map so it draws over the island; the Z term is what pushes it up the screen " +
              "under a top-down camera.")]
     [SerializeField] private Vector3 worldOffset = new(0f, 6f, 14f);
-    [Tooltip("How far down the screen the card starts while fading in.")]
-    [SerializeField, Min(0f)] private float riseDistance = 2.5f;
+
+    [Header("Animation")]
+    [Tooltip("Seconds the pop takes: up past full size, back under it, then settled.")]
+    [SerializeField, Min(0.05f)] private float popSeconds = 0.45f;
+    [Tooltip("How far past full size the first bounce goes (0.25 = 25 % bigger).")]
+    [SerializeField, Range(0.01f, 1f)] private float popOvershoot = 0.25f;
+    [Tooltip("Seconds to fade out if boarding is called off.")]
     [SerializeField, Min(0f)] private float fadeDuration = 0.2f;
 
     [Header("Wording")]
@@ -50,7 +57,7 @@ public class LevelTicket : MonoBehaviour
     private LevelNode current;
     private Coroutine anim;
     private Transform cameraTransform;
-    private float riseOffset;
+    private Vector3 baseScale;
 
     private void Awake()
     {
@@ -58,7 +65,7 @@ public class LevelTicket : MonoBehaviour
             canvasGroup = GetComponent<CanvasGroup>();
         if (canvasGroup != null)
             canvasGroup.alpha = 0f;
-        riseOffset = riseDistance;
+        baseScale = transform.localScale;
     }
 
     public void Show(LevelNode node)
@@ -69,7 +76,7 @@ public class LevelTicket : MonoBehaviour
         current = node;
         Fill(node);
         PlaceOverNode();
-        Animate(1f);
+        Play(PopRoutine(), shown: true);
     }
 
     public void Hide()
@@ -78,7 +85,7 @@ public class LevelTicket : MonoBehaviour
             return;
 
         current = null;
-        Animate(0f);
+        Play(FadeOutRoutine(), shown: false);
     }
 
     private void LateUpdate()
@@ -135,7 +142,6 @@ public class LevelTicket : MonoBehaviour
     {
         // The map camera holds one fixed angle, so copying its rotation is the whole
         // billboard — and it keeps every card on screen at the same readable tilt.
-        // Rotation first: the rise slides along the card's own up, which is screen-up.
         if (cameraTransform == null || !cameraTransform.gameObject.activeInHierarchy)
         {
             Camera cam = Camera.main;
@@ -145,46 +151,57 @@ public class LevelTicket : MonoBehaviour
         }
 
         transform.rotation = cameraTransform.rotation;
-        transform.position = current.transform.position + worldOffset - transform.up * riseOffset;
+        transform.position = current.transform.position + worldOffset;
     }
 
-    private void Animate(float targetAlpha)
+    private void Play(IEnumerator routine, bool shown)
     {
         if (anim != null)
             StopCoroutine(anim);
+        anim = null;
 
-        if (!isActiveAndEnabled)
+        if (isActiveAndEnabled)
         {
-            if (canvasGroup != null)
-                canvasGroup.alpha = targetAlpha;
-            riseOffset = targetAlpha > 0f ? 0f : riseDistance;
+            anim = StartCoroutine(routine);
             return;
         }
 
-        anim = StartCoroutine(AnimateRoutine(targetAlpha));
+        if (canvasGroup != null)
+            canvasGroup.alpha = shown ? 1f : 0f;
+        transform.localScale = baseScale;
     }
 
-    private IEnumerator AnimateRoutine(float targetAlpha)
+    // Big, a little small, then settled: a damped spring from nothing to full size.
+    private IEnumerator PopRoutine()
     {
-        float startAlpha = canvasGroup != null ? canvasGroup.alpha : 1f;
-        float startRise = riseOffset;
-        float targetRise = targetAlpha > 0f ? 0f : riseDistance;
-        float elapsed = 0f;
+        if (canvasGroup != null)
+            canvasGroup.alpha = 1f;
 
-        while (elapsed < fadeDuration)
+        float swing = 2.5f * Mathf.PI / popSeconds;                       // two and a half swings
+        float damping = -Mathf.Log(popOvershoot) * swing / Mathf.PI;      // first swing peaks at 1 + popOvershoot
+        for (float t = 0f; t < popSeconds; t += Time.deltaTime)
         {
-            float t = elapsed / fadeDuration;
-            t = 1f - (1f - t) * (1f - t);   // ease out
+            transform.localScale = baseScale * (1f - Mathf.Exp(-damping * t) * Mathf.Cos(swing * t));
+            yield return null;
+        }
+
+        transform.localScale = baseScale;
+        anim = null;
+    }
+
+    private IEnumerator FadeOutRoutine()
+    {
+        float start = canvasGroup != null ? canvasGroup.alpha : 0f;
+        for (float t = 0f; t < fadeDuration; t += Time.deltaTime)
+        {
             if (canvasGroup != null)
-                canvasGroup.alpha = Mathf.Lerp(startAlpha, targetAlpha, t);
-            riseOffset = Mathf.Lerp(startRise, targetRise, t);
-            elapsed += Time.deltaTime;
+                canvasGroup.alpha = Mathf.Lerp(start, 0f, t / fadeDuration);
             yield return null;
         }
 
         if (canvasGroup != null)
-            canvasGroup.alpha = targetAlpha;
-        riseOffset = targetRise;
+            canvasGroup.alpha = 0f;
+        transform.localScale = baseScale;
         anim = null;
     }
 
