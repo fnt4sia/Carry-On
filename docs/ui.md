@@ -49,17 +49,46 @@ The poster is **portrait**: `1.1755 × 1.6736` local, and the banner's own scale
 | localScale | `0.001`, with `sizeDelta (1175, 1674)` → `4.700 × 6.696` world |
 | `worldCamera` | `Main Camera` — required, or the `GraphicRaycaster` can't take mouse clicks |
 
-`Backdrop` is a plain dark `(0.055, 0.075, 0.115)` Image at **full alpha**, inset 25 px so the
-poster's frame still shows around it. It has to be opaque: the printed artwork underneath is a
-bright blue-and-teal poster, and even at alpha 0.94 it bled through badly enough to hurt the text.
+Whatever sits behind the text has to be opaque: the printed artwork underneath is a bright
+blue-and-teal poster, and even at alpha 0.94 it bled through badly enough to hurt the text.
+
+**Board screen (test since 6 Oct 2026, Fitra's ask).** The text now sits on a CRT screen: a quad,
+`MenuBanner/Screen`, the canvas's exact size (`1.175 × 1.674` banner-local), at `x −0.0915` —
+between the poster (`−0.089`) and the text (`−0.094`) — wearing `Material/World/Board Screen.mat`,
+the TV's `TVScreen` shader graph tuned darker (screen `(0.045, 0.16, 0.22)`, 64 scanlines) so the
+text keeps its contrast (≈7.5 : 1 measured). It's a mesh, not a UI `Image`, because the shader graph
+is an URP Unlit graph, not a Canvas one; the text and its mouse input stay on the canvas untouched.
+`Backdrop` — the old plain dark `(0.055, 0.075, 0.115)` Image, inset 25 px — is **switched off, not
+deleted**: to undo the test, turn `Backdrop` back on and `Screen` off.
+
+**Text weight follows importance** (6 Oct 2026). Post-processing greys white text — the Global
+Volume's blue colour filter and Neutral tonemapping turned the authored `#F0F5FF` into
+`(186, 198, 224)` on screen — so the things you act on use
+`Font/LiberationSans SDF - Board Bright.mat`, the font's material with its face colour at `1.35`
+(HDR), which lands near white (`(217, 231, 242)` measured) with a hint of bloom.
+
+| Text | Weight | Colour |
+|---|---|---|
+| destinations (`NEW GAME`, `SLOT 1`, `BACK`…) | bold, Board Bright | `#F0F5FF` |
+| join prompt | regular, keys bold via `<b>`, Board Bright | `#FFD638` |
+| panel titles | regular | `#FFD638` at 80 % |
+| flight codes, status | regular | `#DBB238` / `#B8CCEB` at 60 % |
+| column headers, settings placeholder | regular | `#859EC7` at 55 % |
+| `DEPARTURES` | regular | `#FFD638` at 35 % — decoration |
+
+Row text styling lives on `Prefab/UI/BoardMenuRow.prefab`; the scene's ten rows carry **no** colour
+or style overrides (63 redundant ones were reverted), so restyle the prefab. The picked row is
+separate: a brown bar `(0.455, 0.302, 0.125)` from the Button's `selectedColor` with cream
+`activeTextColor` `(0.96, 0.91, 0.82)`, authored on the rows.
 
 `Content` insets 70 px horizontally and 55 vertically → a `1035 × 1564` working area.
 
 The banner has two states, toggled by `MainMenuManager`. `Content/Title` is always on.
 
 - **Before anyone joins** — `Content/JoinPrompt` shows `Press Space / (A) to Join`, breathing
-  between alpha 0.3 and 1 on a 1.6 s cycle via a `CanvasGroup` + `UIPulse`. `UIPulse` runs on
-  unscaled time so it keeps going at `timeScale` 0.
+  between alpha 0.55 and 1 on a 1.6 s cycle via a `CanvasGroup` + `UIPulse` (the floor was 0.3
+  until 6 Oct 2026 — too faint half the time). `UIPulse` runs on unscaled time so it keeps going
+  at `timeScale` 0.
 - **After the first join** — `Content/MenuRoot` reveals the column headers and the four rows.
   `JoinPrompt` and `MenuRoot` deliberately **share one rect** (`1330` tall at `y −234`): they are
   two faces of the same slot, so moving one means moving the other.
@@ -440,7 +469,7 @@ moving, reparenting, or re-sorting the canvas.
 
 **`MenuCanvas` is unaffected**, and that is not luck — it is diegetic. It hangs on the banner in
 world space precisely so the terminal's outlines and lighting apply to it; there is no artwork
-underneath for stray edges to spoil, only the `Backdrop` fill.
+underneath for stray edges to spoil, only the flat `Screen` quad (or the `Backdrop` fill).
 
 ### Decorative world canvases
 
@@ -626,10 +655,48 @@ follows an island as it's dragged (the editor only ticks it while the Scene view
 
 | Piece | What it is |
 |---|---|
-| `Terrain` | Unity Terrain, `Terrain/ChooseStage TerrainData.asset` (400 × 400 m, heightmap 1025): a coastline framing the sea and mesa islets where the old volcano and rock mountains stood; the sea floor is about −5.8 m. The airport and lighthouse islands have **no** shelves in it any more — they carry their own (`IslandShallows`, below). Terraced in 2.4 m steps so it matches the islands' flat tiers; layers are flat sand / grass / beige-cliff textures in `Texture/Terrain/`. Generated once over Unity MCP — sculpt it by hand from here |
+| `Terrain` | Unity Terrain, `Terrain/ChooseStage TerrainData.asset` (400 × 400 m, heightmap 1025): a coastline framing the sea and mesa islets where the old volcano and rock mountains stood; the sea floor is about −5.8 m. The airport and lighthouse islands have **no** shelves in it any more — they carry their own (`IslandShallows`, below). Terraced in 2.4 m steps so it matches the islands' flat tiers; layers are flat pink-sand / lavender-grass / violet-cliff textures in `Texture/Terrain/` (game palette since 6 Oct 2026). Generated once over Unity MCP — sculpt it by hand from here |
 | `Water` | `Material/World/Water.mat` on `Shader/StylizedWater.shader`, a 400 m plane. `WaterSeabed` feeds it the terrain's live heightmap and every island's shelf each frame, so shallows, foam and shore waves follow any sculpting or moved island with no bake |
 | `Clouds` | the cloud prefabs as **shadow-only** casters 45–55 m up, moved and wrapped by `CloudShadowDrift`; the sun is at `(50, 330)`, so shadows fall up and to the left on screen |
 | `Global Volume` | the same `Settings/PostProcessing Profile` as MainMenu and the levels |
+
+**The map's palette is the game's** (6 Oct 2026, Fitra's call after a palette comparison showed the
+map had no purple or pink and was 14 % green — the main reason it read as another game). Everything
+below was recoloured from the old sea-blue / grass-green / khaki:
+
+| Piece | Colour | Lives in |
+|---|---|---|
+| deep sea / shallows / foam | indigo `#3B44B0` / periwinkle `#9A9CF0` (alpha 0.7) / pink-white `#FFF0F6` | `Material/World/Water.mat` |
+| beaches, land, cliffs (terrain) | dusty pink `#EBB8C0`, lavender `#9A86D8`, violet `#6A58B8` | each Terrain Layer's **Color Tint** (below) over the neutral `Texture/Terrain/Terrain_{Sand,Grass,Rock}.png` |
+| island grass / island cliffs | light lavender `#C2ADEE` / violet `#7A66C4` | `Model/Environment/StageSelect/Materials/Island {Grass,Rock}.mat` |
+| tree leaves (accent, like the menu's palms) | teal `#3FAE96` / `#23807A` | `…/Materials/Tree Leaves {Light,Dark}.mat` |
+
+**Terrain colours are tints, so they're editable by hand** (6 Oct 2026, Fitra's choice). The three
+terrain textures are neutral near-white greys (mean 250) that only carry the faint noise; each
+layer's colour is its **Color Tint**: select `Environment/Terrain` → *Paint Terrain* → *Paint
+Texture* → pick a layer → *Color Tint* under Diffuse (it's `TerrainLayer.diffuseRemapMax`, stored on
+the `Assets/Terrain/ChooseStage {Sand,Grass,Rock}.terrainlayer` assets). **The swatch renders
+lighter than it looks**: URP multiplies the linear texture by the tint's raw value, and the picker
+shows that value as if it were sRGB — so tune by eye in the Scene view, or type the tint from the
+table (tint = the colour's linear value ÷ 0.956, the neutral texture's linear level):
+
+| Layer | Game palette (in use): renders / tint | Old green palette: renders / tint |
+|---|---|---|
+| Sand | `#EBB8C0` / `#DE808D` | `#F5D8A3` / `#F4B762` |
+| Grass | `#9A86D8` / `#5640B7` | `#7FBE57` / `#398919` |
+| Rock | `#6A58B8` / `#261A80` | `#E4A986` / `#CF6A40` |
+
+`Terrain_{Sand,Grass,Rock}_Green.png` are the old coloured originals, restored from git for the
+comparison; with tints in charge they're no longer needed (use one only with its layer's tint set to
+white, or the two colours multiply).
+
+Buildings, runways (`AIRPORT.003` palette), the lighthouses' red and white, the rings and the routes
+kept their colours. The island and tree materials were embedded in `island.fbx`,
+`lighthouse 1.fbx` and `LP_TREE_PACK.fbx`; each FBX's import now **remaps** them to the external
+materials above (`lushgrass` → Island Grass and `island` → Island Rock in both island FBXs,
+`Material.006` / `.014` → the leaves). The island prefabs had stored direct references to the old
+embedded leaf materials, which went empty on reimport — they were refilled from the FBX's own slot
+order. If a future FBX remap leaves pink/missing material, look for the same thing.
 
 Planes cruise at the `Plane Spawn` height, **17.5 m**, clear of the terrain rim (10.7 m) and the
 control towers (13.3 m). The cloud-sea fog of war that covered every locked region (1 Oct 2026)

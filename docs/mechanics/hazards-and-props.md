@@ -465,7 +465,13 @@ bronze — the signs should sit in the environment, not glare out of it.
 
 ### Logo TV
 
-**Prefab:** `Assets/Prefab/Decoration/LogoTV.prefab` · **Materials:** `Material/World/{TV Casing, TV Screen}.mat`
+**Prefab:** `Assets/Prefab/Decoration/LogoTV.prefab` · **Materials:** `Material/World/{TV Casing, TV Screen Plain}.mat`
+
+> **6 Oct 2026 test (Fitra's ask):** the CRT screen shader below moved to the menu banner
+> (`Board Screen.mat` on `MenuBanner/Screen`, see [ui](../ui.md#the-banner-canvas)) and the TV's
+> `Screen` now wears `TV Screen Plain` — URP Unlit, flat `(0.09, 0.35, 0.46)`, no scanlines — so the
+> logo reads cleaner. `TV Screen.mat` is untouched and unused: putting the effect back on the TV is
+> one material swap on the prefab's `Screen`.
 
 In `MainMenu` this replaced the `WallSignage` on the pillar above the menu banner (September 2026 —
 the `WallSignage` prefab is kept). It is built from primitives, no FBX: all sizes are world units at
@@ -476,7 +482,7 @@ LogoTV                     root at (−64.95, 11.59, 92.85), identity rotation
 ├── Body                   Cube 8.6 × 5.0 × 0.35, TV Casing
 ├── Bezel/Top,Bottom,Left,Right   0.3-wide bars, 0.08 proud of the front — the outline pass
 │                          catches that step, which is what makes the screen read as recessed
-├── Screen                 Quad 8.0 × 4.4, TV Screen (Shader Graphs/TVScreen, unlit CRT)
+├── Screen                 Quad 8.0 × 4.4, TV Screen Plain (was TV Screen, the unlit CRT, until 6 Oct 2026)
 ├── ScreenCanvas           World Space, 8000 × 4400 at scale 0.001, 0.015 in front of Screen,
 │   │                      CanvasGroup + SignFlicker (same values as WallSignage), layer UI, no raycaster
 │   └── Logo               CarryOnLogo sprite, preserveAspect, anchors 0.1–0.9 × 0.12–0.88
@@ -498,8 +504,10 @@ that if it moves.
 
 #### The screen shader
 
-`Assets/Shader/TVScreen.shadergraph` (URP **Unlit**, opaque) makes the quad read as a powered CRT
-instead of a black rectangle. It uses the quad's own UV0 — a Unity primitive, so unlike the airport
+`Assets/Shader/TVScreen.shadergraph` (URP **Unlit**, opaque) makes a quad read as a powered CRT
+instead of a black rectangle. It now runs on the menu banner (`Board Screen.mat`: screen colour
+`(0.045, 0.16, 0.22)`, dark colour `(0.008, 0.01, 0.018)`, 64 scanlines for the taller board); the
+values below are the TV's original `TV Screen.mat`. It uses the quad's own UV0 — a Unity primitive, so unlike the airport
 meshes its UVs are a clean `0…1` and no world-space trick is needed. Three terms, all on `uv.y`:
 
 ```text

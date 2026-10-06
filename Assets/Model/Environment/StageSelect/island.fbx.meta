@@ -3,7 +3,17 @@ guid: 6bd2f3a97f3944d2392d06def20638a5
 ModelImporter:
   serializedVersion: 24200
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: island
+    second: {fileID: 2100000, guid: 138e1c3ccef3f488c8b110a20a97c7e4, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: lushgrass
+    second: {fileID: 2100000, guid: 28ec82c6e5ea4424db46f8bc30dc95df, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0
