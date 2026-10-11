@@ -35,7 +35,7 @@ overrides; make a prefab variant when a belt family should genuinely behave diff
 `Material/Machine/ConveyorBelt{,_XLeft,_XRight,_ZBack}.mat` — 44 renderers in `MainMenu`.
 
 The stripes are painted, not animated UVs: the belt mesh's UVs are collapsed onto single palette
-texels ([floor shaders](../services.md#colour-grade) hit the same wall), so the pattern is built
+texels ([floor shaders](../scenes/levels.md#floors) hit the same wall), so the pattern is built
 from **position** instead. The graph is three masks multiplied together and one `Lerp`:
 
 ```text
@@ -75,7 +75,7 @@ Two separate things decide direction, and **nothing links them**:
 > the belt.
 
 Rotate a piece and forget the material and the bags ride forwards while the deck scrolls backwards.
-**The [level validator](../levels.md#level-validator) now checks this**: it reads `_BeltAxis` off
+**The [level validator](../scenes/levels.md#level-validator) now checks this**: it reads `_BeltAxis` off
 whatever material the piece actually has, compares it against the piece's forward, and errors if
 they disagree by more than ~25°. It also warns when a piece carries no belt material at all, which
 renders a deck that sits still while it carries luggage — three pieces in `MainMenu` are in exactly
@@ -125,7 +125,7 @@ collider. It's `centerRadius`, `centeringGain`, or `turnPivot` on the `Conveyor 
 - Align stations, spawn points, and receiving surfaces to the actual exit velocity, not just to
   the visible mesh.
 
-The [level validator](../levels.md#level-validator) checks move speed, turn pivot, uniform scale,
+The [level validator](../scenes/levels.md#level-validator) checks move speed, turn pivot, uniform scale,
 belt material, and a single deck height per scene. Everything about how a route *feels* stays
 manual QA.
 

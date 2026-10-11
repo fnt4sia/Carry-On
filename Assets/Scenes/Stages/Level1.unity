@@ -10319,6 +10319,11 @@ PrefabInstance:
       propertyPath: m_RenderPostProcessing
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 5419132407869361561, guid: a04a3a980004b584eaefc2c6dfeb5a1d,
+        type: 3}
+      propertyPath: field of view
+      value: 50
+      objectReference: {fileID: 0}
     - target: {fileID: 5480678617535714320, guid: a04a3a980004b584eaefc2c6dfeb5a1d,
         type: 3}
       propertyPath: yMaximum

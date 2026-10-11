@@ -1,12 +1,14 @@
 using System.Collections;
+using System.IO;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
-/// Persistent asynchronous scene transition service. A swappable Resources prefab
-/// may provide the loading view; a code-built fallback keeps direct scene testing safe.
+/// Persistent asynchronous scene transition service. The Resources prefab provides the cloud
+/// transition (<see cref="SceneTransition"/>); a code-built fade keeps direct scene testing safe
+/// without it.
 /// </summary>
 public class SceneLoader : SingletonBehaviour<SceneLoader>
 {
@@ -14,8 +16,9 @@ public class SceneLoader : SingletonBehaviour<SceneLoader>
 
     [Header("Loading View")]
     [SerializeField] private CanvasGroup loadingCanvas;
-    [SerializeField] private TMP_Text loadingText;
-    [SerializeField] private Image progressFill;
+    [Tooltip("Clouds and plane that cover the screen while the next scene loads. Without one the " +
+             "loading view just fades in and out.")]
+    [SerializeField] private SceneTransition transition;
     [SerializeField, Min(0f)] private float fadeDuration = 0.2f;
 
     private bool isLoading;
@@ -85,40 +88,75 @@ public class SceneLoader : SingletonBehaviour<SceneLoader>
         loadingCanvas.gameObject.SetActive(true);
         loadingCanvas.blocksRaycasts = true;
         loadingCanvas.interactable = true;
-        if (loadingText != null)
-            loadingText.text = "Loading…";
-        SetProgress(0f);
 
-        yield return Fade(0f, 1f);
+        yield return Cover(IsForward(sceneName));
 
         AsyncOperation operation = SceneManager.LoadSceneAsync(sceneName);
-        if (operation == null)
+        if (operation != null)
         {
-            isLoading = false;
-            yield return Fade(1f, 0f);
-            loadingCanvas.gameObject.SetActive(false);
-            yield break;
-        }
+            operation.allowSceneActivation = false;
+            while (operation.progress < 0.9f)
+                yield return null;
 
-        operation.allowSceneActivation = false;
-        while (operation.progress < 0.9f)
-        {
-            SetProgress(Mathf.Clamp01(operation.progress / 0.9f));
+            // Reset before activating, so a scene that freezes time on Start (a round's
+            // countdown) keeps it frozen.
+            Time.timeScale = 1f;
+            operation.allowSceneActivation = true;
+            while (!operation.isDone)
+                yield return null;
+
+            // One frame under the cover, so the new scene's first placement (cameras, spawns)
+            // has happened before anyone sees it.
             yield return null;
         }
 
-        SetProgress(1f);
-        operation.allowSceneActivation = true;
-        while (!operation.isDone)
-            yield return null;
-
-        Time.timeScale = 1f;
-        yield return Fade(1f, 0f);
+        yield return Uncover();
 
         loadingCanvas.blocksRaycasts = false;
         loadingCanvas.interactable = false;
         loadingCanvas.gameObject.SetActive(false);
         isLoading = false;
+    }
+
+    private IEnumerator Cover(bool forward)
+    {
+        if (transition == null)
+        {
+            yield return Fade(0f, 1f);
+            yield break;
+        }
+
+        loadingCanvas.alpha = 1f;
+        transition.Play(forward);
+        while (!transition.IsCovered)
+            yield return null;
+    }
+
+    private IEnumerator Uncover()
+    {
+        if (transition == null)
+        {
+            yield return Fade(1f, 0f);
+            yield break;
+        }
+
+        transition.Release();
+        while (transition.IsPlaying)
+            yield return null;
+        loadingCanvas.alpha = 0f;
+    }
+
+    /// <summary>
+    /// Deeper into the game — lobby, map, stages, next stage, replay — flies the plane top-left to
+    /// bottom-right; back out flies it the other way. Build Settings lists the scenes in that order.
+    /// </summary>
+    private static bool IsForward(string sceneName)
+    {
+        int current = SceneManager.GetActiveScene().buildIndex;
+        for (int i = 0; i < SceneManager.sceneCountInBuildSettings; i++)
+            if (Path.GetFileNameWithoutExtension(SceneUtility.GetScenePathByBuildIndex(i)) == sceneName)
+                return i >= current;
+        return true;
     }
 
     private IEnumerator Fade(float from, float to)
@@ -138,12 +176,6 @@ public class SceneLoader : SingletonBehaviour<SceneLoader>
         }
 
         loadingCanvas.alpha = to;
-    }
-
-    private void SetProgress(float value)
-    {
-        if (progressFill != null)
-            progressFill.fillAmount = value;
     }
 
     private void BuildFallbackView()
@@ -174,7 +206,7 @@ public class SceneLoader : SingletonBehaviour<SceneLoader>
         textRect.anchorMax = new Vector2(0.75f, 0.58f);
         textRect.offsetMin = Vector2.zero;
         textRect.offsetMax = Vector2.zero;
-        loadingText = textObject.AddComponent<TextMeshProUGUI>();
+        TextMeshProUGUI loadingText = textObject.AddComponent<TextMeshProUGUI>();
         loadingText.alignment = TextAlignmentOptions.Center;
         loadingText.fontSize = 42f;
         loadingText.text = "Loading…";

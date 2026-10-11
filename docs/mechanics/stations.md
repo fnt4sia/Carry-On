@@ -22,7 +22,7 @@ Every station shares one explicit `Idle -> Processing -> Ready -> Idle` lifecycl
 
 A level needs a wrapper when any of its gates asks for wrapped lines
 (`Gate.wrappedLinesPerFlight` > 0). Nothing checks this yet — see
-[levels](../levels.md#authoring-a-level).
+[levels](../scenes/levels.md#adding-a-stage).
 
 **`WashingStation.prefab` has no machine component.** Its `WashingMachine` script existed only to
 wash Sticky luggage and was deleted with it in September 2026, taking the `StationLamps` that

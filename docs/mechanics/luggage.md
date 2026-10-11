@@ -77,7 +77,7 @@ counts the bags it still has in play per `luggagePrefabs` entry and spawns which
 ties go in list order from a cursor, so a filling belt still runs red, green, yellow, red, … Every
 colour is always on the floor, and a flight can never become unfillable because a colour refused to
 show up. Losing is on the players, not the dice. Pacing values are documented in
-[levels](../levels.md).
+[levels](../scenes/levels.md).
 
 It was a strict round robin until September 2026, and that soft-locks a pile. At the cap a bag only
 spawns after a delivery, so the pile drifts toward the colours nobody wants until it holds none of

@@ -6,10 +6,11 @@ using UnityEngine.InputSystem;
 /// <summary>
 /// Stage select. One plane per joined player flies over the island map. Each node's badge
 /// shows its best stars while empty and who is parked on it once anyone is. While
-/// <b>every</b> plane waits on the same unlocked node its border fills; one plane leaving
-/// drains it again. A full border commits the group: the planes lock, the boarding pass pops
-/// up over the node as the transition, and the level loads a few seconds later. There is no
-/// Confirm press — boarding together is the confirmation.
+/// <b>every</b> plane waits on the same unlocked node, the boarding pass slides in from the left
+/// with that stage's details and its ring fills; one plane leaving drains it and sends the pass
+/// back out. A full ring commits the group: the planes lock, the pass is stamped, and the level
+/// loads. There is no Confirm press — boarding together is the confirmation, and the fill is the
+/// group's time to read the pass and change its mind.
 ///
 /// Players persist across scenes but are deactivated while the map is open, so their own
 /// PlayerInput components cannot drive anything here. Instead each plane gets a runtime
@@ -38,12 +39,15 @@ public class MapController : MonoBehaviour
     [SerializeField] private Color soloPlaneColor = new(0.180f, 0.435f, 0.851f);
 
     [Header("Boarding")]
-    [Tooltip("Seconds every plane must wait on one node before its level loads. A plane " +
-             "leaving drains the border at the same rate.")]
-    [SerializeField, Min(0.1f)] private float boardingSeconds = 2f;
-    [Tooltip("Seconds the boarding pass stays up once the border is full, before the level loads. " +
+    [Tooltip("Seconds every plane must wait on one node before its level loads — the time the group " +
+             "has to read the boarding pass. A plane leaving drains the ring at the same rate.")]
+    [SerializeField, Min(0.1f)] private float boardingSeconds = 3f;
+    [Tooltip("Seconds the stamped boarding pass holds once the ring is full, before the level loads. " +
              "The planes can't move meanwhile.")]
-    [SerializeField, Min(0f)] private float ticketSeconds = 3f;
+    [SerializeField, Min(0f)] private float ticketSeconds = 0.8f;
+    [Tooltip("While the boarding pass covers the left of the screen, the camera slides the group this " +
+             "share of half the frame to the right so the island stays in view.")]
+    [SerializeField, Range(0f, 1f)] private float ticketScreenShift = 0.5f;
 
     private readonly List<GameObject> hiddenPlayers = new();
     private readonly List<MapPlane> planes = new();
@@ -221,9 +225,18 @@ public class MapController : MonoBehaviour
 
         sharedNode = next;
 
+        // The pass is up exactly while the ring can fill, so what the group reads is what they board.
+        bool boarding = sharedNode != null && CanBoard(sharedNode);
+        if (boarding)
+            ticket?.Show(sharedNode);
+        else
+            ticket?.Hide();
+        if (mapCamera != null)
+            mapCamera.ScreenShift = boarding ? ticketScreenShift : 0f;
+
         // Only unlocked stages get here, so one that can't board is one whose scene can't load:
-        // the border won't fill, so say so the moment the group arrives.
-        if (sharedNode != null && !CanBoard(sharedNode))
+        // the ring won't fill, so say so the moment the group arrives.
+        if (sharedNode != null && !boarding)
         {
             AudioManager.Instance?.PlaySFX(Sfx.Wrong);
             Debug.LogError($"Level node '{sharedNode.name}' has no level in Build Settings to load.", sharedNode);
@@ -272,15 +285,14 @@ public class MapController : MonoBehaviour
     }
 
     /// <summary>
-    /// The border is full, so the group is committed: lock the planes, pop the boarding pass up
-    /// over the node, and hold it for <see cref="ticketSeconds"/> as the transition into the
-    /// level before loading it.
+    /// The ring is full, so the group is committed: lock the planes, stamp the boarding pass, and
+    /// hold it for <see cref="ticketSeconds"/> before loading. The pass stays up under the clouds.
     /// </summary>
     private IEnumerator Board(LevelNode node)
     {
         loading = true;
         SetPlanesLocked(true);
-        ticket?.Show(node);
+        ticket?.Stamp();
 
         yield return new WaitForSeconds(ticketSeconds);
 
@@ -289,6 +301,9 @@ public class MapController : MonoBehaviour
         {
             node.SetBoardingProgress(0f);
             ticket?.Hide();
+            if (mapCamera != null)
+                mapCamera.ScreenShift = 0f;
+            sharedNode = null;
             SetPlanesLocked(false);
             loading = false;
             yield break;

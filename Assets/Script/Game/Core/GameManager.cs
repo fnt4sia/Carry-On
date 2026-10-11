@@ -129,6 +129,12 @@ public class GameManager : SingletonBehaviour<GameManager>
         {
             currentCountdown = second;
             CountdownChanged?.Invoke(currentCountdown);
+
+            // The first number holds until the loading transition has cleared, so the countdown
+            // is never spent behind the clouds.
+            while (SceneLoader.Instance != null && SceneLoader.Instance.IsLoading)
+                yield return null;
+
             float elapsed = 0f;
             while (elapsed < 1f)
             {

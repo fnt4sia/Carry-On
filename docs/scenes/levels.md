@@ -25,7 +25,7 @@ an explicit migration. `OnValidate` enforces positive timings and ordered star t
 `CalculateStars` has no test coverage (nothing here does), so check star thresholds by hand.
 
 Each luggage prefab defines its own flight colour; `luggagePrefabs` is the colour cycle the belt
-runs (see [luggage](mechanics/luggage.md#spawn-pacing)). Bags never expire and there are no
+runs (see [luggage](../mechanics/luggage.md#spawn-pacing)). Bags never expire and there are no
 penalties — a flight bounces a bag it doesn't want instead.
 
 ## Current balance
@@ -67,7 +67,7 @@ east:
 | Piece | Where | Notes |
 |---|---|---|
 | `Environment/Functional/Baggage Feed` | through the west wall, belt end x −35.7 | the old loop prefab instance, unpacked and cut down to its five feed straights, spawner and door. The door is now the `ConveyorDoorOut` prefab, whose curtain strips carry `BaggageDoorCurtain`; the old copies froze open |
-| `Environment/Functional/LuggageDropPen` | at the belt end | the pile — see [luggage](mechanics/luggage.md#the-pile) |
+| `Environment/Functional/LuggageDropPen` | at the belt end | the pile — see [luggage](../mechanics/luggage.md#the-pile) |
 | `Obstacles/Fountain (Centre)` | (−15.3, 32.8), 7 m across | splits the walk between pile and gate into a north and a south lane |
 | `Obstacles/Palm (North)` | (−12, 43.5) | |
 | `Obstacles/Bench (South)` | (−19.2, 21) | a bench, not a second palm: from the 42° camera a palm's canopy hides players behind it |
@@ -91,7 +91,7 @@ spawn points, gate and manifest board — and nothing enforces it. Under the **f
 constraint relaxes, but a new one appears: the manifest board is world-space at the gate, so it
 leaves the frame while players are out at the belt. Each level also carries a `Clone` marker wired
 into the camera's `extraTargets` for testing two-player framing solo; it renders, so deactivate it
-before a build. See [services](services.md#camera).
+before a build. See [services](../services/camera.md).
 
 Stage 1 scores +10 per bag accepted onto a flight and nothing else: no wrong-gate penalty, no
 missing-process penalty. Its thresholds are therefore just bag counts — 10 / 16 / 22 delivered —
@@ -119,27 +119,49 @@ configs and stay locked, because Stage 2 no longer unlocks Stage 3. A save that 
 before the archive still can't start them: a node whose scene isn't in Build Settings never fills
 its boarding border, and the group landing on it gets the wrong-action SFX plus an error log.
 
-To put a new level on the map, drag one of the five templates in
-`Prefab/StageSelect/Level Islands/` under `ChooseStage`'s `Level Islands` (y 5.2 — landed planes
-and the sea-level landing ring both hang off that), set its `Level`, and make sure the previous
-stage's `LevelConfig.nextLevel` points at the new config: the routes are drawn from that chain, not
-wired by hand. Each template carries its own islands, badge, landing ring and route, so moving it
-moves the whole stage, shallows included ([ui](ui.md#stage-select)). The old flat stage-select
-scene was deleted on 30 Sep 2026; Carstenz's 3D map took its name. The old `Test`
-decoration-staging scene was deleted in `0f39a36`.
+The old flat stage-select scene was deleted on 30 Sep 2026; Carstenz's 3D map took its name. The
+old `Test` decoration-staging scene was deleted in `0f39a36`.
 
-## Authoring a level
+## Adding a stage
 
-1. Create a `LevelConfig` with a unique stable `levelId`, the exact Build Settings scene name,
-   display copy, balance, luggage pool, unlock state, and `nextLevel`.
-2. Add one root `Level Context` and assign only that config.
-3. Add a fresh `GameManager.prefab` instance. Its nested `GameHUD` already owns all UI refs.
-4. Add a fresh `Spawner.prefab` instance — it reads the level context.
-5. Add a `PlayerSpawner` with four ordered spawn points.
-6. Add camera, delivery gates, void coverage, conveyors, and a `WrapperStation` if any gate
-   asks for wrapped lines. A feed belt ends in a `LuggageDropPen` with its root at the belt's end
-   and +X along it; a looping belt needs a `LuggageSink` across it instead.
-7. Add the scene to Build Settings *before* routing a node or `nextLevel` to it.
+A stage is three things that point at each other — a scene, a `LevelConfig`, and an island on the
+map — plus one line in Build Settings. Do them in this order:
+
+1. **The scene.** Duplicate `Scenes/Stages/Level1.unity` — it already has the `Level Context`,
+   `GameManager.prefab` (with its `GameHUD`), the spawner, the `PlayerSpawner` and its four spawn
+   points, the camera rig, gates and belts — and rebuild the layout. Building one from empty
+   instead: one root `Level Context`; a fresh `GameManager.prefab`; a fresh `Spawner.prefab`; a
+   `PlayerSpawner` with four ordered spawn points; the camera, delivery gates, void coverage,
+   conveyors, and a `WrapperStation` if any gate asks for wrapped lines. A feed belt ends in a
+   `LuggageDropPen` with its root at the belt's end and +X along it; a looping belt needs a
+   `LuggageSink` across it instead.
+2. **The config.** Duplicate a `Config/LevelConfig_Stage*.asset` and fill every group in
+   [Fields](#fields): a unique `levelId` (a save key — never rename it once shipped), `sceneName` =
+   the scene's file name exactly, the map's ticket copy (`flightCode`, origin and destination
+   codes and names, `previewImage`), the round (`gameTime`, star scores), the luggage pool and
+   pacing. Leave `unlockedByDefault` off unless it is the first stage. Point the scene's
+   `Level Context` at it.
+3. **Build Settings.** Add the scene. A stage whose scene isn't in Build Settings never fills its
+   ring — the group gets the wrong-action sound and an error instead.
+4. **The chain.** Set the *previous* stage's `nextLevel` to the new config. That one field unlocks
+   the stage when the previous one is finished and draws the dashed route to it.
+5. **The island.** In `ChooseStage`, drag one of the five templates in
+   `Prefab/StageSelect/Level Islands/` under `Level Islands` (y 5.2 — landed planes and the
+   sea-level landing ring both hang off that) and set its `Level` to the new config. That one
+   field is the whole wiring: the badge, ring, route, ticket and star total all read the config.
+   The island carries its own art, badge, ring, route and shallows, so moving it moves the whole
+   stage. Keep `Plane Spawn` outside every ring, keep the island inside `MapController`'s
+   `mapCenter` ± `mapHalfExtents`, and re-tune the previous island's `Route` bends if the new route
+   crosses an islet ([stage select](stage-select.md#routes)).
+6. **Check it.** Run **Carry On ▸ Validate Open Scene** in the new scene, then play it from
+   `MainMenu` → stage select, so the save, unlock, ticket and route are exercised too.
+
+The map already has islands for Stages 3 and 4 pointing at the archived `LevelConfig_Stage3/4`
+(`levelId` `stage-3` / `stage-4`). To make a real Stage 3, reuse `LevelConfig_Stage3`: set its
+`sceneName` to the new scene, add that scene to Build Settings, and set Stage 2's `nextLevel` to
+it — no new island needed.
+
+### While authoring
 
 Never place a per-level `AudioManager`, `PlayerSystem`, `SceneLoader`, or `ProgressionService` —
 persistent services bootstrap themselves before any scene loads.
@@ -207,7 +229,7 @@ that swallows red, green or yellow luggage makes the level harder to read.
 ## Level validator
 
 `Assets/Script/Editor/LevelValidator.cs`, namespace `CarryOn.EditorTools`. Editor-only because of
-Unity's `Editor/` folder rule — there is no assembly definition (see [README](README.md)).
+Unity's `Editor/` folder rule — there is no assembly definition (see [README](../README.md)).
 
 | Menu | Does |
 |---|---|
@@ -229,7 +251,9 @@ jams its slot forever).
 
 **Conveyor seams** — non-zero `moveSpeed`; a turn has its `turnPivot`; uniform scale; the
 `BeltSurface` physic material on every deck; and one deck height per scene
-(`position.y + 4.0 × scale.y`).
+(`position.y + 4.0 × scale.y`). The seam check groups pieces by height, so it can't tell a stepped
+seam from a deliberately separate run — the archived `DesignScene`'s "Service Spur" was the known
+example.
 
 **Known findings:** none. After the September 2026 cleanup, Validate All Build Scenes reports no
 problems for `Level1` and `Level2`. Archived scenes are not validated.

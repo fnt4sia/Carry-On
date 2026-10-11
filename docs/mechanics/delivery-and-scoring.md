@@ -120,7 +120,7 @@ mutate a finished result.
 
 ```text
 resolve LevelConfig -> reset ScoreBoard -> publish initial time
-  -> 3/2/1 countdown on unscaled time (timeScale 0)
+  -> 3/2/1 countdown on unscaled time (timeScale 0); "3" holds until the loading transition clears
   -> RoundStarted (timeScale 1, SFX + music)
   -> timer and scoring
   -> EndRound at zero (timeScale 0, Time's Up SFX, music fades out over 1.25 s)
@@ -129,7 +129,11 @@ resolve LevelConfig -> reset ScoreBoard -> publish initial time
 
 `GameManager` owns round state and input, and holds no HUD or ambient-decoration references. The
 shared `System/Pause` action toggles pause only after start and before end. Scene transitions go
-through `SceneLoader`, which restores `Time.timeScale` after a load.
+through `SceneLoader`, which resets `Time.timeScale` to 1 just *before* activating the new scene,
+so the round's `StartRound` freezing time in `Start` sticks. Since the cloud transition (9 Oct
+2026) keeps covering the level for about 1.4 s after it activates, the countdown publishes "3"
+and then waits for `SceneLoader.IsLoading` to clear before timing anything — otherwise most of it
+ran behind the clouds ([services](../services/scene-loading.md#the-cloud-transition)).
 
 ## Events and result
 
@@ -139,4 +143,4 @@ presentation-facing ones — presenters listen to gameplay state and never own r
 can be swapped without touching a mechanic.
 
 `GameResult` carries level ID, score, deliveries, per-player score and deliveries, and earned
-stars. `ProgressionService` records it; see [services](../services.md#save-and-progression).
+stars. `ProgressionService` records it; see [services](../services/save.md).

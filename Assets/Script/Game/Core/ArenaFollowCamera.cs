@@ -54,6 +54,13 @@ public class ArenaFollowCamera : MonoBehaviour
     private readonly List<Transform> roster = new();
     private readonly List<Transform> framed = new();
 
+    /// <summary>
+    /// Slides the shot sideways so the group sits right of centre, as a share of half the frame
+    /// width: 0.5 puts it halfway to the right edge. Stage select sets it while the boarding pass
+    /// covers the left of the screen. It eases with the normal pan, and the zoom ignores it.
+    /// </summary>
+    public float ScreenShift { get; set; }
+
     private Camera cam;
     private Vector3 pivot;
     private Vector3 pivotVelocity;
@@ -90,8 +97,18 @@ public class ArenaFollowCamera : MonoBehaviour
         if (framed.Count == 0)
             return;
 
-        Vector3 targetPivot = GetPivot();
-        float targetDistance = Mathf.Clamp(GetFitDistance(targetPivot), minDistance, maxDistance);
+        Vector3 groupPivot = GetPivot();
+        float targetDistance = Mathf.Clamp(GetFitDistance(groupPivot), minDistance, maxDistance);
+        Vector3 targetPivot = groupPivot;
+        if (ScreenShift != 0f)
+        {
+            // Half the frame's width at the group's depth, times the share asked for. Moving the
+            // camera left by that moves the group the same share right on screen.
+            Vector3 right = transform.right;
+            right.y = 0f;
+            float halfWidth = distance * Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad) * cam.aspect;
+            targetPivot -= right.normalized * (ScreenShift * halfWidth);
+        }
 
         if (!hasFramedOnce)
         {

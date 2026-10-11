@@ -12,13 +12,18 @@ using UnityEngine.UI;
 /// prefab moves that area with it.
 ///
 /// The badge over the island reads like Overcooked's: best stars while nobody is parked
-/// here, one slot per player once someone is, and a border that fills while every plane
-/// waits on it. <see cref="MapController"/> decides all of that; this only draws it. A locked
-/// stage has no badge, and planes fly straight over it. The prefab owns every element —
-/// nothing here is built at runtime.
+/// here, one slot per player once someone is, and an outline that fills while every plane
+/// waits on it. The stars sit above the players in one strip behind a mask; a plane landing
+/// scrolls the strip down to the players and the island emptying scrolls it back up.
+/// <see cref="MapController"/> decides all of that; this only draws it. A locked stage has no
+/// badge, and planes fly straight over it. The prefab owns every element — nothing here is
+/// built at runtime.
 /// </summary>
 public class LevelNode : MonoBehaviour
 {
+    [Tooltip("The stage this island is. Everything the map shows about it — name, flight, route, " +
+             "duration, star scores, preview, the scene to load, the next stage's route — comes " +
+             "from this asset, which the level itself reads too.")]
     [SerializeField] private LevelConfig level;
 
     [Header("Landing ring")]
@@ -41,20 +46,27 @@ public class LevelNode : MonoBehaviour
     [Header("Badge")]
     [Tooltip("World-space canvas over the island. Turned to face the camera every frame.")]
     [SerializeField] private Transform badge;
-    [SerializeField] private GameObject starsGroup;
+    [Tooltip("Strip holding the stars row above the players row, behind the badge's mask. It " +
+             "scrolls between them; the rows' own positions set how far.")]
+    [SerializeField] private RectTransform badgeStrip;
+    [SerializeField] private RectTransform starsRow;
+    [SerializeField] private RectTransform playersRow;
+    [Tooltip("Roughly how long a scroll between the rows takes, in seconds.")]
+    [SerializeField, Min(0.01f)] private float scrollTime = 0.12f;
     [SerializeField] private Image[] starImages;
     [SerializeField] private Sprite starFilledSprite;
     [SerializeField] private Sprite starEmptySprite;
-    [SerializeField] private GameObject playersGroup;
-    [Tooltip("One slot per plane, in join order. Slots past the plane count are hidden.")]
+    [Tooltip("One slot per plane, in join order, tinted that player's colour. Slots past the " +
+             "plane count are hidden.")]
     [SerializeField] private Image[] playerSlots;
-    [SerializeField] private Color absentSlotColor = new(0.35f, 0.35f, 0.35f);
-    [Tooltip("Filled image around the badge. Its fillAmount is the boarding progress.")]
+    [Tooltip("Slot for a player whose plane is on this island.")]
+    [SerializeField] private Sprite playerHereSprite;
+    [Tooltip("Slot for a player whose plane is somewhere else.")]
+    [SerializeField] private Sprite playerAwaySprite;
+    [Tooltip("Filled outline around the badge. Its fillAmount is the boarding progress.")]
     [SerializeField] private Image borderFill;
 
     public LevelConfig Level => level;
-    public string DisplayName => level != null ? level.displayName : "Unconfigured Level";
-    public string Description => level != null ? level.description : string.Empty;
     public bool IsUnlocked => level != null
         && (ProgressionService.Instance == null
             ? level.unlockedByDefault
@@ -85,6 +97,8 @@ public class LevelNode : MonoBehaviour
 
     private Transform cameraTransform;
     private bool pulsing;
+    private bool showPlayers;
+    private float scrollVelocity;
 
     private void OnEnable()
     {
@@ -92,6 +106,11 @@ public class LevelNode : MonoBehaviour
             ProgressionService.Instance.ProgressChanged += Refresh;
         Refresh();
         SetBoardingProgress(0f);
+
+        showPlayers = false;
+        scrollVelocity = 0f;
+        if (badgeStrip != null)
+            badgeStrip.anchoredPosition = Vector2.zero;
     }
 
     private void OnDisable()
@@ -128,8 +147,8 @@ public class LevelNode : MonoBehaviour
     }
 
     /// <summary>
-    /// Stars while no plane is parked here; otherwise one slot per plane, lit in that
-    /// player's colour when their plane is on this node and grey when it isn't.
+    /// Stars while no plane is parked here; otherwise one slot per plane in that player's
+    /// colour, filled when their plane is on this node and an outline when it isn't.
     /// </summary>
     public void ShowOccupancy(IReadOnlyList<MapPlane> planes)
     {
@@ -137,14 +156,10 @@ public class LevelNode : MonoBehaviour
         for (int i = 0; i < planes.Count; i++)
             if (planes[i].CurrentNode == this)
                 anyHere = true;
+        showPlayers = anyHere;
 
-        if (starsGroup != null && starsGroup.activeSelf == anyHere)
-            starsGroup.SetActive(!anyHere);
-        if (playersGroup != null && playersGroup.activeSelf != anyHere)
-            playersGroup.SetActive(anyHere);
-        if (!anyHere)
-            return;
-
+        // Kept up to date while the row scrolls away too, so a plane leaving empties its slot
+        // before the stars come back.
         for (int i = 0; i < (playerSlots?.Length ?? 0); i++)
         {
             Image slot = playerSlots[i];
@@ -154,8 +169,11 @@ public class LevelNode : MonoBehaviour
             bool used = i < planes.Count;
             if (slot.gameObject.activeSelf != used)
                 slot.gameObject.SetActive(used);
-            if (used)
-                slot.color = planes[i].CurrentNode == this ? planes[i].PlayerColor : absentSlotColor;
+            if (!used)
+                continue;
+
+            slot.sprite = planes[i].CurrentNode == this ? playerHereSprite : playerAwaySprite;
+            slot.color = planes[i].PlayerColor;
         }
     }
 
@@ -179,8 +197,17 @@ public class LevelNode : MonoBehaviour
         if (badge == null || !badge.gameObject.activeSelf)
             return;
 
+        // Scrolling down to the players moves the strip up by the gap between the two rows.
+        if (badgeStrip != null && starsRow != null && playersRow != null)
+        {
+            float target = showPlayers ? starsRow.anchoredPosition.y - playersRow.anchoredPosition.y : 0f;
+            Vector2 position = badgeStrip.anchoredPosition;
+            position.y = Mathf.SmoothDamp(position.y, target, ref scrollVelocity, scrollTime);
+            badgeStrip.anchoredPosition = position;
+        }
+
         // The map camera holds one fixed angle, so copying its rotation is the whole
-        // billboard — same trick as LevelTicket.
+        // billboard — same trick as the planes' pins.
         if (cameraTransform == null || !cameraTransform.gameObject.activeInHierarchy)
         {
             Camera cam = Camera.main;

@@ -5,29 +5,51 @@ The loop: a belt drops luggage into a pile, players dig out the colours the depa
 (wrapping them first when a line asks for it) and carry them to the gate, then earn a score and up
 to three stars.
 
-These docs are organised by **mechanic** — one file per thing the game actually does. Open the
-one that matches your task; don't load the folder. Code and serialized Unity assets are the
-source of truth. If a doc disagrees with the code, the code wins and the doc gets fixed in the
-same pass.
+The docs are organised by **where a thing lives**: one file per scene for that scene's UI and
+setup, one per mechanic for gameplay, one per persistent service, plus a few cross-cutting ones.
+Open the one that matches your task; don't load the folder. Code and serialized Unity assets are
+the source of truth — if a doc disagrees with the code, the code wins and the doc gets fixed in the
+same pass. Keep each file under ~400 lines: when one outgrows that, split it by topic rather than
+appending.
+
+## Scenes
+
+| Doc | Covers |
+|---|---|
+| [Main menu](scenes/main-menu.md) | `MainMenu`: the diegetic banner, views and the camera lean, save / settings panels, board rows |
+| [Lobby](scenes/lobby.md) | `MainMenu`: character lineup, join bubbles, player pins, the team panel |
+| [Stage select](scenes/stage-select.md) | `ChooseStage`: planes, landing rings, boarding, the ticket, camera, node badges, routes, star total |
+| [Stage-select map](scenes/stage-select-map.md) | `ChooseStage`: terrain, water, palette, island shallows, clouds, scene roots |
+| [Levels](scenes/levels.md) | `Level1`, `Level2`: `LevelConfig` fields, balance, authoring checklist, the level validator, archived scenes |
+| [Game HUD](scenes/game-hud.md) | in every level: timer and score plaques, countdown, pause, the stage end card |
 
 ## Mechanics
 
 | Doc | Covers |
 |---|---|
 | [Player](mechanics/player.md) | joining, spawning, movement, dash, grab / carry / throw, hand IK, the Annie animator |
-| [Luggage](mechanics/luggage.md) | colour, wrapping, spawn pacing, pooling, what was removed |
-| [Conveyors](mechanics/conveyors.md) | belt steering, straight and turn pieces, seam rules, the two-collider design |
+| [Luggage](mechanics/luggage.md) | colour, wrapping, spawn pacing, pooling, the pile, what was removed |
+| [Conveyors](mechanics/conveyors.md) | belt steering, straight and turn pieces, seam rules, the two-collider design, the belt shader |
 | [Stations](mechanics/stations.md) | wrapper lifecycle, manual crank, placement, output clearance |
 | [Delivery and scoring](mechanics/delivery-and-scoring.md) | gates, scoring priority, round flow, results |
-| [Hazards and props](mechanics/hazards-and-props.md) | pressure plates, gateways, rotating platforms, one-way doors, water |
+| [Hazards](mechanics/hazards.md) | pressure plates, levers, gateways, sliding panels, elevators, rotating platforms, one-way doors, water — out of the loop on `redesign` |
 
-## Supporting
+## Services
 
 | Doc | Covers |
 |---|---|
-| [Levels](levels.md) | `LevelConfig` fields, current balance, authoring checklist, the level validator |
-| [UI](ui.md) | main menu / lobby, stage select, in-game HUD |
-| [Services](services.md) | audio, camera, scene loading, save and progression |
+| [Audio](services/audio.md) | `AudioManager`: music and SFX |
+| [Camera](services/camera.md) | the three camera rigs — gameplay, Moving Out-style follow, stage select |
+| [Scene loading](services/scene-loading.md) | `SceneLoader` and the cloud transition |
+| [Save and progression](services/save.md) | `ProgressionService`: slots, what is saved, unlocks |
+
+## Cross-cutting
+
+| Doc | Covers |
+|---|---|
+| [Look and rendering](look.md) | post-processing, sun, palette, fonts, the WorldUI layer, overlay vs world space |
+| [Decoration](decoration.md) | ambient planes, wind sway, signs, the logo TV, clouds, window dust, traffic |
+| [Workflow](workflow.md) | merging Carstenz's pushes, layout history, git hygiene |
 
 ## Stack
 
@@ -36,7 +58,7 @@ same pass.
 - Physics-driven luggage, a `ConfigurableJoint` carry, velocity-steering conveyors.
 - `LevelConfig` ScriptableObjects for per-level rules. Feel and balance are serialized on the
   prefab that uses them.
-- **No automated tests anywhere in the project.** The [level validator](levels.md#level-validator)
+- **No automated tests anywhere in the project.** The [level validator](scenes/levels.md#level-validator)
   and playtesting are the entire safety net.
 
 ## Repository layout
@@ -92,8 +114,8 @@ Build Settings contains **four scenes**:
 `Level4` and `DesignScene` were built for the old rules and are genuinely archived — reference
 only, out of the build. `Menu/ChooseStage` is Carstenz's 3D island map: on 30 Sep 2026 it
 replaced the old flat map and took its name, so `SceneNames.ChooseStage` didn't change
-([ui](ui.md#stage-select)). The old `Test` decoration-staging scene was deleted in `0f39a36`. See
-[levels](levels.md#archived-scenes).
+([stage select](scenes/stage-select.md)). The old `Test` decoration-staging scene was deleted in `0f39a36`. See
+[levels](scenes/levels.md#archived-scenes).
 
 ```text
 MainMenu -> ChooseStage -> gameplay stage -> next stage or ChooseStage
@@ -174,4 +196,4 @@ override explicitly — nothing detects override drift, including the validator.
 Logic identifies luggage by its `Luggage` component, never by tag. Layers only narrow physics
 queries. Custom layers: `Water` (4), `Luggage` (6), `Player` (7), `GrabbedLuggage` (8),
 `Wall` (9), `WorldUI` (10). `WorldUI` is required for the player indicator pins and any other
-world-space overlay.
+world-space overlay ([look](look.md#the-worldui-layer)).
