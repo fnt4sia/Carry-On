@@ -2,6 +2,8 @@
 
 **Script:** `Game/World/Conveyor.cs`
 **Prefabs:** `Prefab/Environment/Conveyor Straight`, `Conveyor Turn`, `FullsetConveyor`, `ConveyorDoorOut`
+**Models:** `Model/Environment/Essential/NewStraightConveyor.fbx` (mesh `Conveyor08`) and
+`NewCurvedConveyor.fbx` (mesh `Conveyor08.002`), on each prefab's `Model` child since 15 Oct 2026
 
 ## Movement model
 
@@ -32,7 +34,9 @@ overrides; make a prefab variant when a belt family should genuinely behave diff
 ## The belt shader
 
 **Graph:** `Assets/Shader/ConveyorBelt.shadergraph` (URP Lit) · **Materials:**
-`Material/Machine/ConveyorBelt{,_XLeft,_XRight,_ZBack}.mat` — 44 renderers in `MainMenu`.
+`Material/Machine/ConveyorBelt{,_XLeft,_XRight,_ZBack}.mat`. Both prefabs default to
+`ConveyorBelt` (`+z`), so an unrotated piece scrolls correctly out of the box; a rotated one needs
+the matching material as an override.
 
 The stripes are painted, not animated UVs: the belt mesh's UVs are collapsed onto single palette
 texels ([floor shaders](../scenes/levels.md#floors) hit the same wall), so the pattern is built
@@ -48,7 +52,7 @@ BaseColor = lerp(Palette.Sample(uv0), StripeColor, stripe · deck · facing)
 
 | Property | Value | Does |
 |---|---|---|
-| `Palette` | `carry on color palate` | sampled on **mesh UV0**, so the belt keeps the airport palette colours it had before the shader existed. Leave the UV slot unwired |
+| `Palette` | `carry on color palate3` | sampled on **mesh UV0** — the palette the conveyor FBX files ship with, so the belt keeps the model's own colours. Leave the UV slot unwired |
 | `BeltAxis` | per material, see below | world-space travel direction the stripes scroll along |
 | `ScrollSpeed` | `5` | metres per second — matches `Conveyor.moveSpeed` on the straight prefab, which is why the stripes look like they carry the bags |
 | `StripeDensity` | `0.9` | stripes per metre, so one period is ~1.11 m |
@@ -78,9 +82,12 @@ Rotate a piece and forget the material and the bags ride forwards while the deck
 **The [level validator](../scenes/levels.md#level-validator) now checks this**: it reads `_BeltAxis` off
 whatever material the piece actually has, compares it against the piece's forward, and errors if
 they disagree by more than ~25°. It also warns when a piece carries no belt material at all, which
-renders a deck that sits still while it carries luggage — three pieces in `MainMenu` are in exactly
-that state (`FullsetConveyor/StraightConveyor (1)` and two under the Main Baggage Loop). Because
-belts also live in menu scenes, this one check runs even where there is no `LevelContext`.
+renders a deck that sits still while it carries luggage. Because belts also live in menu scenes,
+this one check runs even where there is no `LevelContext`.
+
+> The check compares against `transform.forward` for turns too, but a `clockwise` turn's bags
+> leave along `−transform.right`. `MainMenu`'s two `FullsetConveyor` turns use the material that
+> matches their exit, so the validator reports them as its only two errors there.
 
 **The two masks are what keep the stripes on the deck.** `deck` is an *object*-space test: the belt
 quad sits at object `z ≈ −0.26` on both the straight and the turn mesh (the rails are at `−0.68`),
@@ -112,6 +119,35 @@ and is never enrolled. Never hand-build curved trigger volumes.
 If a turn *feels* wrong — cargo cutting the corner, clipping the rails — that is never the
 collider. It's `centerRadius`, `centeringGain`, or `turnPivot` on the `Conveyor Turn` prefab.
 
+## Turn geometry
+
+The curve's deck is a quarter disc around its inner corner plus a short straight lead at each end,
+and the two leads differ: measured from the corner where the two travel lines cross, the **A
+side** (the `−x` port in prefab space) is 2.895 m long and the **B side** (`+z` port) is 3.384 m.
+The old turn's were 3.506 / 3.375, so the A side is 0.61 m shorter than it used to be.
+
+| Setting | Value | Why |
+|---|---|---|
+| `Model` rotation | `(90, 270, 0)` | X 90 is the FBX's own axis conversion, Y 270 puts the A port on `−x` and B on `+z` like the old turn |
+| `Model` position | `(1.2481, −0.01, −2.764)` | lines the travel lines up with the old turn's, so no layout had to move sideways; `−0.01` see below |
+| `TurnPivot` | `(−1.699, −1.56, 1.79)` | centre of the arc tangent to both travel lines |
+| `centerRadius` | `2.89` | that arc's radius — it starts exactly at the A port and ends 0.49 m inside the B port |
+
+The pivot is **not** the mesh's inner corner. `Conveyor` steers along a pure arc with no straight
+segments, so a pivot on the corner (radius 1.69) points bags 45° into the outer rail at the
+leads. The 2.89 arc is the largest that fits the short A lead; the bag passes 1.2 m from the inner
+corner at mid-turn.
+
+**The model sits 1 cm below the straight deck on purpose.** The new curve's deck and rails have
+exactly the straight's cross-section, so wherever a straight overlaps a turn the faces are
+coplanar and the two belts' stripes z-fight. One centimetre lower lets the straight win every
+overlap; the old turn sat 1 cm low too, so luggage already rode that step.
+
+**Pieces mate flush, not overlapped.** A layout built around the old turn has a ~0.3–0.4 m gap at
+the A port wherever it used to overlap by less than 0.6 m. On 15 Oct 2026 the U-ends of the Main
+Baggage Loop and of MainMenu's `FullsetConveyor` were slid 0.3–0.4 m to close theirs (each turn
+pair moves with the connector between them; the other turn's B overlap grows instead).
+
 ## Authoring rules
 
 - The deck needs `Assets/Material/Physics/BeltSurface.physicMaterial`.
@@ -134,5 +170,11 @@ manual QA.
 - The archived `DesignScene` uses the legacy `ConveyorTemplate` rig — a container prefab nesting belt pieces,
   spawner, and sink — and reports **two deck heights about 5 cm apart**, i.e. a seam step. The
   sandbox therefore tests a slightly different belt than a real level would.
-- Conveyor art is still placeholder. Because every belt is an instance of `Conveyor Straight` or
-  `Conveyor Turn`, swapping the model later means editing those two prefabs once.
+- **Not every belt is a prefab instance.** 21 are unpacked copies that ignore prefab edits: 15
+  straights and 2 turns inside `FullsetConveyorLoop - Main Baggage Loop`, and
+  `FullsetConveyor/Conveyor16–19` in `MainMenu`. The 15 Oct 2026 model swap set them by hand;
+  the next swap has to as well, or they should be replaced with real instances first.
+- `FullsetConveyor.prefab` (used only by the archived `DesignScene` and `Tutorial`) got the new
+  turn but not the re-layout, so its A-port seams may gap.
+- The new straight mesh is the old `Conveyor08` from `AirportBuildingTrial03.fbx`, re-exported —
+  same size, same deck height, same palette texels — so straight-only layouts needed no changes.

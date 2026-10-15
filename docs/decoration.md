@@ -5,7 +5,7 @@
 
 Animated scene dressing: planes on the apron, swaying palms, scrolling signs, the logo TV, drifting
 clouds, window dust and traffic. None of it touches gameplay; most of it dresses the MainMenu
-terminal ([main menu](scenes/main-menu.md)).
+terminal ([main menu](scenes/main-menu.md)). The moving escalator has its own page ([escalator](escalator.md)).
 
 ## Ambient airplanes
 **Script:** `Game/Core/AmbientAirplaneSpawner.cs`

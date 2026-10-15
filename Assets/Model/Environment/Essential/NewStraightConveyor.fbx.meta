@@ -1,9 +1,14 @@
 fileFormatVersion: 2
-guid: 614746395199747529338588ee8ac1c7
+guid: adaa27791230f474482b976d371b675e
 ModelImporter:
   serializedVersion: 24200
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Texture2D
+      assembly: UnityEngine.CoreModule
+      name: carry on color palate3
+    second: {fileID: 2800000, guid: c142f2d6e62ee4b84bcab2519e56feb9, type: 3}
   materials:
     materialImportMode: 2
     materialName: 0
@@ -41,8 +46,8 @@ ModelImporter:
     importPhysicalCameras: 1
     importVisibility: 1
     importBlendShapes: 1
-    importCameras: 1
-    importLights: 1
+    importCameras: 0
+    importLights: 0
     nodeNameCollisionStrategy: 1
     fileIdsGeneration: 2
     swapUVChannels: 0

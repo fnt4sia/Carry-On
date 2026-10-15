@@ -54,8 +54,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 8.267932, y: 6.455354, z: 8.153445}
-  m_Center: {x: 0.539572, y: -1.556659, z: -0.47095168}
+  m_Size: {x: 7.2758656, y: 4.6271873, z: 7.7641044}
+  m_Center: {x: 0.93315864, y: -0.6281266, z: -0.59923244}
 --- !u!114 &1555670778416428492
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -72,7 +72,7 @@ MonoBehaviour:
   acceleration: 22
   uprightGain: 4
   centeringGain: 3
-  centerRadius: 3.5
+  centerRadius: 2.89
   surfaceCheckMargin: 0.25
   shape: 1
   turnPivot: {fileID: 4611712667697724261}
@@ -102,7 +102,7 @@ Transform:
   m_GameObject: {fileID: 4346165582762381453}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -2.5, y: -1.56, z: 2.45}
+  m_LocalPosition: {x: -1.6993995, y: -1.56, z: 1.7894999}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -135,8 +135,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6794514970851042000}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.49540603, y: 0.50455225, z: -0.50454783, w: 0.49541032}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: -0.5, y: 0.5, z: -0.5, w: -0.5}
+  m_LocalPosition: {x: 1.2481, y: -0.01, z: -2.764}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -149,7 +149,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6794514970851042000}
-  m_Mesh: {fileID: -6072284631261823278, guid: 1e848a28e734f491eafc65bf4f6243c5, type: 3}
+  m_Mesh: {fileID: -2865704947737607224, guid: 36275ce6ccb7243e38f50122a476e4f9, type: 3}
 --- !u!23 &6307967742918067915
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -175,7 +175,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: -18204703818589729, guid: 1e848a28e734f491eafc65bf4f6243c5, type: 3}
+  - {fileID: 2100000, guid: 519ad86a564734a019d88487510054e6, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -220,4 +220,4 @@ MeshCollider:
   serializedVersion: 5
   m_Convex: 0
   m_CookingOptions: 30
-  m_Mesh: {fileID: -6072284631261823278, guid: 1e848a28e734f491eafc65bf4f6243c5, type: 3}
+  m_Mesh: {fileID: -2865704947737607224, guid: 36275ce6ccb7243e38f50122a476e4f9, type: 3}

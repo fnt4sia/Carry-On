@@ -95,3 +95,5 @@ MonoBehaviour:
     clip: {fileID: 8300000, guid: 69e88705c80431c41b14d3e6f2620939, type: 3}
   sfxSourceCount: 4
   musicFadeTime: 1
+  menuMusicClipName: Main Menu
+  gameplayMusicClipName: Carry On Main Theme Mastered

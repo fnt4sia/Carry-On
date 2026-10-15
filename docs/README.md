@@ -49,6 +49,7 @@ appending.
 |---|---|
 | [Look and rendering](look.md) | post-processing, sun, palette, fonts, the WorldUI layer, overlay vs world space |
 | [Decoration](decoration.md) | ambient planes, wind sway, signs, the logo TV, clouds, window dust, traffic |
+| [Escalator](escalator.md) | the moving-step escalator: frame / steps mesh split, the step-path shader, tuning |
 | [Workflow](workflow.md) | merging Carstenz's pushes, layout history, git hygiene |
 
 ## Stack
