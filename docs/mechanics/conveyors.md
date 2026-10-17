@@ -160,6 +160,11 @@ pair moves with the connector between them; the other turn's B overlap grows ins
   belongs in a named variant.
 - Align stations, spawn points, and receiving surfaces to the actual exit velocity, not just to
   the visible mesh.
+- **A wall collider across a belt's door must block only the Player layer** (`excludeLayers` =
+  everything else). Excluding just `Luggage` and `GrabbedLuggage` is not enough: the
+  `BaggageDoorCurtain` strips are on `Default`. A strip that can't swing back into the wall jams
+  every bag going *in* through that door, while bags coming *out* push the strips into the room
+  and never show the problem.
 
 The [level validator](../scenes/levels.md#level-validator) checks move speed, turn pivot, uniform scale,
 belt material, and a single deck height per scene. Everything about how a route *feels* stays

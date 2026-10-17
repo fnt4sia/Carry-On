@@ -76,6 +76,24 @@ east:
 There is no belt `LuggageSink` any more; `Gameplay Stations/Luggage Sink` is only the void catcher
 under the map, which is what the validator's sink check finds.
 
+### The new Level1 environment (work in progress)
+
+`Scenes/Stages/Level1 1.unity` rebuilds Level1 inside `Model/Level/level1.fbx`. The pile layout
+above now lives at `Scenes/Level1.unity` and is still the build's Level1, so the new scene is not
+in Build Settings, and the validator errors that `LevelConfig_Stage1` targets `Level1`, until it
+takes that slot.
+
+| Piece | What |
+|---|---|
+| `Level Colliders` | the FBX ships **no colliders**: a floor box (top y −4.05) and `Wall`-layer boxes around the room. The three `Door Gap` boxes block **only the Player layer**. See [conveyors](../mechanics/conveyors.md#authoring-rules). Props (the 0.45 m centre platform, pillars, escalator) are walk-through on purpose for now |
+| `Functional/Baggage Loop` | out of the east door, north, two left turns, south into the west door, and `Sink In` behind it. Built on the old environment's U-loop footprint (legs 11.5 m apart, so the top connector overlaps each turn by 0.38 m) |
+| `Functional/Baggage Feed` | flat, out of the big door, ends at z −0.1 where the art's slope began. Bags pile on the floor with no pen, and the last few wait on the belt |
+| `…/Spawner` ×2 | one per belt, so the spawn rate and the cap are doubled — 24 bags in play. The star thresholds above assume one |
+| `Gameplay Stations` | `Gate Cylinder` and `Gate Manifest Signage` ([delivery](../mechanics/delivery-and-scoring.md#the-manifest-board)), plus the void sink |
+
+The environment's own belts, doors, curtain strips, booth and sign are removed from the `level1`
+instance as *removed-GameObject* overrides; revert them to get the art back.
+
 **Level1 and Level2 run a follow camera, with the fixed one kept beside it for comparison.** The
 Main Camera carries both `ArenaFollowCamera` (enabled) and `ArenaCamera` (disabled) as scene
 overrides in place of `MultiplayerCamera`; flip the two checkboxes to swap shots. The authored pose
@@ -130,7 +148,7 @@ map — plus one line in Build Settings. Do them in this order:
 1. **The scene.** Duplicate `Scenes/Stages/Level1.unity` — it already has the `Level Context`,
    `GameManager.prefab` (with its `GameHUD`), the spawner, the `PlayerSpawner` and its four spawn
    points, the camera rig, gates and belts — and rebuild the layout. Building one from empty
-   instead: one root `Level Context`; a fresh `GameManager.prefab`; a fresh `Spawner.prefab`; a
+   instead: one root `Level Context`; a fresh `GameManager.prefab`; a fresh `Prefab/Luggage/Spawner.prefab`; a
    `PlayerSpawner` with four ordered spawn points; the camera, delivery gates, void coverage,
    conveyors, and a `WrapperStation` if any gate asks for wrapped lines. A feed belt ends in a
    `LuggageDropPen` with its root at the belt's end and +X along it; a looping belt needs a

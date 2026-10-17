@@ -2,7 +2,10 @@
 
 **Scripts:** `Game/World/Gate.cs`, `Game/UI/GateManifestDisplay.cs`, `Game/Core/GameManager.cs`,
 `Game/Scoring/{ScoreBoard, RoundScoreContext, GameResult}.cs`
-**Prefab:** `Prefab/Decoration/Gate`
+**Prefabs:** `Prefab/Decoration/Gate` (gate + hallway art) and `Gate Cylinder` (the round glass
+booth from `level1.fbx`), plus `Gate Manifest Signage`. Both gates carry the same `Gate Point`
+trigger and `Gate Barrier`. `Gate.prefab`'s `palette` still lists Blue, so scenes using it
+override it. `Gate Cylinder` defaults to the live pool, Red / Green / Yellow
 
 Delivering a bag onto a flight is the only way to score. Everything below is deterministic plain
 C# once the gate has resolved the bag.
@@ -76,8 +79,15 @@ configured level instance's number back onto the prefab.
 
 ### The manifest board
 
-`GateManifestDisplay` draws the current flight on a world-space canvas above the gate: one slot
-per line, each a tinted swatch over a `delivered/required` count.
+`GateManifestDisplay` draws the current flight on a world-space canvas: one slot per line, each a
+tinted swatch over a `delivered/required` count. On the old layout the canvas floats above the
+gate; in the new Level1 it is the `Manifest Board` child of `Gate Manifest Signage`, laid on the
+standing sign's face. The signage is its own prefab, so its `gate` reference is a scene override:
+wire it to the gate it stands beside, or the board stays empty.
+
+`Gate Cylinder`'s trigger and barrier span the booth's south entrance, the 60° gap in its glass
+ring. The booth's `Model` has a `MeshCollider`, so bags bounce off the glass instead of leaking
+into the drum.
 
 A wrapped line shows its colour swatch *plus* `wrappedBadge` — a cross-hatch sprite laid over the
 swatch at 70% alpha, so the colour still reads through and the slot says "this colour, under

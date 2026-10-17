@@ -64,7 +64,9 @@ it. `Initialize` re-applies the visual, so a pooled bag never comes back still w
 ## Spawn pacing
 
 `LuggageSpawner` reads `LevelContext.CurrentConfig` and drops **one bag every `spawnInterval`
-seconds** — the belt runs flat, and there are no waves.
+seconds** — the belt runs flat, and there are no waves. `Prefab/Luggage/Spawner.prefab` is a bare
+spawner. It drops each bag at its own transform, so put it about 4.8 m above the deck, behind the
+door, where the drop is out of sight.
 
 **The first bag drops on the spawner's first frame, not one interval later.** Both loops spawn and
 *then* wait; they used to wait first, which opened every round on an empty belt. The wait is scaled
