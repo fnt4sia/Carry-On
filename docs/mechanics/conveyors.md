@@ -17,11 +17,15 @@ downward ray must hit a collider belonging to *this* conveyor before steering st
 luggage and bags on the neighbouring belt are never dragged.
 
 - A **straight** belt follows its flattened `transform.forward` — rotate the instance to set
-  travel direction. Light lateral correction keeps cargo centred for the next seam.
+  travel direction. It leaves a bag wherever it sits across the deck and however it is turned
+  (19 Oct 2026). It used to centre every bag and face it along the belt, which delivered them in
+  one identical row that dropped off the end as a line instead of a pile.
 - A **turn** follows the tangent around its `turnPivot`. `clockwise` reverses it, and radial
-  correction pulls luggage toward `centerRadius`.
+  correction pulls luggage toward `centerRadius`. That radius is in world units: a turn scaled
+  uniformly needs it scaled too (Level1's belts run at 0.6, so its turns use 1.734).
 
-A PD-style angular correction also stands bags upright and faces them along travel.
+A PD-style angular correction stands bags upright. A turn also faces them along its arc, so they
+clear the rails through the curve; a straight keeps each bag's own heading.
 `OnDrawGizmosSelected` shows direction samples.
 
 ## Tuning
@@ -154,7 +158,9 @@ pair moves with the connector between them; the other turn's B overlap grows ins
 - The trigger volume enrols luggage; the solid deck is what the surface ray finds. Both must be
   descendants of the conveyor root.
 - Mating pieces need compatible **uniform** scale and the same deck height. A non-uniform scale
-  changes deck height and breaks the seam.
+  changes deck height and breaks the seam. The one exception: a straight may be widened along its
+  own X, since its height and length (what mates) stay the same. Level1's feed is 1.5× wide.
+  Never stretch a turn: its arc stops matching the mesh.
 - Keep `turnPivot` wired to the prefab's own child. Per-instance root rotation may vary, and
   `clockwise` only when deliberately reversing that same curve. A different radius or pivot
   belongs in a named variant.
@@ -166,7 +172,7 @@ pair moves with the connector between them; the other turn's B overlap grows ins
   every bag going *in* through that door, while bags coming *out* push the strips into the room
   and never show the problem.
 
-The [level validator](../scenes/levels.md#level-validator) checks move speed, turn pivot, uniform scale,
+The [level validator](../scenes/levels.md#level-validator) checks move speed, turn pivot, uniform scale (straights may be widened),
 belt material, and a single deck height per scene. Everything about how a route *feels* stays
 manual QA.
 

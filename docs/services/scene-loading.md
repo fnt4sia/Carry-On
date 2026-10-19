@@ -61,7 +61,7 @@ landed mid-approach and froze the plane in flight; now both happen while it bobs
 over 34 ms outside the hover.
 
 **Direction** follows Build Settings order: loading a scene at or after the current one (lobby →
-map → stage → next stage, or a replay) flies top-left → bottom-right; going back flies
+map → stage, or a replay) flies top-left → bottom-right; going back flies
 bottom-right → top-left. The plane sprite's nose points up-left (`spriteHeading` 133.5°); the code
 turns it onto the path (`pathAngle` 35° below horizontal).
 

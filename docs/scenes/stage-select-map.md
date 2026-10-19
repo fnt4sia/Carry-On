@@ -13,15 +13,16 @@ plays is in [stage select](stage-select.md).
 | `Clouds` | the cloud prefabs as **shadow-only** casters 45–55 m up, moved and wrapped by `CloudShadowDrift`; the sun is at `(50, 330)`, so shadows fall up and to the left on screen |
 | `Global Volume` | the same `Settings/PostProcessing Profile` as MainMenu and the levels |
 
-**The map keeps its own natural palette** (Carstenz, 8 Oct 2026; Fitra kept it on 9 Oct). On 6 Oct
-the map had been recoloured into the game's indigo / lavender palette, because at 14 % green it read
-as another game; Carstenz's terrain commit brought back blue sea and green land, and that stays:
+**The map uses game-palette swatches that still read as land** (18 Oct 2026, Fitra's ask). It was
+recoloured to indigo / lavender on 6 Oct, went natural with Carstenz's 8 Oct terrain, whose pale
+greens and khakis washed out to mint-grey under the grade, and on 18 Oct took palette cells
+r3c2, r0c2 and r1c4. The islands' own materials match the terrain; the water was left alone:
 
 | Piece | Colour | Lives in |
 |---|---|---|
 | deep sea / shallows / foam | steel blue `#4D75AB` / cyan `#9ADEF0` (alpha 0.7) / pink-white `#FFF0F6` | `Material/World/Water.mat` |
-| beaches, land, cliffs (terrain) | khaki, green, grey — tints below; the Rock layer also uses `CaveMountain1_Merged0_LOD0_Bake_normal.jpg` as its normal map | each Terrain Layer's **Color Tint** over the neutral `Texture/Terrain/Terrain_{Sand,Grass,Rock}.png` |
-| island grass / island cliffs | green `#A7E29D` / khaki `#E0DBAA` | `Model/Environment/StageSelect/Materials/Island {Grass,Rock}.mat` |
+| beaches, land, cliffs (terrain) | warm sand, teal-green, lavender-grey — tints below; the Rock layer also uses `CaveMountain1_Merged0_LOD0_Bake_normal.jpg` as its normal map | each Terrain Layer's **Color Tint** over the neutral `Texture/Terrain/Terrain_{Sand,Grass,Rock}.png` |
+| island grass / island cliffs | teal-green `#259562` / warm sand `#F2C077` | `Model/Environment/StageSelect/Materials/Island {Grass,Rock}.mat` |
 | tree leaves | teal `#3FAE96` / `#23807A` | `…/Materials/Tree Leaves {Light,Dark}.mat` |
 
 **Terrain colours are tints, so they're editable by hand** (6 Oct 2026, Fitra's choice). The three
@@ -33,11 +34,11 @@ lighter than it looks**: URP multiplies the linear texture by the tint's raw val
 shows that value as if it were sRGB — so tune by eye in the Scene view, or type the tint from the
 table (tint = the colour's linear value ÷ 0.956, the neutral texture's linear level):
 
-| Layer | In use (8 Oct): tint → renders | 6 Oct game palette: tint → renders | Old green: tint → renders |
-|---|---|---|---|
-| Sand | `#9F9B7B` → ~`#CBC9B5` | `#DE808D` → `#EBB8C0` | `#F4B762` → `#F5D8A3` |
-| Grass | `#62E25D` → ~`#A3ED9F` | `#5640B7` → `#9A86D8` | `#398919` → `#7FBE57` |
-| Rock | `#4C4C4C` → ~`#919191` | `#261A80` → `#6A58B8` | `#CF6A40` → `#E4A986` |
+| Layer | In use (18 Oct): tint → renders | 8 Oct natural | 6 Oct indigo / lavender | Old green |
+|---|---|---|---|---|
+| Sand | `#ED8D31` → `#F2C077` | `#9F9B7B` → ~`#CBC9B5` | `#DE808D` → `#EBB8C0` | `#F4B762` → `#F5D8A3` |
+| Grass | `#055021` → `#259562` | `#62E25D` → ~`#A3ED9F` | `#5640B7` → `#9A86D8` | `#398919` → `#7FBE57` |
+| Rock | `#2C2353` → `#716597` | `#4C4C4C` → ~`#919191` | `#261A80` → `#6A58B8` | `#CF6A40` → `#E4A986` |
 
 `Terrain_{Sand,Grass,Rock}_Green.png` are the old coloured originals, restored from git for the
 comparison; with tints in charge they're no longer needed (use one only with its layer's tint set to

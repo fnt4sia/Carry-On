@@ -30,4 +30,17 @@ public static class RoundScoreContext
         Active.RecordDelivery(playerIndex, scoreDelta);
         return true;
     }
+
+    // Score that isn't a bag — a dispatch gate's time bonus, say. Counts no delivery.
+    public static bool TryApplyScore(int playerIndex, int scoreDelta)
+    {
+        if (Active == null)
+        {
+            Debug.LogWarning("No active round score model; score was ignored.");
+            return false;
+        }
+
+        Active.ApplyScore(scoreDelta, playerIndex);
+        return true;
+    }
 }

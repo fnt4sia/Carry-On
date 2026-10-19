@@ -9,6 +9,11 @@ public class WorldUIOverlayCamera : MonoBehaviour
 
     private const string OverlayCameraName = "World UI Camera";
 
+    // URP-WorldUI-Renderer, kept at this index in every URP asset. It has no renderer features:
+    // on the main renderer the full-screen passes (AgX grade, outline) would run a second time
+    // over the whole frame and double-grade the scene.
+    private const int OverlayRendererIndex = 1;
+
     [SerializeField] private Camera overlayCamera;
 
     private Camera baseCamera;
@@ -97,6 +102,7 @@ public class WorldUIOverlayCamera : MonoBehaviour
             overlayCameraData = overlayCamera.gameObject.AddComponent<UniversalAdditionalCameraData>();
 
         overlayCameraData.renderType = CameraRenderType.Overlay;
+        overlayCameraData.SetRenderer(OverlayRendererIndex);
         overlayCameraData.renderPostProcessing = false;
         overlayCameraData.renderShadows = false;
 

@@ -42,8 +42,9 @@ the widest that still fits inside the bar.
 warning/danger thresholds**, using the built-in `Knob` sprite, `Filled` / `Radial360`, origin Top,
 counter-clockwise.
 
-Buttons call the `SceneLoader` API. Next uses `GameManager.Config.nextLevel` when present and
-otherwise returns to stage select.
+Buttons call the `SceneLoader` API. `Next` (labelled CONTINUE) always returns to stage select
+(18 Oct 2026, Fitra's call), where the map shows what the round unlocked. `nextLevel` still
+drives that unlock and the map's routes, but no button loads it.
 
 ## The stage end card
 **Art:** `Assets/UI/StageEnd/`. Authored under `GameHUD/Stage End`.
@@ -65,7 +66,7 @@ Stage End                       1000 × 880 at (0, 20)      the object that slid
 │   └── Players                 GridLayoutGroup, 2 cols, cell 434 × 70, spacing 24/17
 │       └── Player Row 1–4      PlayerScoreBar + CanvasGroup
 ├── Approved                    stamp, rotated −12°, over the card's bottom-right corner
-└── Next                        button under the card, calls LoadNextStage
+└── Next                        button under the card, "CONTINUE", calls ContinueToStageSelect
 ```
 
 `Next` reuses `TimeScoreBar` so it reads as part of the card rather than as the old blue

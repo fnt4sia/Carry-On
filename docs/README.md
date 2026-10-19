@@ -113,13 +113,14 @@ Build Settings contains **four scenes**:
 `LevelConfig_Stage1` / `_Stage2`. **Level2 is live despite its folder**: its file moved into
 `Scenes/Archive/` in `0f39a36` (22 Sep 2026) and Build Settings followed it. `Tutorial`, `Level3`,
 `Level4` and `DesignScene` were built for the old rules and are genuinely archived — reference
-only, out of the build. `Menu/ChooseStage` is Carstenz's 3D island map: on 30 Sep 2026 it
+only, out of the build. So is `Archive/Level1`, the September pile layout that the new
+environment replaced on 18 Oct 2026. `Menu/ChooseStage` is Carstenz's 3D island map: on 30 Sep 2026 it
 replaced the old flat map and took its name, so `SceneNames.ChooseStage` didn't change
 ([stage select](scenes/stage-select.md)). The old `Test` decoration-staging scene was deleted in `0f39a36`. See
 [levels](scenes/levels.md#archived-scenes).
 
 ```text
-MainMenu -> ChooseStage -> gameplay stage -> next stage or ChooseStage
+MainMenu -> ChooseStage -> gameplay stage -> ChooseStage
     ^                              |
     +----------- lobby ------------+
 ```

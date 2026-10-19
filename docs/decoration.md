@@ -273,7 +273,10 @@ need no texture. A 17 × 16 × 70 box centred at `(−29.5, 6, 105)`, 7/s, 10–
 the bright window sky they read as snow if they get bigger or denser than this.
 
 ## Ambient traffic
-**Script:** `Game/World/AmbientTrafficSpawner.cs` · **Scene object:** `MainMenu` → `AmbientTraffic`
+**Script:** `Game/World/AmbientTrafficSpawner.cs` · **Prefab:** `Prefab/Environment/AmbientTraffic` ·
+**Scene objects:** `MainMenu` → `AmbientTraffic`; Level1 → `level1/Ambient Traffic (Cars)` and
+`(Planes)`, two instances at different scales, each with the other group's fleet emptied
+([levels](scenes/levels.md#the-new-level1-environment))
 
 The general version of [ambient airplanes](#ambient-airplanes): decorative vehicles that cross the
 view, get pooled, and own no round rules. One component holds a list of **groups**, and each group

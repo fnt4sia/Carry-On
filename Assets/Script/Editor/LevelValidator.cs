@@ -238,12 +238,18 @@ namespace CarryOn.EditorTools
                 if (isTurn && so.FindProperty("turnPivot")?.objectReferenceValue == null)
                     report.Error($"{conveyor.name}: Turn shape but no turnPivot — it will steer straight through the corner.", conveyor);
 
+                // A straight may be widened along its own X: what mates with the next piece is its
+                // deck height (Y) and length (Z), and those still match. A turn must stay uniform,
+                // or the arc it steers along no longer fits its mesh.
                 Vector3 scale = conveyor.transform.lossyScale;
-                if (!Approximately(scale.x, scale.y) || !Approximately(scale.y, scale.z))
+                bool uniform = Approximately(scale.x, scale.y) && Approximately(scale.y, scale.z);
+                bool widenedStraight = !isTurn && Approximately(scale.y, scale.z);
+                if (!uniform && !widenedStraight)
                 {
                     report.Error(
                         $"{conveyor.name}: non-uniform scale {Format(scale)}. Conveyor pieces must be uniformly scaled " +
-                        "or the deck height and seam will not match neighbouring pieces.", conveyor);
+                        "(a straight may be widened along its own X) or the deck height and seam will not match " +
+                        "neighbouring pieces.", conveyor);
                 }
 
                 if (!HasBeltSurfaceMaterial(conveyor))
@@ -348,7 +354,26 @@ namespace CarryOn.EditorTools
                 byNumber.Add(number, gate);
             }
 
-            if (gates.Count == 0)
+            // Level1's booth gates. Numbered in their own space: the two kinds never share a scene.
+            List<DispatchGate> dispatchGates = FindInScene<DispatchGate>(scene);
+            Dictionary<int, DispatchGate> dispatchByNumber = new();
+            foreach (DispatchGate gate in dispatchGates)
+            {
+                if (dispatchByNumber.TryGetValue(gate.GateNumber, out DispatchGate existing))
+                {
+                    report.Error(
+                        $"{gate.name}: gate number {gate.GateNumber} is already used by '{existing.name}'.", gate);
+                    continue;
+                }
+
+                dispatchByNumber.Add(gate.GateNumber, gate);
+
+                if (FindInScene<DispatchButton>(scene).Count == 0)
+                    report.Error($"{gate.name}: no {nameof(DispatchButton)} in the scene — this gate can only " +
+                                 "ever time out.", gate);
+            }
+
+            if (gates.Count == 0 && dispatchGates.Count == 0)
                 report.Error($"{scene.name}: no delivery Gate — luggage can never be scored.", null);
         }
 

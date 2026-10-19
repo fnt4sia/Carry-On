@@ -23,6 +23,17 @@ than the current layout. After merging their work:
    ([look](look.md#post-processing-and-palette)).
 5. **Check empty folders.** Git can carry a folder's `.meta` without the folder's files — the 8 Oct
    commit added an empty `Model/Environment/Select Stage/`.
+6. **Check an FBX's texture names match real files.** Embedded materials find their texture *by
+   file name*: next to the model first, then by a project-wide search. A copy saved as
+   `carry on color palate2 1.png` matches nothing, so 11 of the 17 FBX in
+   `Model/Environment/Individual Assets/` imported plain white. Only `DepartureBoard` was remapped
+   by hand. Worse, once a same-named file appears anywhere (level1.fbx brought
+   `Model/Level/carry on color palate2.png`, a *different* palette), any reimport silently grabs it.
+   A machine with an older Library keeps the white import, so two machines show different results.
+   Name the texture exactly as the FBX asks, or remap it explicitly in the Materials tab. Fixed 17 Oct
+   2026: the file is renamed to `carry on color palate2.png` (it is the 64×64 palette these models
+   were painted against; `Model/Level/`'s file of the same name gives 5 of them different colours),
+   and `ScanningTable` remaps `Texture_airport256b` to `Model/Environment/StageSelect/texture/`.
 
 ## Layout history
 

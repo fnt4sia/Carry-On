@@ -7,12 +7,14 @@
 The twin escalator's steps run in a loop. Each step climbs (or descends) the incline, flattens out at
 the landing, slides under the landing plate and comes back at the other end. All of it happens in the
 vertex shader: no script, no per-frame CPU cost, and shadows follow the steps. The prefab owns it, so
-every copy animates — 5 in MainMenu, 2 in Level1, 8 in Level2.
+every copy animates — 5 in MainMenu, 1 in Level1 (one twin over `level1.fbx`'s two static lanes,
+since 19 Oct 2026), 8 in Level2, 2 in the archived Level1.
 
 ## How the prefab is built
 
 - **Root** — `MeshFilter` = `Escalator_Frame` (balustrades and landing plates), `MeshRenderer` =
-  `AIRPORT`. The `MeshCollider` still uses the full original `Escalator` mesh from
+  `AIRPORT Menu` (white panels and indigo-blue rims like Level1's static escalator — see
+  [look](look.md#post-processing-and-palette)). The `MeshCollider` still uses the full original `Escalator` mesh from
   `AirportBuildingTrial03.fbx`, so collision didn't change.
 - **`Steps` child** — `MeshFilter` = `Escalator_Steps`, `MeshRenderer` = `EscalatorSteps.mat`, identity
   transform. **Keep it non-static.** Static batching bakes the mesh into world space, and the shader's
@@ -58,7 +60,7 @@ Both points sit under a landing plate, so the jump is never visible. The fragmen
 
 Everything except `Speed` is measured from the mesh: change those only together with a regenerated
 `Escalator_Steps`. All of it is object space, so the scene copies' different scales (2 × 2 × 1,
-2.5 × 1.63 × 1.25) need nothing extra.
+2.5 × 1.63 × 1.25, and Level1's 3.33 × 2.61 × 1.82 under its 0.6 root) need nothing extra.
 
 ## Gotchas
 

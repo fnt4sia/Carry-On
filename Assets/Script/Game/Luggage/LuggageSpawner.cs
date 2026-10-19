@@ -38,6 +38,12 @@ public class LuggageSpawner : MonoBehaviour
 
     private LevelConfig levelConfig;
 
+    [Header("Drop")]
+    [Tooltip("How far either side of the belt's centre line a bag may drop, in world metres, along " +
+        "the spawner's right. Belts no longer centre bags, so the offset lasts to the end of the " +
+        "belt. Leave room for a bag turned corner-on: about 1 m from its centre to its far corner.")]
+    [SerializeField, Min(0f)] private float lateralSpread;
+
     [Header("Fallback (no LevelConfig, e.g. menus)")]
     [Tooltip("Used when the scene has no LevelContext. Spawns these prefabs on a fixed interval " +
         "as tutorial luggage (no timer UI, never expires).")]
@@ -164,8 +170,8 @@ public class LuggageSpawner : MonoBehaviour
         Luggage prefabLuggage = prefab.GetComponent<Luggage>();
         if (prefabLuggage == null) return null;
 
-        spawnPosition = transform.position;
-        spawnRotation = GetRandomSpawnRotation();
+        spawnPosition = transform.position + transform.right * Random.Range(-lateralSpread, lateralSpread);
+        spawnRotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
 
         // Rent through the pool owner, not through this spawner, so bags recycle across
         // every spawner in the scene instead of each one hoarding its own.
@@ -215,13 +221,6 @@ public class LuggageSpawner : MonoBehaviour
         }
 
         return count;
-    }
-
-    private static Quaternion GetRandomSpawnRotation()
-    {
-        Quaternion uprightPrefabRotation = Quaternion.Euler(90f, 0f, 90f);
-        float randomYaw = Random.Range(0, 4) * 90f;
-        return Quaternion.AngleAxis(randomYaw, Vector3.up) * uprightPrefabRotation;
     }
 
     public Luggage RentLuggage(GameObject prefab, Vector3 position, Quaternion rotation)

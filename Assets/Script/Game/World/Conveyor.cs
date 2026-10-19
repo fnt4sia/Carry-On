@@ -91,16 +91,9 @@ public class Conveyor : MonoBehaviour
                 target += (radial / r) * Mathf.Clamp(centerError * centeringGain, -0.8f, 0.8f);
             }
         }
-        else
-        {
-            // Keep cargo on the straight belt centreline so small collision impulses
-            // cannot leave it offset enough to catch a rail at the next turn.
-            Vector3 right = transform.right;
-            right.y = 0f;
-            right.Normalize();
-            float lateralOffset = Vector3.Dot(rb.position - transform.position, right);
-            target -= right * Mathf.Clamp(lateralOffset * centeringGain, -0.8f, 0.8f);
-        }
+        // Straights leave a bag wherever it sits across the deck. They used to pull every bag onto
+        // the centre line, which, with every bag also turned to face the belt, delivered them in one
+        // identical row that dropped off the end as a line instead of a pile.
 
         Vector3 v = rb.linearVelocity;
         Vector3 flat = new Vector3(v.x, 0f, v.z);
@@ -108,12 +101,13 @@ public class Conveyor : MonoBehaviour
         rb.linearVelocity = new Vector3(flat.x, v.y, flat.z);
 
         // The deck is frictionless (steering replaces friction), so the belt owns
-        // rotation too: PD-rotate cargo upright and facing the belt direction. This
-        // rights tipped luggage, stops tumbling, and on turns the rotating tangent
-        // yaws the cargo through the arc automatically.
+        // rotation too: PD-rotate cargo upright. This rights tipped luggage and stops
+        // tumbling. A turn also faces cargo along the arc, so the rotating tangent yaws it
+        // through the curve clear of the rails; a straight keeps the bag's own heading.
         if (beltDir.sqrMagnitude > 0.0001f)
         {
-            Quaternion targetRot = Quaternion.LookRotation(beltDir, Vector3.up);
+            Vector3 facing = shape == BeltShape.Turn && turnPivot != null ? beltDir : HeadingOf(rb, beltDir);
+            Quaternion targetRot = Quaternion.LookRotation(facing, Vector3.up);
             Quaternion delta = targetRot * Quaternion.Inverse(rb.rotation);
             delta.ToAngleAxis(out float angleDeg, out Vector3 axis);
             if (angleDeg > 180f) angleDeg -= 360f;
@@ -128,6 +122,21 @@ public class Conveyor : MonoBehaviour
                 rb.angularVelocity = Vector3.zero;
             }
         }
+    }
+
+    // Which way a bag faces, flattened onto the floor. One lying on its front or back faces up or
+    // down, so its top decides instead.
+    private static Vector3 HeadingOf(Rigidbody rb, Vector3 fallback)
+    {
+        Vector3 heading = rb.rotation * Vector3.forward;
+        heading.y = 0f;
+        if (heading.sqrMagnitude < 0.04f)
+        {
+            heading = rb.rotation * Vector3.up;
+            heading.y = 0f;
+        }
+
+        return heading.sqrMagnitude > 0.0001f ? heading.normalized : fallback;
     }
 
     private Vector3 BeltDirectionAt(Vector3 position)

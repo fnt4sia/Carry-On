@@ -2,7 +2,8 @@
 
 **Scripts:** `Game/Luggage/{Luggage, LuggageColor, LuggageSpawner, LuggageSink, LuggageVisualEffects}.cs`,
 `Game/World/LuggageDropScatter.cs`
-**Prefabs:** the nine under `Assets/Prefab/Luggage/`, and `Prefab/Environment/LuggageDropPen`
+**Prefabs:** the nine under `Assets/Prefab/Luggage/`, and `Prefab/Environment/{LuggageDropPen,
+Luggage Drop Scatter}`
 
 Luggage is a dynamic rigidbody; a station docks it kinematically while processing. The `Luggage`
 component owns flight colour, the wrapped flag, grabber attribution, pooling identity, and cached
@@ -68,6 +69,12 @@ seconds** — the belt runs flat, and there are no waves. `Prefab/Luggage/Spawne
 spawner. It drops each bag at its own transform, so put it about 4.8 m above the deck, behind the
 door, where the drop is out of sight.
 
+**Every bag drops standing, at a random heading** (any angle), and up to `lateralSpread` metres
+either side of the spawner along its right axis (0 by default; Level1's feed uses 0.5 m on its
+2.96 m deck). Belts keep both (see [conveyors](conveyors.md#movement-model)), so bags reach
+the end jumbled and fall into a pile instead of a row. Leave room for a bag turned corner-on:
+it reaches 1 m from its centre.
+
 **The first bag drops on the spawner's first frame, not one interval later.** Both loops spawn and
 *then* wait; they used to wait first, which opened every round on an empty belt. The wait is scaled
 time and the countdown runs at `timeScale 0`, so a leading yield spent the whole countdown frozen
@@ -114,26 +121,53 @@ All of it is on `Default`, which `PlayerGrab.grabBlockLayer` (`Wall`) ignores, s
 over the barriers.
 
 **Why the scatter exists.** A belt carries its bags standing on their narrow end — 3.2 m tall,
-1 m deep — and centred. Off the end of a 0.7 m deck they slide into the pen still standing, in one
+1 m deep — and until 19 Oct 2026 it also centred them and faced them all along the belt. Off the end of a 0.7 m deck they slide into the pen still standing, in one
 line, and each new bag shoves the row along: the pen fills as a single-file train that corks the
-belt's exit while the pen is still mostly empty. `LuggageDropScatter` does not let a bag stand in
-its zone. Each one is thrown forward, off to one side, and tipped onto its face. A standing bag only
+belt's exit while the pen is still mostly empty. `LuggageDropScatter` throws each bag as it comes off
+the belt: forward, off to one side, and tipped onto its face. A standing bag only
 has to lean ~17° forward to fall, but ~28° sideways. Flat bags are a metre tall, so later drops
 land on them and the pen stacks.
 
-**Its timing is the whole trick.** The belt steers a bag — centring it and pulling it upright —
+**Its timing is the whole trick.** The belt steers a bag — pulling it upright —
 until a ray down from the bag's centre misses the deck, and that undoes any push given earlier.
 But the drop is short, so a late push leaves too little fall to tip over in. The scatter therefore
 throws from `OnTriggerStay` the moment the bag's *centre* crosses the zone's near face, 0.2 m past
 where the deck really ends. The straight belt model stops 0.13 m short of the piece's nominal end.
 An `OnTriggerEnter` version fired on the bag's front edge, while its centre was still over the
-deck, and worked about half the time. A bag still standing 0.4 s after a throw, wedged between
-others, is thrown again; bags lying down are never touched.
+deck, and worked about half the time. Get the line wrong the other way and the throw is wasted:
+while the centre is still over the deck, the belt's upright control overwrites the bag's spin every
+step and eats the sideways push, so the bag drops off upright.
+
+**One throw per trip, and only at the belt's end** (19 Oct 2026). A bag is thrown once as its
+centre crosses the line, and is due another only after riding back in (a player may put it back on
+the belt). Bags lying down are never touched. Before this, any bag still standing anywhere in the
+zone was thrown again every 0.4 s. In the new Level1 that re-threw bags that had landed upright on
+the heap about once a second (25 times in the first 25 s of a round). Bags kept hopping on the pile,
+and Fitra read it as a bug. The zone is now only a strip past the belt's end, so nothing on the
+heap is touched. A bag that lands standing stays standing.
 
 **The pen holds about ten.** Level1's cap is 12: about ten lie in a heap and the last one or two
 wait on the belt, inside the room and grabbable, until someone takes a bag. At 18 the backlog
 compacted on the belt into a queue of touching bags, which entered the pen as a block that no
 throw could break up.
+
+**The new Level1 has no pen, just `Prefab/Environment/Luggage Drop Scatter` at the feed's end**
+(19 Oct 2026). Without it the floor pile corked the belt's exit, and up to 7 of the 12 bags sat on
+the belt behind it. The prefab is the scatter zone alone: pivot on the throw line, 1.5 deep (0.9 m
+in Level1), forward 2, sideways 4. Level1's throw line is at z −13.40, just past where the deck's
+surface ends (−13.47); measure that with a ray down onto the belt model, not from its renderer
+bounds.
+
+When nobody takes bags, the floor heap fills to about 8–11 bags and the rest wait upright
+on the belt's end until someone takes one, as the old pen did. In Play tests with 4 bags pulled out
+every 25 s, at most 2 waited, and no bag was ever re-thrown. Two things tried on the same day and
+dropped:
+
+- **An `Unstick` hop.** A bag stopped on the deck's last stretch for 0.6 s was hopped up (6 m/s) and
+  on (3 m/s). It cleared the belt, but Fitra found the forced hops buggy-looking, so the script was
+  deleted.
+- **An upward toss on the throw.** At up to 3 m/s it spread the heap out to 7.4 m, but bags waited
+  just as often.
 
 ## Menu luggage
 

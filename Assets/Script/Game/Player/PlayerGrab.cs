@@ -61,6 +61,8 @@ public class PlayerGrab : MonoBehaviour
     [SerializeField] private float ArrowMinZPos = 2f;
     [SerializeField] private float ArrowMaxZPos = 4f;
     [SerializeField] private float ArrowHeight = 2.0f;
+    [Tooltip("Width on top of the sprite's own proportions, so a short floor arrow still reads.")]
+    [SerializeField, Min(0.1f)] private float ArrowWidthScale = 1f;
 
     private PlayerInput playerInput;
     private InputAction grabAction;
@@ -82,9 +84,18 @@ public class PlayerGrab : MonoBehaviour
     private GameObject bridgeObject;
     private BoxCollider bridgeBoxCollider;
     private Collider[] heldLuggageColliders;
+    private bool bridgePending;
+    private readonly Collider[] bridgeHits = new Collider[16];
 
     private readonly Collider[] nearbyHits = new Collider[32];
     private Outline lastOutlined = null;
+
+    // The throw plays on the Animator's Upper Body layer, whose states leave write defaults off so
+    // its empty state lets the walk show through. But a layer like that keeps writing the last pose
+    // it played, so after a throw the arms would stay frozen in the follow-through until the next
+    // one. The layer is faded out whenever it is back in its empty state.
+    private const float UpperBodyFadeTime = 0.15f;
+    private int upperBodyLayer = -1;
 
     private Collider[] playerColliders;
     private Vector3 originalCenterOfMass;
@@ -118,6 +129,12 @@ public class PlayerGrab : MonoBehaviour
         bridgeObject.layer = gameObject.layer;
         bridgeBoxCollider = bridgeObject.AddComponent<BoxCollider>();
         bridgeObject.SetActive(false);
+    }
+
+    // Start, not Awake: the Animator lives on the Model child and may not have initialised yet.
+    private void Start()
+    {
+        if (animator != null) upperBodyLayer = animator.GetLayerIndex(AnimId.UpperBodyLayerName);
     }
 
     void Update()
@@ -167,6 +184,19 @@ public class PlayerGrab : MonoBehaviour
 
         if (luggageHeld != null)
             UpdateBridgeCollider();
+
+        UpdateUpperBodyWeight();
+    }
+
+    private void UpdateUpperBodyWeight()
+    {
+        if (animator == null || upperBodyLayer < 0) return;
+
+        bool idle = !animator.IsInTransition(upperBodyLayer)
+                 && animator.GetCurrentAnimatorStateInfo(upperBodyLayer).shortNameHash == AnimId.UpperBodyEmpty;
+        float weight = Mathf.MoveTowards(animator.GetLayerWeight(upperBodyLayer), idle ? 0f : 1f,
+                                         Time.deltaTime / UpperBodyFadeTime);
+        animator.SetLayerWeight(upperBodyLayer, weight);
     }
 
     private void ProcessGrabInput(bool grabDown, bool grabUp, Luggage candidate)
@@ -242,6 +272,11 @@ public class PlayerGrab : MonoBehaviour
                 crankedStation = loaded;
             return true;
         }
+
+        // Empty-handed at a gate's dispatch button: press it rather than grabbing. Only empty-handed,
+        // so a player carrying a bag into the gate beside the button can still drop or throw it.
+        if (TryPressDispatchButton())
+            return true;
 
         // Empty-handed at a loaded machine: start working it rather than grabbing.
         MachineStation waiting = FindStationAwaitingCrank();
@@ -570,8 +605,6 @@ public class PlayerGrab : MonoBehaviour
     {
         if (bridgeObject == null || luggageHeld == null) return;
 
-        bridgeObject.SetActive(true);
-
         heldLuggageColliders = luggageHeld.GetComponentsInChildren<Collider>();
         foreach (var col in heldLuggageColliders)
         {
@@ -580,11 +613,16 @@ public class PlayerGrab : MonoBehaviour
                 Physics.IgnoreCollision(pc, col, true);
         }
 
+        // The bridge is part of the player's body. Grabbing a bag from under others puts its box
+        // inside the bags on top, and physics pushing it out of them launched the player, so it
+        // only switches on once nothing else is in the way (UpdateBridgeCollider).
+        bridgePending = true;
         UpdateBridgeCollider();
     }
 
     private void DisableBridgeCollider()
     {
+        bridgePending = false;
         if (bridgeObject == null) return;
 
         if (heldLuggageColliders != null)
@@ -606,7 +644,8 @@ public class PlayerGrab : MonoBehaviour
 
     private void UpdateBridgeCollider()
     {
-        if (luggageHeld == null || bridgeBoxCollider == null || !bridgeObject.activeSelf) return;
+        if (luggageHeld == null || bridgeBoxCollider == null) return;
+        if (!bridgeObject.activeSelf && !bridgePending) return;
 
         Vector3 anchorPos = grabAnchor.position;
         Vector3 luggagePos = luggageHeld.transform.position;
@@ -627,6 +666,34 @@ public class PlayerGrab : MonoBehaviour
         bridgeObject.transform.rotation = Quaternion.LookRotation(dirNorm);
         bridgeBoxCollider.size = new Vector3(bridgeWidth, bridgeHeight, totalLength);
         bridgeBoxCollider.center = Vector3.zero;
+
+        if (bridgePending && !IsBridgeBlocked())
+        {
+            bridgePending = false;
+            bridgeObject.SetActive(true);
+        }
+    }
+
+    // True while anything other than this player and its own bag sits inside the bridge's box.
+    private bool IsBridgeBlocked()
+    {
+        Transform box = bridgeObject.transform;
+        int hitCount = Physics.OverlapBoxNonAlloc(
+            box.position, bridgeBoxCollider.size * 0.5f, bridgeHits, box.rotation, ~0,
+            QueryTriggerInteraction.Ignore);
+
+        bool blocked = false;
+        for (int i = 0; i < hitCount; i++)
+        {
+            Collider hit = bridgeHits[i];
+            bridgeHits[i] = null;
+            if (blocked || hit == null || hit == bridgeBoxCollider) continue;
+            if (System.Array.IndexOf(playerColliders, hit) >= 0) continue;
+            if (System.Array.IndexOf(heldLuggageColliders, hit) >= 0) continue;
+            blocked = true;
+        }
+
+        return blocked;
     }
 
     // Grows the arrow and pushes it out over the same min→max hold window the throw force
@@ -636,8 +703,9 @@ public class PlayerGrab : MonoBehaviour
         float holdRange = Mathf.Max(0.01f, ThrowMaxHoldTime - throwMinHoldTime);
         float t = Mathf.Clamp01((grabInputHoldTime - throwMinHoldTime) / holdRange);
 
+        // The arrow lies flat with its length on local X and its width on local Y.
         float arrowScale = Mathf.Lerp(ArrowMinScale, ArrowMaxScale, t);
-        Arrow.transform.localScale = new Vector3(arrowScale, arrowScale, arrowScale);
+        Arrow.transform.localScale = new Vector3(arrowScale, arrowScale * ArrowWidthScale, arrowScale);
 
         float arrowZPos = Mathf.Lerp(ArrowMinZPos, ArrowMaxZPos, t);
         Arrow.transform.localPosition = new Vector3(0, ArrowHeight, arrowZPos);
@@ -669,6 +737,24 @@ public class PlayerGrab : MonoBehaviour
         }
 
         return loaded;
+    }
+
+    private bool TryPressDispatchButton()
+    {
+        int hitCount = Physics.OverlapSphereNonAlloc(grabPoint.position, grabRadius, nearbyHits);
+        DispatchButton button = null;
+        for (int i = 0; i < hitCount; i++)
+        {
+            Collider hit = nearbyHits[i];
+            nearbyHits[i] = null;
+            if (button == null && hit != null)
+                button = hit.GetComponentInParent<DispatchButton>();
+        }
+
+        if (button == null) return false;
+
+        button.Press(GetPlayerIndex());
+        return true;
     }
 
     private bool TryUseLever()

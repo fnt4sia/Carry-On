@@ -117,14 +117,11 @@ public class GameHUD : MonoBehaviour
         SceneLoader.LoadLobby();
     }
 
-    public void LoadNextStage()
+    // The end card always returns to the map, which shows any stage this round unlocked.
+    public void ContinueToStageSelect()
     {
         PlayButtonSelectSfx();
-        LevelConfig nextLevel = gameManager != null ? gameManager.Config?.nextLevel : null;
-        if (nextLevel != null && !string.IsNullOrWhiteSpace(nextLevel.sceneName))
-            SceneLoader.Load(nextLevel.sceneName);
-        else
-            SceneLoader.LoadStageSelect();
+        SceneLoader.LoadStageSelect();
     }
 
     private void Subscribe()

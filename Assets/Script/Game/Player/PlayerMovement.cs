@@ -20,10 +20,17 @@ public class PlayerMovement : MonoBehaviour
 
     [Header("Dash")]
     [SerializeField, Min(1f)] private float dashSpeedMultiplier = 2f;
+    [Tooltip("How long the speed boost lasts.")]
     [SerializeField, Min(0f)] private float dashDuration = 0.15f;
+    [Tooltip("How long the slide clip takes. Longer than the boost, because the body is still " +
+             "sliding while it slows back to walking speed, and the clip lands with it.")]
+    [SerializeField, Min(0f)] private float dashClipDuration = 0.25f;
     [SerializeField, Min(0f)] private float dashCooldown = 1f;
 
     [SerializeField] private Rigidbody playerRb;
+
+    // Physics may still lift the body one step at a time (ramps, low platforms), never launch it.
+    private const float MaxRiseSpeed = 1f;
 
     [Header("Bubble VFX")]
     [SerializeField] private GameObject bubblePrefab;
@@ -160,7 +167,11 @@ public class PlayerMovement : MonoBehaviour
     {
         if (!IsGameplayScene()) return;
 
-        float speed = movementSpeedNormal * (isDashing ? dashSpeedMultiplier : 1f);
+        DropOutsideShove();
+
+        // isDashing spans the whole slide clip; the boost is only its first dashDuration.
+        bool boosting = isDashing && Time.time < lastDashTime + dashDuration;
+        float speed = movementSpeedNormal * (boosting ? dashSpeedMultiplier : 1f);
         Vector3 targetVelocity = movementDirection * speed;
         currentVelocity = Vector3.Lerp(currentVelocity, targetVelocity, movementLerpSpeed);
         Vector3 moveDelta = new Vector3(currentVelocity.x, 0, currentVelocity.z) * Time.fixedDeltaTime;
@@ -197,6 +208,18 @@ public class PlayerMovement : MonoBehaviour
             Vector3 anchorDelta = playerGrab.GetGrabAnchorWorldPosition() - anchorBefore;
             luggageRb.MovePosition(luggageRb.position + anchorDelta);
         }
+    }
+
+    // Movement teleports the body, so the rigidbody's own velocity is only ever an outside shove:
+    // a bag slamming into the player, or the carry bridge collider being pushed out of the pile it
+    // was switched on inside (grabbing a bag buried under others). Left alone, that velocity keeps
+    // flying the player across the hall. Keep gravity's fall, drop the rest; bags can still fly.
+    private void DropOutsideShove()
+    {
+        if (playerRb == null || playerRb.isKinematic) return;
+
+        Vector3 velocity = playerRb.linearVelocity;
+        playerRb.linearVelocity = new Vector3(0f, Mathf.Min(velocity.y, MaxRiseSpeed), 0f);
     }
 
     // Sweeps `body` along moveDelta and strips out the into-wall component if it would
@@ -240,11 +263,20 @@ public class PlayerMovement : MonoBehaviour
     {
         isDashing = true;
         lastDashTime = Time.time;
+        animator.SetFloat(AnimId.DashProgress, 0f);
         animator.SetBool(AnimId.IsDashing, true);
         AudioManager.Instance?.PlaySFX(Sfx.PlayerDash);
 
-        yield return new WaitForSeconds(dashDuration);
+        // The slide clip is played by this progress, not by its own clock, so its landing pose
+        // arrives exactly as the slide ends and the controller hands over to the jog from there.
+        float clipDuration = Mathf.Max(dashDuration, dashClipDuration);
+        for (float elapsed = 0f; elapsed < clipDuration; elapsed += Time.deltaTime)
+        {
+            animator.SetFloat(AnimId.DashProgress, elapsed / clipDuration);
+            yield return null;
+        }
 
+        animator.SetFloat(AnimId.DashProgress, 1f);
         animator.SetBool(AnimId.IsDashing, false);
         isDashing = false;
     }

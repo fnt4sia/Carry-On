@@ -53,6 +53,22 @@ public class LevelConfig : ScriptableObject
     [Tooltip("Points for each bag a flight accepts.")]
     public int scoreCorrectDelivery = 10;
 
+    [Header("Orders (dispatch gates)")]
+    [Tooltip("Seconds a dispatch gate gives each order before the flight leaves without its bags.")]
+    public float orderTime = 20f;
+    [Tooltip("Coins for every whole second still on the order's timer when the flight is dispatched.")]
+    public int coinsPerSecondLeft = 1;
+    [Tooltip("Coin multiplier for the 1st, 2nd, 3rd... flight in a row. The last entry holds for " +
+             "every flight after it. A failed flight starts the count over.")]
+    public float[] comboMultipliers = { 1f, 1.5f, 2f };
+
+    // streak = flights in a row including this one, so the first good flight is 1.
+    public float ComboMultiplier(int streak)
+    {
+        if (comboMultipliers == null || comboMultipliers.Length == 0) return 1f;
+        return comboMultipliers[Mathf.Clamp(streak - 1, 0, comboMultipliers.Length - 1)];
+    }
+
     public int CalculateStars(int score)
     {
         if (score >= star3Score) return 3;
@@ -64,6 +80,7 @@ public class LevelConfig : ScriptableObject
     private void OnValidate()
     {
         gameTime = Mathf.Max(1f, gameTime);
+        orderTime = Mathf.Max(1f, orderTime);
         spawnInterval = Mathf.Max(0.05f, spawnInterval);
         maxActiveLuggage = Mathf.Max(1, maxActiveLuggage);
 

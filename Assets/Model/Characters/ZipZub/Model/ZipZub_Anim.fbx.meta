@@ -247,8 +247,8 @@ ModelImporter:
       name: AN_8-dash
       takeName: AN_8-dash
       internalID: 8633309531016467747
-      firstFrame: 0
-      lastFrame: 25
+      firstFrame: 2
+      lastFrame: 10
       wrapMode: 0
       orientationOffsetY: 0
       level: 0
@@ -333,7 +333,7 @@ ModelImporter:
     armStretch: 0.05
     legStretch: 0.05
     feetSpacing: 0
-    globalScale: 0.049999997
+    globalScale: 5
     rootMotionBoneName: 
     hasTranslationDoF: 0
     hasExtraRoot: 0

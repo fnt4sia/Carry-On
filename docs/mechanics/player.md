@@ -198,8 +198,16 @@ three of them on rotating-platform *roots* where they never took effect.
 movement and rotation, then moves the luggage by the anchor's full world delta — linear motion
 plus the rotational arc. The joint corrects whatever pitch and roll is left.
 
-**Dash** multiplies normal speed for its duration and stays steerable. Duration and cooldown use
-scaled gameplay time, so pause freezes them.
+**Nothing launches a player** (19 Oct 2026). Since movement teleports the transform, the
+rigidbody's own velocity is only ever an outside shove, and nothing used to clear it: a bag
+slamming into a player, or the bridge collider (below) being pushed out of a pile, flew them
+across the hall. `DropOutsideShove` now runs first in every `FixedUpdate`: it zeroes the
+horizontal velocity and caps the upward speed at 1 m/s. Falling is untouched, and physics can
+still lift the body one step at a time, so ramps and low platforms still work.
+
+**Dash** multiplies normal speed for `dashDuration` and stays steerable; the slide clip runs a little
+longer (`dashClipDuration`, see [Animator](#animator)). Duration and cooldown use scaled gameplay
+time, so pause freezes them.
 
 **Bubble VFX** uses a per-player object pool. Each bubble moves, shrinks, and fades through a
 `MaterialPropertyBlock`, then returns to the pool — no material is cloned, nothing is destroyed
@@ -217,7 +225,8 @@ carry, load and crank. Empty-handed at a loaded machine, a press starts cranking
 grabbing. `ProcessStationInput` runs before the normal grab logic and consumes the press when it
 acts, so loading a bag never starts a throw charge and cranking never grabs the bag back out.
 Releasing pauses the machine; walking out of range ends the session on its own. See
-[stations](stations.md#manual-crank-the-redesigns-machine-mechanic).
+[stations](stations.md#manual-crank-the-redesigns-machine-mechanic). Empty-handed within reach of a
+gate's `DispatchButton`, a press sends the flight ([delivery](delivery-and-scoring.md#dispatch-gates-level1)).
 
 Grab is bound to **E** (and `/` for the second keyboard player). UseStation, on **F**, is the older
 secondary button: it still loads a station and still pulls levers, but it does not crank.
@@ -237,7 +246,11 @@ still credits the thrower. `GetPlayerIndex()` reads the live `PlayerInput.player
 `ConfigurableJoint` is created immediately, then yaw aligns over `grabAlignDuration`; the arc is
 chosen so the bag never swings through the player's body. A runtime bridge collider spans player
 and luggage so the carrier can't walk through the held item, while collisions with the held item
-itself are ignored until release. Joint limits, springs, dampers, maximum forces, projection, and
+itself are ignored until release. The bridge is part of the player's rigidbody, so it **switches
+on only once nothing else is inside its box** (`IsBridgeBlocked`). Grabbing a bag from under
+others used to switch it on inside the bags on top; pushing it out of them launched the player
+about 32 m in a repro of that grab (the bags on top still get shoved off, which is fine). The
+joint itself never pushes the player: it hangs off `GrabPoint`'s kinematic rigidbody. Joint limits, springs, dampers, maximum forces, projection, and
 break thresholds are the `joint…` fields on `PlayerGrab`. `JointBreakHandler` performs a clean
 forced drop if Unity breaks the joint.
 
@@ -248,6 +261,14 @@ forced drop if Unity breaks the joint.
 - Charge feedback — the arrow child, the looping buildup SFX, and the `isThrowing` throw
   pose — starts only once the press outlives `throwMinHoldTime`, so a quick tap reads as a
   plain drop with no wind-up (changed 2026-07-27; it used to start on press).
+- The arrow lies flat on the floor just outside the player ring, Overcooked-style (19 Oct 2026;
+  it used to float 2.4 m up and reach about 5 m out). It is the body's `Arrow` child: the
+  `UI/Gameplay/YellowArrow` sprite plus an `Outline` child, the white sprite tinted navy, so it reads
+  on the white walkway too. Both sprites import with their pivot at the tail and 1 unit long. The
+  arrow grows forward from 1.4 to 1.8 units while charging (`ArrowMinScale`/`ArrowMaxScale`) and is
+  1.5× wider than the sprite's own proportions (`ArrowWidthScale`, 19 Oct 2026, so it reads at a
+  glance). Its tail stays at 1.15 units ahead (`ArrowMinZPos` = `ArrowMaxZPos`), 0.03 off the floor
+  (`ArrowHeight`). The values are the same on all four bodies.
 
 **Station use** reuses the same non-allocating buffer, finds a `MachineStation` that is free and
 accepts the held bag, and calls `TryPlace`. Placement force-releases the player first. See
@@ -328,26 +349,47 @@ ZipZub/ZipZub}.controller` — four copies of the same graph, each pointing at i
 (clips named `AN_1-idle-Loop`, `AN_2-jog`, `AN_4-throw_Enter`, `AN_5-throw-Loop`,
 `AN_6-throw-End`, `AN_7-throw-loop-jog`, `AN_8-dash`, with loop flags set on the importer).
 Annie's spare `AN_3-jog-Stop` and the others' `AN_1-idle-RARE` are imported but unused (the rare
-idle is reserved for later). Parameters `isMoving`, `isDashing`, `isGrabbing`, `isThrowing`, all
-bool, all hashed once in `AnimId`. A graph change must be made four times — or made once and
-re-copied with motions swapped.
+idle is reserved for later). Parameters `isMoving`, `isDashing`, `isGrabbing`, `isThrowing` (bool)
+and `dashProgress` (float), all hashed once in `AnimId`. A graph change must be made four times —
+or made once and re-copied with motions swapped.
 
 **Scannor's clips run slower.** Every FBX keys the same frame counts, but Scannor was exported at
 **24 fps** while Annie, Bun Jovi and ZipZub are **30 fps**, so Scannor's idle is 4.25 s against
 3.40 s and every state of his plays at 0.8× the others' speed. The poses are identical at the
 same normalized time — only the timing differs.
 
+Two layers since 19 Oct 2026. The legs always come from the **Base Layer**; the throw lives in
+**Upper Body**, an override layer masked by `Assets/Animation/UpperBody.mask` (one mask for all
+four: they share the Rigify bone paths). The mask covers `DEF-spine.001` and everything under it;
+the pelvis (`DEF-spine`) and the legs stay with the base. Before the split, the throw states were on
+the base layer, and their wind-up and release clips stood the legs still for about a second of
+every throw, even mid-run.
+
 ```text
-Idle ⇄ Move                     isMoving
-Idle/Move → Throw Start          isThrowing
-Throw Start → Loop Idle/Walk     after one cycle, split on isMoving
-Loop Idle ⇄ Loop Walk            isMoving
-Loop */Throw Start → Throw End   !isThrowing
-Throw End → Idle/Move            exit time 0.8, split on isMoving
-Throw End → Throw Start          isThrowing (instant re-charge)
-AnyState → Dash                  isDashing
-Dash → Idle/Move                 !isDashing, split on isMoving
+Base Layer                       Upper Body (UpperBody.mask)
+Idle ⇄ Move     isMoving         Empty (default, no motion, write defaults off)
+AnyState → Dash isDashing        Empty → Throw Start              isThrowing
+Dash → Idle/Move !isDashing,     Throw Start → Loop Idle/Walk     after one cycle, split on isMoving
+                 split on        Loop Idle ⇄ Loop Walk            isMoving
+                 isMoving        Loop */Throw Start → Throw End   !isThrowing
+                                 Throw End → Empty                exit time 0.8
+                                 Throw End → Throw Start          isThrowing (instant re-charge)
 ```
+
+Every Upper Body state has write defaults off (with it on, `Empty` snaps the arms to the bind pose).
+But such a layer **keeps writing the last pose it played**: after the first throw the arms stayed
+frozen in the follow-through (63° off idle), even through later carries and drops. So
+`PlayerGrab.UpdateUpperBodyWeight` fades the layer to 0 over 0.15 s whenever it sits in `Empty`, and
+back to 1 when it leaves; `Empty → Throw Start` is instant so the stale pose never blends back in.
+
+**The dash clip is played by `PlayerMovement`, not by its own clock.** The `Dash` state's *Motion
+Time* is `dashProgress`, which `DashCoroutine` runs from 0 to 1 over `dashClipDuration` (0.25 s).
+The speed boost lasts only `dashDuration` (0.15 s); the clip runs on through the slowdown after it
+(at 0.15 s it played at 1.8× and looked twitchy). `isDashing` spans the whole clip. The `AN_8-dash`
+take is trimmed to **frames 2–10** on every character's animation FBX: the dip, the lunge (peak at
+frame 7) and the landing. Frames 13–25 were a dead standing pose that stood the character upright
+between the lunge and the jog. Frame 10 matches jog frame 0 (left foot leading by 1.58 vs 1.56,
+pelvis 1.65 vs 1.63), so `Dash → Move` blends in 0.08 s at offset 0; `Dash → Idle` takes 0.15 s.
 
 **Carrying does not change the locomotion state.** `isGrabbing` is still set by `PlayerGrab` and
 still exists as a parameter, but nothing in the graph reads it — a carrying player plays plain
