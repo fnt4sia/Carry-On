@@ -93,7 +93,7 @@ it is the build's `Level1`, so stage select's Level 1 island (`LevelConfig_Stage
 | `Functional/Baggage Loop` | out of the east door, north, two left turns, south into the west door, and `Sink In` behind it. Built on the old environment's U-loop footprint (legs 11.5 m apart, so the top connector overlaps each turn by 0.38 m) |
 | `Functional/Baggage Feed` | flat, out of the big door, ending where the art's slope began. Its six straights are 1.5× wider than stock (19 Oct 2026; deck 2.96 m) so bags ride off-centre, and the art's railings either side were moved out 0.70 m to match. The spawner drops bags up to 0.5 m either side of centre (`lateralSpread`). Bags pile on the floor with no pen. A `Luggage Drop Scatter` at the end throws each bag once as it leaves the belt, out onto the heap, so the belt rarely backs up ([luggage](../mechanics/luggage.md#the-pile)) |
 | `Baggage Feed/Spawner` | the only spawner; the loop's second one (which doubled the cap to 24) is gone |
-| `Gameplay Stations` | `Gate Cylinder` (a `DispatchGate`: booth, rolling door, trapdoor and the dispatch button on the entrance's right) and `Gate Manifest Signage` (its `Order Screen`), plus the void sink — see [delivery](../mechanics/delivery-and-scoring.md#dispatch-gates-level1) |
+| `Gameplay Stations` | `Gate Cylinder` (a `DispatchGate`: booth, sliding doors, floor hole and the dispatch button on the entrance's right) and `Gate Manifest Signage` (its `Order Screen`), plus the void sink — see [delivery](../mechanics/delivery-and-scoring.md#dispatch-gates-level1) |
 
 The environment's own belts, doors, curtain strips, booth and sign are removed from the `level1`
 instance as *removed-GameObject* overrides; revert them to get the art back.
@@ -132,8 +132,9 @@ before a build. See [services](../services/camera.md).
 
 Stage 1 pays per dispatched flight ([delivery](../mechanics/delivery-and-scoring.md#dispatch-gates-level1)):
 (10 per bag + 1 per second left) × combo. Its thresholds (90 / 180 / 300) assume about two, three
-and five good flights; they are a first guess that wants a playtest. So is the 20 s order timer: a
-pile-to-gate round trip is about 45 m each way, so a solo player needs ~10 s per bag.
+and five good flights; they are a first guess that wants a playtest. The order timer is 35 s
+(Fitra, 20 Oct 2026; it was 20 s): a pile-to-gate round trip is about 45 m each way, so a solo
+player needs ~10 s per bag. A longer timer also raises the time bonus, so re-check the stars.
 
 Stage 1 is unlocked by default and unlocks Stage 2. Stage 2's `nextLevel` is deliberately empty
 while Level3 is archived.
@@ -263,7 +264,7 @@ that swallows red, green or yellow luggage makes the level harder to read.
 - 1–4 real players spawn at distinct points;
 - pause and resume restore `Time.timeScale`;
 - each required station accepts a bag, processes it, and releases a grabbable result;
-- score and real per-player delivery counts update;
+- the team score and delivery count update;
 - results persist stars and unlock, and Continue returns to stage select.
 
 ## Level validator

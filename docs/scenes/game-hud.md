@@ -53,21 +53,27 @@ The card replaced the old `Visa` panel in September 2026. `Visa` and its deliver
 gone, and `Assets/UI/OldAsset/Visa.png` with them; the card reads **score**, not deliveries.
 
 ```text
-Stage End                       1000 × 880 at (0, 20)      the object that slides in
+Stage End                       1000 × 686 at (0, 20)      the object that slides in
 ├── Level Completed             TMP, top-left of the root
-├── Window                      PopupWindow, 1000 × 708 at (0, 42)
+├── Window                      PopupWindow, Sliced (×2 ppu), 1000 × 514 at (0, 42)
 │   ├── Departure Icon / Departure Title / Flight Label / Flight Code
-│   ├── Level Image             LevelImageFrame, 434 × 328 at (−214, 44)
+│   ├── Level Image             LevelImageFrame, 434 × 328 at (−214, −53)
 │   │   └── Preview             LevelConfig.previewImage; blank white when unset
 │   ├── Stage Tag               LevelInfoBar, rotated −8°, holds displayName
 │   ├── Score Label + Stars     GridLayoutGroup, 3 × (110 × 150)
 │   │   └── Star N/Empty/Filled gold star, switched on per earned tier
 │   ├── Score Row / Time Row    TimeScoreBar, 434 × 54, each with a CanvasGroup
-│   └── Players                 GridLayoutGroup, 2 cols, cell 434 × 70, spacing 24/17
-│       └── Player Row 1–4      PlayerScoreBar + CanvasGroup
+│   └── Players                 inactive leftover of the cut player rows — delete it
 ├── Approved                    stamp, rotated −12°, over the card's bottom-right corner
 └── Next                        button under the card, "CONTINUE", calls ContinueToStageSelect
 ```
+
+**No player rows** (20 Oct 2026, Fitra: "no need to show that kind of information"). The score is
+the team's only, so the card's bottom block of four player rows was cut. The window is 194 shorter,
+the content and CONTINUE / stamp moved to match. `PopupWindow.png` is a plain rounded rectangle, so
+it now has an 80 px border and the Image is **Sliced** at `pixelsPerUnitMultiplier` 2. That keeps
+the old ~36-unit corners at any height. Resize the window freely; don't go back to Simple, which
+squashes the corners.
 
 `Next` reuses `TimeScoreBar` so it reads as part of the card rather than as the old blue
 `Button.png`. Because the sprite is 844 × 110 and the button is 300 × 72, the Image is **Sliced**
@@ -78,25 +84,16 @@ darken it: idle sits at 0.72 grey and highlighted/selected return to full white.
 card's gold `(0.949, 0.761, 0.290)`.
 
 Level-derived text (`displayName`, `flightCode`, `previewImage`, round length, star thresholds)
-is filled in `SyncCurrentState` at `Start`. Only the score and the player rows are filled from
-`GameResult` when the round ends.
+is filled in `SyncCurrentState` at `Start`. Only the score is filled from `GameResult` when the
+round ends.
 
 The sequence: Time's Up scale-in → card slides down from `+Screen.height` → Score Row → Time Row
-→ one player row at a time → earned stars one at a time with `Sfx.Star` → `Sfx.Stamp` and the
-Approved stamp if at least one star → Next, selected for gamepad.
-
-**Rows fade, they don't pop.** `FillPlayerRows` switches on one row per joined player *before*
-the reveal starts and leaves each row's `CanvasGroup` at alpha 0. If reveal used `SetActive`
-instead, the `GridLayoutGroup` would re-centre the block on every row and the whole list would
-jump. Player count comes from `PlayerInput.all` (clamped to 1–4), and the name is the character
-prefab's own name with `(Clone)` stripped — Annie, Bun Jovi, Scannor.
+(each fades in on its `CanvasGroup`) → earned stars one at a time with `Sfx.Star` → `Sfx.Stamp` and
+the Approved stamp if at least one star → Next, selected for gamepad.
 
 Star tiers are **three**, matching `LevelConfig.CalculateStars`. Each `Star N` is an
 `EmptyStar(DarkVer)` with an inactive `StarCompleted` child; earning the tier switches the child
 on, so the swap stays a scene decision rather than two sprite fields on the script.
-
-The card is a fixed size, so a one-player round leaves the lower half of the window empty. That
-is deliberate — the window does not resize to the player count.
 
 To redesign the HUD, edit or variant `GameHUD.prefab`. Don't push its child references back onto
 `GameManager` or wire each level scene separately.

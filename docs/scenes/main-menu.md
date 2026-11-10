@@ -19,6 +19,9 @@ rebuild, along with the per-player `PlayerUI.prefab` cards.
 > this menu; it is gone from the scene and `DepartureBoard.prefab` is referenced by nothing. The
 > layout below is a portrait re-fit of the same design, not a new one.
 
+The scene's ambience — the `FullsetConveyor` hum, the PA on the `Menu Announcements` object, and
+the plane flybys on `AmbientTraffic`'s Planes group — is in [audio](../services/audio.md#where-each-sound-plays).
+
 ## The banner canvas
 Scene root **`MenuBanner`** — the second `StandingBanner` copy, **unpacked** from
 `StandingBanner.prefab` so its menu can't be wiped by a *Revert All* on a decoration prefab. The
@@ -46,14 +49,16 @@ The poster is **portrait**: `1.1755 × 1.6736` local, and the banner's own scale
 Whatever sits behind the text has to be opaque: the printed artwork underneath is a bright
 blue-and-teal poster, and even at alpha 0.94 it bled through badly enough to hurt the text.
 
-**Board screen (test since 6 Oct 2026, Fitra's ask).** The text now sits on a CRT screen: a quad,
-`MenuBanner/Screen`, the canvas's exact size (`1.175 × 1.674` banner-local), at `x −0.0915` —
-between the poster (`−0.089`) and the text (`−0.094`) — wearing `Material/World/Board Screen.mat`,
-the TV's `TVScreen` shader graph tuned darker (screen `(0.045, 0.16, 0.22)`, 64 scanlines) so the
-text keeps its contrast (≈7.5 : 1 measured). It's a mesh, not a UI `Image`, because the shader graph
-is an URP Unlit graph, not a Canvas one; the text and its mouse input stay on the canvas untouched.
-`Backdrop` — the old plain dark `(0.055, 0.075, 0.115)` Image, inset 25 px — is **switched off, not
-deleted**: to undo the test, turn `Backdrop` back on and `Screen` off.
+**Plain navy screen (20 Oct 2026, Fitra).** The text sits on `MenuCanvas/Backdrop`, a
+full-canvas `Image` in `#121633`, which the Global Volume grade renders as a deep navy `#19214E`.
+Pure black was tried first and read "too black, out of tone": the grade lifts it to `#0D0D1E`,
+darker than anything else in the shot. From 6 to 20 Oct it sat on a CRT test instead: the quad
+`MenuBanner/Screen` (canvas-sized, at banner-local `x −0.0915`, between poster and text) wearing
+`Material/World/Board Screen.mat`, the TV's `TVScreen` graph in teal with 64 scanlines. The teal
+wasn't in Level1's palette, and the scrolling bands made the join text's contrast swing between
+4.1 : 1 and 6.3 : 1 (measured through `Main Camera`); on the navy it holds ~8.5 : 1. `Screen` is
+**switched off, not deleted**, and `Board Screen.mat` is kept: to bring the CRT back, turn `Screen`
+on and `Backdrop` off.
 
 **Text weight follows importance** (6 Oct 2026). Post-processing greys white text — the Global
 Volume's blue colour filter and Neutral tonemapping turned the authored `#F0F5FF` into
@@ -66,7 +71,7 @@ re-measure before tuning text against them.
 | Text | Weight | Colour |
 |---|---|---|
 | destinations (`NEW GAME`, `SLOT 1`, `BACK`…) | bold, Board Bright | `#F0F5FF` |
-| join prompt | regular, keys bold via `<b>`, Board Bright | `#FFD638` |
+| join prompt | regular 100, keys bold via `<b>`, Board Bright | `#FFD638` |
 | panel titles | regular | `#FFD638` at 80 % |
 | flight codes, status | regular | `#DBB238` / `#B8CCEB` at 60 % |
 | column headers, settings placeholder | regular | `#859EC7` at 55 % |
@@ -81,13 +86,14 @@ separate: a brown bar `(0.455, 0.302, 0.125)` from the Button's `selectedColor` 
 
 The banner has two states, toggled by `MainMenuManager`. `Content/Title` is always on.
 
-- **Before anyone joins** — `Content/JoinPrompt` shows `Press Space / (A) to Join`, breathing
-  between alpha 0.55 and 1 on a 1.6 s cycle via a `CanvasGroup` + `UIPulse` (the floor was 0.3
-  until 6 Oct 2026 — too faint half the time). `UIPulse` runs on unscaled time so it keeps going
-  at `timeScale` 0.
+- **Before anyone joins** — `Content/JoinPrompt` shows `Press Space / (A) to Join` at 100 with
+  the keys bold (606 of the column's 1035 px), blinking between alpha 0.2 and 1 on a 1.2 s cycle
+  via a `CanvasGroup` + `UIPulse`. Until 20 Oct 2026 it was 78 at 0.55–1 over 1.6 s, and nobody
+  noticed it at game start. All-bold at 140 was tried the same day and read as too heavy, edge to
+  edge — leave it room. `UIPulse` runs on unscaled time so it keeps going at `timeScale` 0.
 - **After the first join** — `Content/MenuRoot` reveals the column headers and the four rows.
-  `JoinPrompt` and `MenuRoot` deliberately **share one rect** (`1330` tall at `y −234`): they are
-  two faces of the same slot, so moving one means moving the other.
+  The two no longer share a rect: `JoinPrompt` is centre-anchored, 1222.5 tall with its top at
+  `y +650`; `MenuRoot` is 1280 tall at `y −264`.
 
 There is **no join hint** — it was cut deliberately in August 2026, and `RefreshJoinHint` went
 with it. `PlayerSystem.FreeGamepadCount()` is now unused but kept; it is what a future hint would
@@ -104,8 +110,9 @@ all on the one canvas — opening a panel is only ever `SetActive` plus a camera
 | `Saves` | `SavesPanel` | leaned in |
 | `Settings` | `SettingsPanel` | leaned in |
 
-`SavesPanel` and `SettingsPanel` occupy **exactly the rect `MenuRoot` uses** (`1330` tall at
-`y −234`), so `Title` stays put across every view. Players can still join while a panel is open.
+`SavesPanel` and `SettingsPanel` share one rect (`1330` tall at `y −234`); `MenuRoot` sits just
+below it (`1280` at `y −264`), so `Title` stays put across every view. Players can still join
+while a panel is open.
 
 `CameraFocus` (on `Main Camera`) swings between the authored lobby pose and `MenuFocusPose`. The
 home pose is captured at `Awake`, never typed in twice; the close-up is the scene object, so

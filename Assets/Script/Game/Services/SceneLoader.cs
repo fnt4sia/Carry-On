@@ -21,6 +21,12 @@ public class SceneLoader : SingletonBehaviour<SceneLoader>
     [SerializeField] private SceneTransition transition;
     [SerializeField, Min(0f)] private float fadeDuration = 0.2f;
 
+    [Header("Music")]
+    [Tooltip("Seconds the music fades out over once a transition starts. The clouds cover the " +
+             "screen in 0.85 s and the plane is in by 1.5 s; the next scene's music only starts " +
+             "after the clouds part.")]
+    [SerializeField, Min(0f)] private float musicFadeOut = 1.5f;
+
     private bool isLoading;
 
     protected override bool PersistAcrossScenes => true;
@@ -85,6 +91,7 @@ public class SceneLoader : SingletonBehaviour<SceneLoader>
     private IEnumerator LoadRoutine(string sceneName)
     {
         isLoading = true;
+        AudioManager.Instance?.StopMusic(musicFadeOut);
         loadingCanvas.gameObject.SetActive(true);
         loadingCanvas.blocksRaycasts = true;
         loadingCanvas.interactable = true;

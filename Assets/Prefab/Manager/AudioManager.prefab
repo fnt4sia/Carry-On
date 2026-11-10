@@ -45,55 +45,158 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AudioManager
   audioClips:
+  - name: Menu Music
+    clip: {fileID: 8300000, guid: 190e2bc1d0da341b9afd8ff2fa3fe06a, type: 3}
+    volume: 0.27
+    minPitch: 1
+    maxPitch: 1
+  - name: Gameplay Music
+    clip: {fileID: 8300000, guid: e73a586d5d7b94b97b3ee12a3ae60cd3, type: 3}
+    volume: 1
+    minPitch: 1
+    maxPitch: 1
   - name: Button Select
-    clip: {fileID: 8300000, guid: b1d3aeb844aad694ebe7dd6cac332fe5, type: 3}
-  - name: Carry On Main Theme Mastered
-    clip: {fileID: 8300000, guid: 65cbb081ecffa4e058e285a6d71deed1, type: 3}
-  - name: Dash
-    clip: {fileID: 8300000, guid: 6a622f1c7d2c2b54387151b5e1c6815b, type: 3}
-  - name: groundLuggage Collision1
-    clip: {fileID: 8300000, guid: 7196d98575bde46e9a59bb7256016990, type: 3}
-  - name: groundLuggage Collision2
-    clip: {fileID: 8300000, guid: 31ebe379cba5a4b21a1ce852cef67ca4, type: 3}
-  - name: groundLuggage Collision3
-    clip: {fileID: 8300000, guid: 9b6d9318fbd3f4b889977b1fe8b314e3, type: 3}
-  - name: groundLuggage Collision4
-    clip: {fileID: 8300000, guid: 1ebf033ff9fd143f39f00b91ded76765, type: 3}
-  - name: Loopable Main Music
-    clip: {fileID: 8300000, guid: 1768896981d7e1c47a9a6a068b825c83, type: 3}
-  - name: Main Menu
-    clip: {fileID: 8300000, guid: 0f3637670f0201647abf77c5f368af6b, type: 3}
-  - name: Main Music
-    clip: {fileID: 8300000, guid: 950f4a9a7b74cf44383a82bdd61453b6, type: 3}
-  - name: Player Dash
-    clip: {fileID: 8300000, guid: 6fb11ac7c28824f6fabd67282a418f78, type: 3}
-  - name: Player Throw buildup
-    clip: {fileID: 8300000, guid: 0a26555827bc64d96a6c0df2a25565ad, type: 3}
-  - name: Player Throw full
-    clip: {fileID: 8300000, guid: 6a9e60dfbeec4492195d5231d2c2e291, type: 3}
-  - name: Player Throw throwonly
-    clip: {fileID: 8300000, guid: 0064dc68a51364f199eb83ba237c949f, type: 3}
-  - name: Score
-    clip: {fileID: 8300000, guid: dd35dc5fbeb23a840aa1625cd3964f42, type: 3}
+    clip: {fileID: 8300000, guid: e217921121a3d4ac298e6b2eb1c0c1f3, type: 3}
+    volume: 1
+    minPitch: 0.95
+    maxPitch: 1.05
+  - name: Player Join
+    clip: {fileID: 8300000, guid: 19c6ca3229455437299e118ef7ff143b, type: 3}
+    volume: 1
+    minPitch: 0.95
+    maxPitch: 1.05
   - name: Stamp
     clip: {fileID: 8300000, guid: 1b89a750f318ab244974bad80093aa17, type: 3}
+    volume: 1
+    minPitch: 1
+    maxPitch: 1
   - name: Star
     clip: {fileID: 8300000, guid: 1fa10d85f9263ee41a75aa84c46f6a8c, type: 3}
-  - name: Start
-    clip: {fileID: 8300000, guid: bb76e100d50d01b48827a6518c4c8d3c, type: 3}
-  - name: Step
-    clip: {fileID: 8300000, guid: 230173c35c08f5348a74a4a51b2ed510, type: 3}
-  - name: Time's Up
-    clip: {fileID: 8300000, guid: 3c2329b50777a7a4e90f542d57542cb1, type: 3}
-  - name: windowLuggage Collision1
-    clip: {fileID: 8300000, guid: 82024a9929ac948218f2e91bb002ab61, type: 3}
-  - name: windowLuggage Collision2
-    clip: {fileID: 8300000, guid: 69788a26ad9ae43f894cac1a3fc77ced, type: 3}
-  - name: windowLuggage Collision3
-    clip: {fileID: 8300000, guid: e3d4b83c1c4424e22839458c169927e4, type: 3}
+    volume: 1
+    minPitch: 1
+    maxPitch: 1
   - name: wrong
     clip: {fileID: 8300000, guid: 69e88705c80431c41b14d3e6f2620939, type: 3}
-  sfxSourceCount: 4
+    volume: 1
+    minPitch: 1
+    maxPitch: 1
+  - name: Start
+    clip: {fileID: 8300000, guid: bb76e100d50d01b48827a6518c4c8d3c, type: 3}
+    volume: 1
+    minPitch: 1
+    maxPitch: 1
+  - name: Time's Up
+    clip: {fileID: 8300000, guid: 3c2329b50777a7a4e90f542d57542cb1, type: 3}
+    volume: 1
+    minPitch: 1
+    maxPitch: 1
+  - name: Score
+    clip: {fileID: 8300000, guid: dd35dc5fbeb23a840aa1625cd3964f42, type: 3}
+    volume: 1
+    minPitch: 1
+    maxPitch: 1
+  - name: Player Dash
+    clip: {fileID: 8300000, guid: 6fb11ac7c28824f6fabd67282a418f78, type: 3}
+    volume: 1
+    minPitch: 1
+    maxPitch: 1
+  - name: Player Throw buildup
+    clip: {fileID: 8300000, guid: 0a26555827bc64d96a6c0df2a25565ad, type: 3}
+    volume: 1
+    minPitch: 1
+    maxPitch: 1
+  - name: Player Throw throwonly
+    clip: {fileID: 8300000, guid: 0064dc68a51364f199eb83ba237c949f, type: 3}
+    volume: 1
+    minPitch: 1
+    maxPitch: 1
+  - name: Footstep Annie
+    clip: {fileID: 8300000, guid: f11ab451c889f494e99f45f04a0220f7, type: 3}
+    volume: 0.38
+    minPitch: 0.9
+    maxPitch: 1
+  - name: Footstep Bun Jovi
+    clip: {fileID: 8300000, guid: 8b5a293cc56f74ac89801414bb076589, type: 3}
+    volume: 0.45
+    minPitch: 0.9
+    maxPitch: 1
+  - name: Footstep Scannor
+    clip: {fileID: 8300000, guid: 137f83a1441d541cb83aa5eb7ea2c2e3, type: 3}
+    volume: 1
+    minPitch: 0.9
+    maxPitch: 1
+  - name: Footstep ZipZub
+    clip: {fileID: 8300000, guid: b2d01651fa5b44043a2591cfeb15f12e, type: 3}
+    volume: 0.92
+    minPitch: 0.9
+    maxPitch: 1
+  - name: groundLuggage Collision1
+    clip: {fileID: 8300000, guid: 7196d98575bde46e9a59bb7256016990, type: 3}
+    volume: 1
+    minPitch: 1
+    maxPitch: 1
+  - name: groundLuggage Collision2
+    clip: {fileID: 8300000, guid: 31ebe379cba5a4b21a1ce852cef67ca4, type: 3}
+    volume: 1
+    minPitch: 1
+    maxPitch: 1
+  - name: groundLuggage Collision3
+    clip: {fileID: 8300000, guid: 9b6d9318fbd3f4b889977b1fe8b314e3, type: 3}
+    volume: 1
+    minPitch: 1
+    maxPitch: 1
+  - name: windowLuggage Collision1
+    clip: {fileID: 8300000, guid: 82024a9929ac948218f2e91bb002ab61, type: 3}
+    volume: 1
+    minPitch: 1
+    maxPitch: 1
+  - name: windowLuggage Collision2
+    clip: {fileID: 8300000, guid: 69788a26ad9ae43f894cac1a3fc77ced, type: 3}
+    volume: 1
+    minPitch: 1
+    maxPitch: 1
+  - name: windowLuggage Collision3
+    clip: {fileID: 8300000, guid: e3d4b83c1c4424e22839458c169927e4, type: 3}
+    volume: 1
+    minPitch: 1
+    maxPitch: 1
+  - name: Conveyor Hum
+    clip: {fileID: 8300000, guid: 29a877632d46f4adfaa9902719949ff8, type: 3}
+    volume: 0.5
+    minPitch: 1
+    maxPitch: 1
+  - name: Map Plane Idle
+    clip: {fileID: 8300000, guid: 3487d619113474cdc90b2be163ce7f6a, type: 3}
+    volume: 1
+    minPitch: 0.95
+    maxPitch: 1.05
+  - name: Sea Wind
+    clip: {fileID: 8300000, guid: 2c061c4252dd446abadd35cb46011b53, type: 3}
+    volume: 0.2
+    minPitch: 1
+    maxPitch: 1
+  - name: Announcement Bell
+    clip: {fileID: 8300000, guid: 51741aa17d8c94a08854b5a8e7a062a6, type: 3}
+    volume: 1
+    minPitch: 1
+    maxPitch: 1
+  - name: Announcement
+    clip: {fileID: 8300000, guid: c6361a6a430d04f47af5a1044c776f41, type: 3}
+    volume: 0.12
+    minPitch: 0.96
+    maxPitch: 1.04
+  - name: Announcement Bell End
+    clip: {fileID: 8300000, guid: c2a30e20c29964738887874ecfbf6c21, type: 3}
+    volume: 1
+    minPitch: 1
+    maxPitch: 1
+  - name: Plane Flyby
+    clip: {fileID: 8300000, guid: 15bb5de6937e741cc9c665b358a1ace0, type: 3}
+    volume: 0.5
+    minPitch: 1
+    maxPitch: 1
+  sfxSourceCount: 8
   musicFadeTime: 1
-  menuMusicClipName: Main Menu
-  gameplayMusicClipName: Carry On Main Theme Mastered
+  menuMusicClipName: Menu Music
+  gameplayMusicClipName: Gameplay Music
+  menuMusicSeamFade: 2

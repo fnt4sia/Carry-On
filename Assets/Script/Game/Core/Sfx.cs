@@ -10,6 +10,12 @@ public static class Sfx
     public const string Start = "Start";
     public const string TimesUp = "Time's Up";
     public const string ButtonSelect = "Button Select";
+    public const string PlayerJoin = "Player Join";
+
+    // Main-menu PA, played in this order by MenuAnnouncements.
+    public const string AnnouncementBell = "Announcement Bell";
+    public const string Announcement = "Announcement";
+    public const string AnnouncementBellEnd = "Announcement Bell End";
 
     public const string GroundLuggageCollision1 = "groundLuggage Collision1";
     public const string GroundLuggageCollision2 = "groundLuggage Collision2";

@@ -54,6 +54,11 @@ bubbles as a grey ghost figure. Each burst is tinted per player through a Materi
 resolves its owner lazily — before that fix every burst came out white. Returning to the lobby with
 players already joined replays the pop for each of them.
 
+**Rare idle.** A body whose controller has an `Idle Rare` state — only Annie so far — plays it
+`idleRareFirstDelay` (2 s) after joining, then every `idleRareInterval` (20–30 s, random per
+character), from `MainMenuManager.IdleRareLoop`; returning to the lobby starts it again. It can't
+leak into gameplay — see [animator](../mechanics/animator.md#rare-idle-lobby-only).
+
 **Player pin.** The `1P/2P` pin over each head is the `Player Indicator` child on the character
 prefab (`PlayerIndicator.cs`). Its height comes from the character's **renderer bounds, not the
 capsule** — all four bodies share one capsule that stops at the skull ([player](../mechanics/player.md#all-four-bodies-are-one-rig)),

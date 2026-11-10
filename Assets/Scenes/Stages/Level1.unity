@@ -4479,6 +4479,11 @@ PrefabInstance:
       propertyPath: m_LocalPosition.z
       value: -35.169994
       objectReference: {fileID: 0}
+    - target: {fileID: -2045257923548263128, guid: d11e94dc70f31417bb811e4ca8908016,
+        type: 3}
+      propertyPath: m_Name
+      value: TV
+      objectReference: {fileID: 0}
     - target: {fileID: -1613599358348918486, guid: d11e94dc70f31417bb811e4ca8908016,
         type: 3}
       propertyPath: m_LocalPosition.y
@@ -4556,6 +4561,11 @@ PrefabInstance:
       propertyPath: m_ConstrainProportionsScale
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 4418473098069316928, guid: d11e94dc70f31417bb811e4ca8908016,
+        type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 9.8
+      objectReference: {fileID: 0}
     - target: {fileID: 5056976267464210625, guid: d11e94dc70f31417bb811e4ca8908016,
         type: 3}
       propertyPath: m_LocalPosition.x
@@ -4570,6 +4580,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_LocalPosition.z
       value: -36.3
+      objectReference: {fileID: 0}
+    - target: {fileID: 8009987137999418058, guid: d11e94dc70f31417bb811e4ca8908016,
+        type: 3}
+      propertyPath: m_Name
+      value: SignageDecoration
       objectReference: {fileID: 0}
     - target: {fileID: 8604384513457979380, guid: d11e94dc70f31417bb811e4ca8908016,
         type: 3}
@@ -6847,10 +6862,120 @@ PrefabInstance:
       propertyPath: m_AnchorMin.y
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 2752650385888549640, guid: c5687ba7e2e894bd4be5679aa0c7fd68,
+        type: 3}
+      propertyPath: m_AnchorMax.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2752650385888549640, guid: c5687ba7e2e894bd4be5679aa0c7fd68,
+        type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2752650385888549640, guid: c5687ba7e2e894bd4be5679aa0c7fd68,
+        type: 3}
+      propertyPath: m_AnchorMin.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2752650385888549640, guid: c5687ba7e2e894bd4be5679aa0c7fd68,
+        type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3061866556915580821, guid: c5687ba7e2e894bd4be5679aa0c7fd68,
+        type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
     - target: {fileID: 4224633837227450097, guid: c5687ba7e2e894bd4be5679aa0c7fd68,
         type: 3}
       propertyPath: m_Name
       value: Gate Manifest Signage
+      objectReference: {fileID: 0}
+    - target: {fileID: 4301130127619715551, guid: c5687ba7e2e894bd4be5679aa0c7fd68,
+        type: 3}
+      propertyPath: m_AnchorMax.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4301130127619715551, guid: c5687ba7e2e894bd4be5679aa0c7fd68,
+        type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4301130127619715551, guid: c5687ba7e2e894bd4be5679aa0c7fd68,
+        type: 3}
+      propertyPath: m_AnchorMin.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4301130127619715551, guid: c5687ba7e2e894bd4be5679aa0c7fd68,
+        type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4545527591992913894, guid: c5687ba7e2e894bd4be5679aa0c7fd68,
+        type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 6331855230638763953, guid: c5687ba7e2e894bd4be5679aa0c7fd68,
+        type: 3}
+      propertyPath: m_AnchorMax.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6331855230638763953, guid: c5687ba7e2e894bd4be5679aa0c7fd68,
+        type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6331855230638763953, guid: c5687ba7e2e894bd4be5679aa0c7fd68,
+        type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6331855230638763953, guid: c5687ba7e2e894bd4be5679aa0c7fd68,
+        type: 3}
+      propertyPath: m_SizeDelta.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6331855230638763953, guid: c5687ba7e2e894bd4be5679aa0c7fd68,
+        type: 3}
+      propertyPath: m_SizeDelta.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6331855230638763953, guid: c5687ba7e2e894bd4be5679aa0c7fd68,
+        type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6331855230638763953, guid: c5687ba7e2e894bd4be5679aa0c7fd68,
+        type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6781204629650379951, guid: c5687ba7e2e894bd4be5679aa0c7fd68,
+        type: 3}
+      propertyPath: m_AnchorMax.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6781204629650379951, guid: c5687ba7e2e894bd4be5679aa0c7fd68,
+        type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6781204629650379951, guid: c5687ba7e2e894bd4be5679aa0c7fd68,
+        type: 3}
+      propertyPath: m_AnchorMin.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6781204629650379951, guid: c5687ba7e2e894bd4be5679aa0c7fd68,
+        type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7100609254505621014, guid: c5687ba7e2e894bd4be5679aa0c7fd68,
+        type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
       objectReference: {fileID: 0}
     - target: {fileID: 8187344362320600166, guid: c5687ba7e2e894bd4be5679aa0c7fd68,
         type: 3}

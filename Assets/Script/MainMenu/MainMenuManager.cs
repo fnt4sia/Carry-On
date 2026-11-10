@@ -25,6 +25,12 @@ public class MainMenuManager : MonoBehaviour
     [Tooltip("How far the join bubbles lean from their material colour toward the player's colour.")]
     [SerializeField, Range(0f, 1f)] private float joinBubbleTint = 0.5f;
 
+    [Header("Idle Rare")]
+    [Tooltip("Seconds after a character joins before it first plays its rare idle.")]
+    [SerializeField, Min(0f)] private float idleRareFirstDelay = 2f;
+    [Tooltip("Random wait between one rare idle and the next, min and max seconds.")]
+    [SerializeField] private Vector2 idleRareInterval = new(20f, 30f);
+
     [Header("Menu Banner")]
     [SerializeField] private GameObject joinPrompt;     // "Press ... to Join", shown before anyone joins
     [SerializeField] private GameObject menuRoot;       // columns + rows, shown after the first join
@@ -158,7 +164,29 @@ public class MainMenuManager : MonoBehaviour
 
         UpdatePositions();
         PlayJoinBubbles(player);
+        StartCoroutine(IdleRareLoop(player));
         RefreshTeamPanel();
+    }
+
+    // Lobby-only flourish: a while after joining, the character plays its rare idle, then again
+    // every idleRareInterval seconds. No transition in the animator leads into that state, so it
+    // can only ever start from here — gameplay never plays it. The loop dies with this scene.
+    // Bodies whose controller has no "Idle Rare" state are skipped.
+    private IEnumerator IdleRareLoop(PlayerInput player)
+    {
+        const float blendSeconds = 0.25f;
+        Animator animator = player.GetComponentInChildren<Animator>();
+
+        yield return new WaitForSeconds(idleRareFirstDelay);
+        if (animator == null || !animator.HasState(0, AnimId.IdleRare)) yield break;
+
+        while (animator != null)
+        {
+            if (animator.isActiveAndEnabled && !animator.IsInTransition(0))
+                animator.CrossFadeInFixedTime(AnimId.IdleRare, blendSeconds, 0);
+
+            yield return new WaitForSeconds(Random.Range(idleRareInterval.x, idleRareInterval.y));
+        }
     }
 
     // A joining character grows up out of a burst of bubbles on its slot. The burst is the

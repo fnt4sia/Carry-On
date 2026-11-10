@@ -10,7 +10,8 @@ the star total. The map's art — terrain, water, palette, island shallows, scen
 An Overcooked-style island map (Carstenz's 3D archipelago, which replaced the old flat map on
 30 Sep 2026). `MapController` spawns one `MapPlane` per joined player — up to four — and each
 player flies their own. Level nodes sit on the airport islands. There is **no Confirm press**:
-boarding together is the confirmation.
+boarding together is the confirmation. The map has no music, only ambience: each plane drones its
+own idle loop and the sea wind sits on `Environment/Water` ([audio](../services/audio.md#music)).
 
 ## Landing rings
 
@@ -73,7 +74,14 @@ measures 147 px at 64 in a 160 px box (the art leaves −771…−611 left of it
 column, leaving a gap after the `STATUS` label. Re-measure with `TMP_Text.GetPreferredValues` before
 lengthening a label. Nobody has finished the stage → both scores read `-`, not `0`.
 
-The preview frame stays blank white until a `LevelConfig.previewImage` is set — no level has one yet.
+**The picture window shows `LevelConfig.previewImage`**, stretched to fill it. `Preview` is
+913 × 453 card px (502 × 249 at 1080p) with Preserve Aspect off, so a 16:9 shot is squashed about
+12 % vertically rather than letterboxed. Stage 1 uses `UI/StageSelect/LevelScreenshot/Level1.png`
+(962 × 540, since 20 Oct 2026). That file is a Blender viewport capture: Blender's
+`(0) Collection | Cylinder.004` overlay text sits in its top-left 10 px, and the viewport grid lines
+show faintly. Re-export it with Overlays off to clean it up. A stage with no image leaves the
+window blank white (Stage 2 today). The same field feeds the stage-end card's `Level Image/Preview`
+(406 × 300, also stretched), so Stage 1's end card now shows the shot too.
 
 ## The ring is the stage's area
 
@@ -218,7 +226,7 @@ Badge             995 × 500 at scale 0.0147 → 14.6 × 7.4 m
   Panel           Node_Inner, 902 × 407
     Viewport      inset 20 → 862 × 367, RectMask2D
       Strip       the part that scrolls
-        Stars Row     3 × Star (224 × 211), Star 1 / StarEmpty, spacing 36
+        Stars Row     3 × Star (224 × 211), Star 1 / Star_NotFilled, spacing 36
         Players Row   one viewport-height lower: 4 × Slot nP (140 × 225), Player_filled / Player_Outline, spacing 46
 ```
 
@@ -244,9 +252,11 @@ be tinted — regenerate it if the outline art changes. Picked from three render
 "track" with a lavender fill and a faint-lavender version; gold on the full outline was the only one
 that read at map zoom.
 
-> **Empty stars barely show.** `StarEmpty` is `#2B245E` on `Node_Inner`'s `#00113A`: 1.33 : 1
-> contrast, against 8.97 : 1 for the filled `Star 1`. It's the art as specified; an empty star
-> drawn lighter (or with a light outline) would fix it.
+**Empty stars are `Star_NotFilled`** (20 Oct 2026, Fitra), a light lavender-grey (`#9C99B6` on
+average) at about 6.7 : 1 on `Node_Inner`'s `#00113A`. The old `StarEmpty` was `#2B245E`, at 1.33 : 1,
+and nearly vanished into the panel. It's set on `LevelNode.starEmptySprite` and on the three
+authored star Images in `Map Node.prefab`. The boarding pass still uses `StarEmpty` on purpose:
+its stars sit on light paper, where the dark star reads and the light one wouldn't.
 
 ## Star total
 Scene root `HUD` (Screen Space - Overlay, sort 10, CanvasScaler 1920×1080 match 0.5, no

@@ -8,11 +8,15 @@ which holds the view)
 validates the target against Build Settings, and runs an async transition:
 
 ```text
-show the Loading Screen canvas -> clouds cover, plane flies in and stops in the middle
+fade the music out (musicFadeOut, 1.5 s) -> show the Loading Screen canvas
+  -> clouds cover, plane flies in and stops in the middle
   -> LoadSceneAsync with activation held -> wait for 90%
   -> reset timeScale -> activate -> one frame under the cover
-  -> plane flies on, clouds part -> hide canvas
+  -> plane flies on, clouds part -> hide canvas (the lobby's music may start now)
 ```
+
+The next scene's music never starts under the clouds: `AudioManager` waits for `IsLoading` to clear
+([audio](audio.md#music)).
 
 Static helpers load the lobby and stage select through names centralised in `SceneNames`. Menu,
 map, HUD, and round buttons all delegate here — never add a direct synchronous

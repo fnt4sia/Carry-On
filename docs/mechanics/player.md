@@ -91,7 +91,11 @@ Every body so far shares one Rigify `DEF-` skeleton, so a new one is a copy job,
    Scale Factor **5**, Generic, No Avatar, the same clip list and loop flags as the others (the
    artist's take names can drift — ZipZub's jog take is `AN_2-jog_loop`, renamed to `AN_2-jog`
    on the importer). Materials copied from an existing body's (URP Lit + `_BaseMap`) into
-   `<Name>/Materials/` and remapped on the importer.
+   `<Name>/Materials/` and remapped on the importer. If the armature node isn't named `root`, add
+   its paths to `UpperBody.mask` too, or the throw layer moves nothing ([animator](animator.md#layers)).
+   Swapping a body's FBX in place: `PrefabUtility.ReplacePrefabAssetOfPrefabInstance` with
+   `ObjectMatchMode.ByName` keeps the `Animator` and every bone reference, but drops the `Model`
+   name — rename it back.
 2. Copy an existing controller to `Assets/Animation/<Name>/<Name>.controller` and swap the
    seven motions to the new FBX's clips — the graph stays identical.
 3. Copy an existing character prefab, replace the `Model` child with the new FBX (identity
@@ -206,7 +210,7 @@ horizontal velocity and caps the upward speed at 1 m/s. Falling is untouched, an
 still lift the body one step at a time, so ramps and low platforms still work.
 
 **Dash** multiplies normal speed for `dashDuration` and stays steerable; the slide clip runs a little
-longer (`dashClipDuration`, see [Animator](#animator)). Duration and cooldown use scaled gameplay
+longer (`dashClipDuration`, see [animator](animator.md#the-dash-clip)). Duration and cooldown use scaled gameplay
 time, so pause freezes them.
 
 **Bubble VFX** uses a per-player object pool. Each bubble moves, shrinks, and fades through a
@@ -343,64 +347,5 @@ way the elbows fold. On a body whose arms genuinely reach, the clamp never engag
 land on the grip exactly.
 
 ## Animator
-
-**Controllers:** `Assets/Animation/{Annie/Annie, Bun Jovi/Bun Jovi, Scannor/Scannor,
-ZipZub/ZipZub}.controller` — four copies of the same graph, each pointing at its own FBX's clips
-(clips named `AN_1-idle-Loop`, `AN_2-jog`, `AN_4-throw_Enter`, `AN_5-throw-Loop`,
-`AN_6-throw-End`, `AN_7-throw-loop-jog`, `AN_8-dash`, with loop flags set on the importer).
-Annie's spare `AN_3-jog-Stop` and the others' `AN_1-idle-RARE` are imported but unused (the rare
-idle is reserved for later). Parameters `isMoving`, `isDashing`, `isGrabbing`, `isThrowing` (bool)
-and `dashProgress` (float), all hashed once in `AnimId`. A graph change must be made four times —
-or made once and re-copied with motions swapped.
-
-**Scannor's clips run slower.** Every FBX keys the same frame counts, but Scannor was exported at
-**24 fps** while Annie, Bun Jovi and ZipZub are **30 fps**, so Scannor's idle is 4.25 s against
-3.40 s and every state of his plays at 0.8× the others' speed. The poses are identical at the
-same normalized time — only the timing differs.
-
-Two layers since 19 Oct 2026. The legs always come from the **Base Layer**; the throw lives in
-**Upper Body**, an override layer masked by `Assets/Animation/UpperBody.mask` (one mask for all
-four: they share the Rigify bone paths). The mask covers `DEF-spine.001` and everything under it;
-the pelvis (`DEF-spine`) and the legs stay with the base. Before the split, the throw states were on
-the base layer, and their wind-up and release clips stood the legs still for about a second of
-every throw, even mid-run.
-
-```text
-Base Layer                       Upper Body (UpperBody.mask)
-Idle ⇄ Move     isMoving         Empty (default, no motion, write defaults off)
-AnyState → Dash isDashing        Empty → Throw Start              isThrowing
-Dash → Idle/Move !isDashing,     Throw Start → Loop Idle/Walk     after one cycle, split on isMoving
-                 split on        Loop Idle ⇄ Loop Walk            isMoving
-                 isMoving        Loop */Throw Start → Throw End   !isThrowing
-                                 Throw End → Empty                exit time 0.8
-                                 Throw End → Throw Start          isThrowing (instant re-charge)
-```
-
-Every Upper Body state has write defaults off (with it on, `Empty` snaps the arms to the bind pose).
-But such a layer **keeps writing the last pose it played**: after the first throw the arms stayed
-frozen in the follow-through (63° off idle), even through later carries and drops. So
-`PlayerGrab.UpdateUpperBodyWeight` fades the layer to 0 over 0.15 s whenever it sits in `Empty`, and
-back to 1 when it leaves; `Empty → Throw Start` is instant so the stale pose never blends back in.
-
-**The dash clip is played by `PlayerMovement`, not by its own clock.** The `Dash` state's *Motion
-Time* is `dashProgress`, which `DashCoroutine` runs from 0 to 1 over `dashClipDuration` (0.25 s).
-The speed boost lasts only `dashDuration` (0.15 s); the clip runs on through the slowdown after it
-(at 0.15 s it played at 1.8× and looked twitchy). `isDashing` spans the whole clip. The `AN_8-dash`
-take is trimmed to **frames 2–10** on every character's animation FBX: the dip, the lunge (peak at
-frame 7) and the landing. Frames 13–25 were a dead standing pose that stood the character upright
-between the lunge and the jog. Frame 10 matches jog frame 0 (left foot leading by 1.58 vs 1.56,
-pelvis 1.65 vs 1.63), so `Dash → Move` blends in 0.08 s at offset 0; `Dash → Idle` takes 0.15 s.
-
-**Carrying does not change the locomotion state.** `isGrabbing` is still set by `PlayerGrab` and
-still exists as a parameter, but nothing in the graph reads it — a carrying player plays plain
-Idle/Walk, and the held bag is sold by the joint, not by a separate pose. The graph previously
-had `Annie Idle Luggage` and `Annie Move Luggage` states that pointed at the *same clips* as
-plain Idle/Move, gated on `isGrabbing`; they were duplicates and were removed on 2026-07-26.
-
-`isThrowing` is true only while the Grab button has been held **past `throwMinHoldTime`** with a
-bag in hand — that is the throw charge. A shorter tap never sets it. `PlayerGrab` is the only
-writer.
-
-`throwTorsoWeight` on `PlayerHandIK` lets the wind-up show through the spine while charging,
-since the wind-up lives almost entirely in the torso. It only matters if the torso assist is
-enabled; on Annie `spineStabilize` and `carryLean` are zeroed, so it has no visible effect.
+The graph — its two layers and mask, the dash clip, and the lobby-only rare idle — is in
+[animator](animator.md).

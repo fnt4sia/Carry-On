@@ -835,6 +835,7 @@ PlayerSettings:
   scriptingDefineSymbols:
     Standalone: SENTIS_ANALYTICS_ENABLED;APP_UI_EDITOR_ONLY
     WebGL: APP_UI_EDITOR_ONLY;SENTIS_ANALYTICS_ENABLED
+    iPhone: SENTIS_ANALYTICS_ENABLED;APP_UI_EDITOR_ONLY
   additionalCompilerArguments: {}
   platformArchitecture: {}
   scriptingBackend: {}

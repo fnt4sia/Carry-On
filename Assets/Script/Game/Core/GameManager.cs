@@ -46,7 +46,7 @@ public class GameManager : SingletonBehaviour<GameManager>
         if (LevelContext.TryGetConfig(out LevelConfig sceneConfig))
             levelConfig = sceneConfig;
 
-        scoreBoard = new ScoreBoard(4);
+        scoreBoard = new ScoreBoard();
         scoreBoard.ScoreChanged += value => ScoreChanged?.Invoke(value);
         scoreBoard.ScoreApplied += OnScoreApplied;
         RoundScoreContext.Bind(scoreBoard);
@@ -202,15 +202,13 @@ public class GameManager : SingletonBehaviour<GameManager>
             levelConfig.levelId,
             scoreBoard.Score,
             scoreBoard.DeliveryCount,
-            scoreBoard.CopyPlayerScores(),
-            scoreBoard.CopyPlayerDeliveries(),
             levelConfig.CalculateStars(scoreBoard.Score));
 
         ProgressionService.Instance?.RecordResult(levelConfig, result);
         RoundEnded?.Invoke(result);
     }
 
-    private static void OnScoreApplied(int scoreDelta, int _)
+    private static void OnScoreApplied(int scoreDelta)
     {
         if (scoreDelta > 0)
             AudioManager.Instance?.PlaySFX(Sfx.Score);

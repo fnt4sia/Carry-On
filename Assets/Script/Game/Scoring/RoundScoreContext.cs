@@ -19,7 +19,7 @@ public static class RoundScoreContext
             Active = null;
     }
 
-    public static bool TryRecordDelivery(int playerIndex, int scoreDelta)
+    public static bool TryRecordDelivery(int scoreDelta)
     {
         if (Active == null)
         {
@@ -27,12 +27,12 @@ public static class RoundScoreContext
             return false;
         }
 
-        Active.RecordDelivery(playerIndex, scoreDelta);
+        Active.RecordDelivery(scoreDelta);
         return true;
     }
 
     // Score that isn't a bag — a dispatch gate's time bonus, say. Counts no delivery.
-    public static bool TryApplyScore(int playerIndex, int scoreDelta)
+    public static bool TryApplyScore(int scoreDelta)
     {
         if (Active == null)
         {
@@ -40,7 +40,7 @@ public static class RoundScoreContext
             return false;
         }
 
-        Active.ApplyScore(scoreDelta, playerIndex);
+        Active.ApplyScore(scoreDelta);
         return true;
     }
 }

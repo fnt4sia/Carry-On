@@ -24,7 +24,7 @@ MonoBehaviour:
   originName: JAKARTA
   destinationCode: DPS
   destinationName: BALI
-  previewImage: {fileID: 0}
+  previewImage: {fileID: 21300000, guid: 7329a1e7e232f4acdb21b2994cbd4136, type: 3}
   gameTime: 120
   star1Score: 90
   star2Score: 180
@@ -36,7 +36,7 @@ MonoBehaviour:
   spawnInterval: 2.5
   maxActiveLuggage: 20
   scoreCorrectDelivery: 10
-  orderTime: 20
+  orderTime: 35
   coinsPerSecondLeft: 1
   comboMultipliers:
   - 1

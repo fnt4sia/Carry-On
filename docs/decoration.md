@@ -4,7 +4,7 @@
 `Game/Core/AmbientAirplaneSpawner.cs`
 
 Animated scene dressing: planes on the apron, swaying palms, scrolling signs, the logo TV, drifting
-clouds, window dust and traffic. None of it touches gameplay; most of it dresses the MainMenu
+clouds and traffic. None of it touches gameplay; most of it dresses the MainMenu
 terminal ([main menu](scenes/main-menu.md)). The moving escalator has its own page ([escalator](escalator.md)).
 
 ## Ambient airplanes
@@ -155,13 +155,13 @@ the tickers, pale steel `(0.58, 0.67, 0.76)` for the plaques. Same reasoning as 
 bronze — the signs should sit in the environment, not glare out of it.
 
 ### Logo TV
-**Prefab:** `Assets/Prefab/Decoration/LogoTV.prefab` · **Materials:** `Material/World/{TV Casing, TV Screen Plain}.mat`
+**Prefab:** `Assets/Prefab/Decoration/LogoTV.prefab` · **Materials:** `Material/World/{TV Casing, TV Screen}.mat`
 
-> **6 Oct 2026 test (Fitra's ask):** the CRT screen shader below moved to the menu banner
-> (`Board Screen.mat` on `MenuBanner/Screen`, see [ui](scenes/main-menu.md#the-banner-canvas)) and the TV's
-> `Screen` now wears `TV Screen Plain` — URP Unlit, flat `(0.09, 0.35, 0.46)`, no scanlines — so the
-> logo reads cleaner. `TV Screen.mat` is untouched and unused: putting the effect back on the TV is
-> one material swap on the prefab's `Screen`.
+> **20 Oct 2026 (Fitra: the teal "doesn't fit"):** the CRT shader is back on the TV — `Screen`
+> wears `TV Screen.mat` again, recoloured from teal to dark indigo `#1A0E36`, which the Global
+> Volume grade lifts to `#354493` on screen (Level1's blue family). Between 6 and 20 Oct it wore
+> `TV Screen Plain` (URP Unlit, flat teal), now unused and kept. Judge this colour through
+> `Main Camera`: a capture camera without the grade shows it far more purple.
 
 In `MainMenu` this replaced the `WallSignage` on the pillar above the menu banner (September 2026 —
 the `WallSignage` prefab is kept). It is built from primitives, no FBX: all sizes are world units at
@@ -172,7 +172,7 @@ LogoTV                     root at (−64.95, 11.59, 92.85), identity rotation
 ├── Body                   Cube 8.6 × 5.0 × 0.35, TV Casing
 ├── Bezel/Top,Bottom,Left,Right   0.3-wide bars, 0.08 proud of the front — the outline pass
 │                          catches that step, which is what makes the screen read as recessed
-├── Screen                 Quad 8.0 × 4.4, TV Screen Plain (was TV Screen, the unlit CRT, until 6 Oct 2026)
+├── Screen                 Quad 8.0 × 4.4, TV Screen (the unlit CRT; TV Screen Plain 6–20 Oct 2026)
 ├── ScreenCanvas           World Space, 8000 × 4400 at scale 0.001, 0.015 in front of Screen,
 │   │                      CanvasGroup + SignFlicker (same values as WallSignage), layer UI, no raycaster
 │   └── Logo               CarryOnLogo sprite, preserveAspect, anchors 0.1–0.9 × 0.12–0.88
@@ -194,9 +194,9 @@ that if it moves.
 
 #### The screen shader
 `Assets/Shader/TVScreen.shadergraph` (URP **Unlit**, opaque) makes a quad read as a powered CRT
-instead of a black rectangle. It now runs on the menu banner (`Board Screen.mat`: screen colour
-`(0.045, 0.16, 0.22)`, dark colour `(0.008, 0.01, 0.018)`, 64 scanlines for the taller board); the
-values below are the TV's original `TV Screen.mat`. It uses the quad's own UV0 — a Unity primitive, so unlike the airport
+instead of a black rectangle. It runs on the TV (`TV Screen.mat`, the values below). The menu
+banner wore it from 6 to 20 Oct 2026 (`Board Screen.mat`: teal `(0.045, 0.16, 0.22)`, 64 scanlines)
+and is plain black now; that material is kept. It uses the quad's own UV0 — a Unity primitive, so unlike the airport
 meshes its UVs are a clean `0…1` and no world-space trick is needed. Three terms, all on `uv.y`:
 
 ```text
@@ -208,7 +208,7 @@ vign  = 1 − length(uv − 0.5) · Vignette
 
 | Property | Value | Does |
 |---|---|---|
-| `Screen Colour` | HDR `(0.09, 0.35, 0.46)` | the lit tone; cool so the cream logo still reads warm against it |
+| `Screen Colour` | HDR `#1A0E36` (teal `(0.09, 0.35, 0.46)` until 20 Oct 2026) | the lit tone; dark so the logo's blue cloud, white letters and orange case all read against it |
 | `Dark Colour` | `(0.012, 0.012, 0.02)` | what the screen falls to between scanlines — the old flat colour |
 | `Scanline Count` / `Speed` / `Strength` | `48` / `−0.06` / `0.5` | band count over the quad, drift, how dark the gaps go |
 | `Sweep Speed` / `Sharpness` / `Strength` | `0.15` / `6` / `0.35` | the slow refresh bar crawling up the screen |
@@ -264,13 +264,9 @@ squash puff local Z for flatter far clouds — local Z is world-up at the `(270,
 rotation.
 
 ## Window dust
-**Scene object:** `MainMenu` → `MenuEnvironment/Interior/WindowDust` (a plain `ParticleSystem`, no script)
-
-Sunlit specks drifting just inside the glass facade, kept deliberately faint. Mesh particles on the
-`Cloud.001` bubble mesh with `Bubble Colour`, so they are lit by the sun like everything else and
-need no texture. A 17 × 16 × 70 box centred at `(−29.5, 6, 105)`, 7/s, 10–16 s lives, size
-1.2–2.4 (≈0.15–0.3 u), slow noise drift, prewarmed so the menu opens with dust already up. Against
-the bright window sky they read as snow if they get bigger or denser than this.
+**Removed.** `MenuEnvironment/Interior/WindowDust` (a plain `ParticleSystem` of faint sunlit specks
+inside the glass facade) was deleted from `MainMenu` in commit `2c3e56f` (19 Oct 2026). Nothing
+else used it.
 
 ## Ambient traffic
 **Script:** `Game/World/AmbientTrafficSpawner.cs` · **Prefab:** `Prefab/Environment/AmbientTraffic` ·

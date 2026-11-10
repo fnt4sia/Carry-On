@@ -753,7 +753,7 @@ public class PlayerGrab : MonoBehaviour
 
         if (button == null) return false;
 
-        button.Press(GetPlayerIndex());
+        button.Press();
         return true;
     }
 

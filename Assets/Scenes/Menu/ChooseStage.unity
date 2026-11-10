@@ -9177,6 +9177,7 @@ GameObject:
   - component: {fileID: 1895644019}
   - component: {fileID: 1895644018}
   - component: {fileID: 1895644021}
+  - component: {fileID: 1895644022}
   m_Layer: 0
   m_Name: Water
   m_TagString: Untagged
@@ -9269,6 +9270,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WaterSeabed
   seabed: {fileID: 1214006362}
+--- !u!114 &1895644022
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1895644016}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8f22ff6078372437ba6bd3cecff3278d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LoopingSound
+  sound: Sea Wind
+  fade: 1
 --- !u!1001 &1953463637
 PrefabInstance:
   m_ObjectHideFlags: 0

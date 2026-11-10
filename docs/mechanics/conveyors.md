@@ -147,6 +147,16 @@ exactly the straight's cross-section, so wherever a straight overlaps a turn the
 coplanar and the two belts' stripes z-fight. One centimetre lower lets the straight win every
 overlap; the old turn sat 1 cm low too, so luggage already rode that step.
 
+**A seam may step down or stay flush along the direction of travel, never up.** The deck is
+frictionless and a bag is a flat-bottomed box, so a lip taller than PhysX's 1 cm contact offset
+stops it dead. The belt keeps pushing it into the lip, and every bag behind it queues. In
+MainMenu's `FullsetConveyor`, the two turns and the top connector sat at local y +0.03 / +0.02
+while the legs sat at 0. That made a 2 cm step **up** where the left leg meets the first turn. On
+20 Oct 2026 a Play-mode probe saw every bag jam there and none reach the sink in 80 s. Raising the
+left leg's ten straights to +0.03 (1 cm above the turn, as above) cleared it: 0 stuck and 21 sink
+arrivals in 60 s. The standard layout's step up at a turn's exit stopped no bag in Level1's
+probe, where it is 0.6 cm (scale 0.6). A full 1 cm one is untested.
+
 **Pieces mate flush, not overlapped.** A layout built around the old turn has a ~0.3–0.4 m gap at
 the A port wherever it used to overlap by less than 0.6 m. On 15 Oct 2026 the U-ends of the Main
 Baggage Loop and of MainMenu's `FullsetConveyor` were slid 0.3–0.4 m to close theirs (each turn
@@ -157,6 +167,9 @@ pair moves with the connector between them; the other turn's B overlap grows ins
 - The deck needs `Assets/Material/Physics/BeltSurface.physicMaterial`.
 - The trigger volume enrols luggage; the solid deck is what the surface ray finds. Both must be
   descendants of the conveyor root.
+- Check a route's seams with a height profile along its travel line (a ray down every 0.3 m):
+  no step may go up. A piece's transform height isn't its deck height, because the turn's
+  `Model` sits 1 cm low.
 - Mating pieces need compatible **uniform** scale and the same deck height. A non-uniform scale
   changes deck height and breaks the seam. The one exception: a straight may be widened along its
   own X, since its height and length (what mates) stay the same. Level1's feed is 1.5× wide.
@@ -187,5 +200,14 @@ manual QA.
   the next swap has to as well, or they should be replaced with real instances first.
 - `FullsetConveyor.prefab` (used only by the archived `DesignScene` and `Tutorial`) got the new
   turn but not the re-layout, so its A-port seams may gap.
+- **Level1's loop is too narrow for a turned bag.** At scale 0.6 its rails are 1.97 m apart. An
+  upright bag's 1.74 × 0.99 m footprint is wider than that between about 50° and 71° to the
+  belt (2.00 m at worst). Since 19 Oct straights no longer face bags along the belt. So a bag that
+  lands on the loop at such an angle, or is swung through one by a turn, wedges between the rails
+  and backs the loop up. The 20 Oct probe caught it at the `Out Belt 7` → `Turn North` seam and on
+  `In Belt 1`, and the jam then pushed bags over the rail onto the floor. Only players put bags on
+  this loop (the gate's trapdoor drops into the void sink). **Not fixed yet.** The feed is 1.5×
+  wide and doesn't have this problem. MainMenu's belts are at scale 1, about 3.3 m between rails, so
+  they can't wedge.
 - The new straight mesh is the old `Conveyor08` from `AirportBuildingTrial03.fbx`, re-exported —
   same size, same deck height, same palette texels — so straight-only layouts needed no changes.

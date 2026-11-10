@@ -177,7 +177,11 @@ public class PlayerSystem : SingletonBehaviour<PlayerSystem>
     {
         if (characterPrefabs != null && characterPrefabs.Length > 0)
             manager.playerPrefab = characterPrefabs[PlayerInput.all.Count % characterPrefabs.Length];
-        return manager.JoinPlayer(-1, -1, scheme, device);
+
+        PlayerInput player = manager.JoinPlayer(-1, -1, scheme, device);
+        if (player != null)
+            AudioManager.Instance?.PlaySFX(Sfx.PlayerJoin);
+        return player;
     }
 
     // A keyboard half is free while no player uses that scheme (the keyboard device

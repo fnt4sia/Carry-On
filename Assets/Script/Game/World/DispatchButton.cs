@@ -3,15 +3,16 @@ using UnityEngine;
 
 // The big button beside a dispatch gate. PlayerGrab presses it when an empty-handed player hits
 // Grab (E) within reach, the same way it works a machine, so it only needs a collider to be found.
-// The cap is lit green while the booth holds exactly what the order wants and amber otherwise; it
-// can be pressed either way, and it goes dark while a flight is being dispatched.
+// The cap is lit green while the booth holds every bag the order wants and red (the model's own
+// colour) otherwise; it can be pressed either way. It goes dark before the first order and while a
+// flight is dispatched.
 public class DispatchButton : MonoBehaviour
 {
     [SerializeField] private DispatchGate gate;
     [Tooltip("The part that lights up and sinks when pressed.")]
     [SerializeField] private Renderer cap;
     [SerializeField] private Color readyColor = new(0.24f, 0.86f, 0.42f);
-    [SerializeField] private Color waitingColor = new(1f, 0.6f, 0.12f);
+    [SerializeField] private Color waitingColor = new(0.87f, 0.035f, 0f);
     [SerializeField] private Color busyColor = new(0.35f, 0.35f, 0.4f);
     [Tooltip("How far the cap sinks on a press, in its parent's units.")]
     [SerializeField, Min(0f)] private float pressDepth = 0.08f;
@@ -33,7 +34,7 @@ public class DispatchButton : MonoBehaviour
     {
         if (cap == null || gate == null) return;
 
-        Color target = gate.CurrentPhase == DispatchGate.Phase.Dispatching ? busyColor
+        Color target = gate.CurrentPhase != DispatchGate.Phase.Loading ? busyColor
                      : gate.IsReady ? readyColor
                      : waitingColor;
         if (target == shown) return;
@@ -45,11 +46,11 @@ public class DispatchButton : MonoBehaviour
         cap.SetPropertyBlock(block);
     }
 
-    public void Press(int playerIndex)
+    public void Press()
     {
         if (gate == null || gate.CurrentPhase != DispatchGate.Phase.Loading) return;
 
-        gate.Press(playerIndex);
+        gate.Press();
         if (cap != null) StartCoroutine(Sink());
     }
 

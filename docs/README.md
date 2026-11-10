@@ -27,7 +27,8 @@ appending.
 
 | Doc | Covers |
 |---|---|
-| [Player](mechanics/player.md) | joining, spawning, movement, dash, grab / carry / throw, hand IK, the Annie animator |
+| [Player](mechanics/player.md) | joining, spawning, movement, dash, grab / carry / throw, hand IK |
+| [Animator](mechanics/animator.md) | the character graph: clips per body, base and upper-body layers, the mask, the dash clip, the lobby-only rare idle |
 | [Luggage](mechanics/luggage.md) | colour, wrapping, spawn pacing, pooling, the pile, what was removed |
 | [Conveyors](mechanics/conveyors.md) | belt steering, straight and turn pieces, seam rules, the two-collider design, the belt shader |
 | [Stations](mechanics/stations.md) | wrapper lifecycle, manual crank, placement, output clearance |
@@ -48,7 +49,7 @@ appending.
 | Doc | Covers |
 |---|---|
 | [Look and rendering](look.md) | post-processing, sun, palette, fonts, the WorldUI layer, overlay vs world space |
-| [Decoration](decoration.md) | ambient planes, wind sway, signs, the logo TV, clouds, window dust, traffic |
+| [Decoration](decoration.md) | ambient planes, wind sway, signs, the logo TV, clouds, traffic |
 | [Escalator](escalator.md) | the moving-step escalator: frame / steps mesh split, the step-path shader, tuning |
 | [Workflow](workflow.md) | merging Carstenz's pushes, layout history, git hygiene |
 

@@ -54,13 +54,31 @@ public class AmbientTrafficSpawner : MonoBehaviour
         [Min(1), Tooltip("How many of this group may be travelling at once.")]
         public int maxConcurrent = 2;
 
+        [Header("Pass Sound")]
+        [Tooltip("AudioManager row heard as one of this group passes the camera. Empty = silent.")]
+        public string passSound;
+        [Min(0f), Tooltip("Seconds into the clip where it is loudest. The clip is started so this " +
+            "moment lands as the vehicle passes closest to the camera.")]
+        public float passSoundPeak = 5.9f;
+        [Min(1f), Tooltip("A pass that never comes closer to the camera than this is not heard; " +
+            "the closer a pass comes, the louder it is.")]
+        public float passSoundRange = 600f;
+
         [System.NonSerialized] public int travelling;
     }
+
+    // A pass sound eases in when it has to start partway through its clip, and swings this far
+    // across the stereo field as the vehicle crosses the view.
+    private const float PassFadeIn = 0.3f;
+    private const float PassPan = 0.7f;
+    // Silent this long before the clip's own end, which is cut off, not faded.
+    private const float PassTailCut = 0.2f;
 
     [SerializeField] private TrafficGroup[] groups;
 
     // One idle stack per prefab, so a bus is never reused as a plane.
     private readonly Dictionary<GameObject, Stack<GameObject>> idle = new();
+    private readonly List<AudioSource> passSounds = new();
 
     private void Start()
     {
@@ -76,6 +94,13 @@ public class AmbientTrafficSpawner : MonoBehaviour
 
         foreach (TrafficGroup group in groups)
             group.travelling = 0;
+
+        // The timing coroutines die with the scene, but the sound would play on to its cut-off
+        // end at whatever volume it had, so fade it instead.
+        if (AudioManager.Instance != null)
+            foreach (AudioSource source in passSounds)
+                AudioManager.Instance.StopSFX(source, 0.5f);
+        passSounds.Clear();
     }
 
     private IEnumerator Run(TrafficGroup group)
@@ -128,6 +153,9 @@ public class AmbientTrafficSpawner : MonoBehaviour
         instance.SetActive(true);
 
         float speed = Random.Range(group.speedRange.x, group.speedRange.y);
+        if (!string.IsNullOrEmpty(group.passSound))
+            StartCoroutine(PassSound(group, instance.transform, from.position, to.position, speed));
+
         while (instance.transform.position != to.position)
         {
             instance.transform.position = Vector3.MoveTowards(
@@ -137,6 +165,55 @@ public class AmbientTrafficSpawner : MonoBehaviour
 
         Release(vehicle.prefab, instance);
         group.travelling--;
+    }
+
+    // Times one trip's sound to the trip. The clip's loudest moment is lined up with the moment
+    // the vehicle passes closest to the camera, and from there it fades to nothing just before
+    // the clip ends, so its cut-off last frame is never heard. The closer the pass, the louder;
+    // a pass that stays beyond passSoundRange makes no sound at all.
+    private IEnumerator PassSound(TrafficGroup group, Transform vehicle, Vector3 from, Vector3 to, float speed)
+    {
+        Camera cam = Camera.main;
+        AudioManager audio = AudioManager.Instance;
+        if (cam == null || audio == null || speed <= 0f)
+            yield break;
+
+        Vector3 ear = cam.transform.position;
+        Vector3 path = to - from;
+        float along = Mathf.Clamp(Vector3.Dot(ear - from, path.normalized), 0f, path.magnitude);
+        float closest = Vector3.Distance(ear, from + path.normalized * along);
+        if (closest >= group.passSoundRange)
+            yield break;
+
+        // Seconds from now until the peak should start; negative means start partway in.
+        float lead = along / speed - group.passSoundPeak;
+        if (lead > 0f)
+            yield return new WaitForSeconds(lead);
+
+        AudioSource source = audio.PlayDedicatedSFX(group.passSound, 0f);
+        if (source == null)
+            yield break;
+
+        float end = source.clip.length - PassTailCut;
+        float start = lead < 0f ? Mathf.Min(-lead, end) : 0f;
+        source.time = start;
+        float loudness = 1f - closest / group.passSoundRange;
+        passSounds.Add(source);
+
+        while (source != null && source.isPlaying)
+        {
+            float t = source.time;
+            float easeIn = Mathf.Clamp01((t - start) / PassFadeIn);
+            float tail = Mathf.Clamp01((end - t) / Mathf.Max(0.01f, end - group.passSoundPeak));
+            audio.SetSFXVolume(source, loudness * easeIn * tail);
+
+            if (vehicle.gameObject.activeInHierarchy)
+                source.panStereo = PassPan * Vector3.Dot((vehicle.position - ear).normalized, cam.transform.right);
+
+            yield return null;
+        }
+
+        passSounds.Remove(source);
     }
 
     // Empty inspector slots are skipped throughout, so a half-filled array still works.

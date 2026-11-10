@@ -6,7 +6,7 @@ using UnityEngine.UI;
 // The dispatch gate's order board, drawn like a departures screen: one slot per colour the flight
 // wants (a bag icon over "in booth/needed"), the combo, and a timer bar along the bottom that drains
 // from right to left. While a flight is dispatched it shows the verdict instead: the APPROVED stamp
-// and the coins, or MISSED.
+// and the coins, or MISSED. It stays blank until the gate opens on its first order.
 //
 // Every element is authored in the scene, per the UI rule; this only shows, hides and fills them.
 [DisallowMultipleComponent]
@@ -28,8 +28,6 @@ public class FlightOrderScreen : MonoBehaviour
     [Tooltip("Authored slots, left to right. An order fills as many as it has colours.")]
     [SerializeField] private List<Slot> slots = new();
     [SerializeField] private TMP_Text comboText;
-    [Tooltip("Shown while the booth holds a bag the order doesn't want.")]
-    [SerializeField] private GameObject wrongBagWarning;
 
     [Header("Bag Icons")]
     [SerializeField] private Sprite redBag;
@@ -40,7 +38,6 @@ public class FlightOrderScreen : MonoBehaviour
     [Header("Count Colours")]
     [SerializeField] private Color pendingText = Color.white;
     [SerializeField] private Color filledText = new(0.36f, 0.93f, 0.52f);
-    [SerializeField] private Color overText = new(1f, 0.35f, 0.3f);
 
     [Header("Timer")]
     [Tooltip("Filled image, horizontal, origin left: it empties toward the left as time runs out.")]
@@ -91,6 +88,14 @@ public class FlightOrderScreen : MonoBehaviour
 
     private void Redraw()
     {
+        if (gate.CurrentPhase == DispatchGate.Phase.Waiting)
+        {
+            // Blank screen until the gate opens on its first order.
+            if (orderGroup != null) orderGroup.SetActive(false);
+            if (resultGroup != null) resultGroup.SetActive(false);
+            return;
+        }
+
         if (gate.CurrentPhase == DispatchGate.Phase.Loading)
             ShowOrder(true);
 
@@ -112,12 +117,9 @@ public class FlightOrderScreen : MonoBehaviour
             if (slot.count != null)
             {
                 slot.count.text = $"{line.InBooth}/{line.Required}";
-                slot.count.color = line.IsOver ? overText : line.IsFilled ? filledText : pendingText;
+                slot.count.color = line.IsFilled ? filledText : pendingText;
             }
         }
-
-        if (wrongBagWarning != null && wrongBagWarning.activeSelf != gate.WrongBags > 0)
-            wrongBagWarning.SetActive(gate.WrongBags > 0);
 
         if (comboText != null)
         {

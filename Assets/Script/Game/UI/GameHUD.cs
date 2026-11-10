@@ -1,10 +1,8 @@
 using System;
 using System.Collections;
-using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 /// <summary>
@@ -47,12 +45,6 @@ public class GameHUD : MonoBehaviour
     [Tooltip("Gold star switched on when its tier is earned. One per star tier, in order.")]
     [SerializeField] private GameObject[] starFills;
     [SerializeField] private TMP_Text[] starRequirementTexts;
-
-    [Header("Stage End — Players")]
-    [Tooltip("One row per player slot. Rows past the joined player count stay switched off.")]
-    [SerializeField] private CanvasGroup[] playerRows;
-    [SerializeField] private TMP_Text[] playerNameTexts;
-    [SerializeField] private TMP_Text[] playerScoreTexts;
 
     [Header("Selection")]
     [SerializeField] private Button resumeButton;
@@ -165,8 +157,6 @@ public class GameHUD : MonoBehaviour
 
         Hide(scoreRow);
         Hide(timeRow);
-        foreach (CanvasGroup row in playerRows ?? Array.Empty<CanvasGroup>())
-            Hide(row);
         foreach (GameObject fill in starFills ?? Array.Empty<GameObject>())
             SetActive(fill, false);
 
@@ -310,15 +300,12 @@ public class GameHUD : MonoBehaviour
 
         if (totalScoreText != null)
             totalScoreText.text = result.Score.ToString();
-        int activeRows = FillPlayerRows(result);
 
         SetActive(stageEndObject, true);
         yield return SlideInStageEnd();
 
         yield return Reveal(scoreRow);
         yield return Reveal(timeRow);
-        for (int i = 0; i < activeRows; i++)
-            yield return Reveal(playerRows[i]);
 
         yield return new WaitForSecondsRealtime(0.25f);
 
@@ -342,55 +329,6 @@ public class GameHUD : MonoBehaviour
         SetActive(nextStageObject, true);
         if (nextStageButton != null && EventSystem.current != null)
             EventSystem.current.SetSelectedGameObject(nextStageButton.gameObject);
-    }
-
-    /// <summary>
-    /// Switches on one row per joined player, fills its name and score, and hides the rest.
-    /// Rows stay hidden-but-active so the grid settles before anything fades in.
-    /// Returns how many rows are in play.
-    /// </summary>
-    private int FillPlayerRows(GameResult result)
-    {
-        int slots = playerRows?.Length ?? 0;
-        if (slots == 0)
-            return 0;
-
-        List<PlayerInput> joined = new(PlayerInput.all);
-        joined.Sort((a, b) => a.playerIndex.CompareTo(b.playerIndex));
-        int count = Mathf.Clamp(joined.Count, 1, slots);
-
-        for (int i = 0; i < slots; i++)
-        {
-            if (playerRows[i] == null)
-                continue;
-
-            SetActive(playerRows[i].gameObject, i < count);
-            Hide(playerRows[i]);
-            if (i >= count)
-                continue;
-
-            if (i < (playerNameTexts?.Length ?? 0) && playerNameTexts[i] != null)
-                playerNameTexts[i].text = PlayerDisplayName(i < joined.Count ? joined[i] : null, i);
-
-            if (i < (playerScoreTexts?.Length ?? 0) && playerScoreTexts[i] != null)
-            {
-                int score = i < result.PlayerScores.Length ? result.PlayerScores[i] : 0;
-                playerScoreTexts[i].text = score.ToString();
-            }
-        }
-
-        return count;
-    }
-
-    // Player bodies are prefab instances, so the character name arrives as "Annie(Clone)".
-    private static string PlayerDisplayName(PlayerInput player, int index)
-    {
-        if (player == null)
-            return $"PLAYER {index + 1}";
-
-        string bodyName = player.name;
-        int clone = bodyName.IndexOf("(Clone)", StringComparison.Ordinal);
-        return clone >= 0 ? bodyName[..clone].Trim() : bodyName;
     }
 
     private static IEnumerator Reveal(CanvasGroup group)

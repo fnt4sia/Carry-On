@@ -17,6 +17,7 @@ GameObject:
   - component: {fileID: 4162292888691371071}
   - component: {fileID: 6361054960280151450}
   - component: {fileID: 4700607472521410003}
+  - component: {fileID: 3170193381075476780}
   m_Layer: 7
   m_Name: Bun Jovi
   m_TagString: Player
@@ -169,6 +170,7 @@ MonoBehaviour:
   movementLerpSpeed: 0.15
   dashSpeedMultiplier: 2
   dashDuration: 0.15
+  dashClipDuration: 0.25
   dashCooldown: 1
   playerRb: {fileID: 7950293537792215194}
   bubblePrefab: {fileID: 0}
@@ -369,6 +371,25 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 54d78211c45d84654bb10dc090808e6a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerControlSchemeKeeper
+--- !u!114 &3170193381075476780
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1229066062301933466}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8cb67923e678c433085856745c8868dc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerFootsteps
+  stepSound: Footstep Bun Jovi
+  animator: {fileID: 7768913801487479366}
+  body: {fileID: 7950293537792215194}
+  footfalls:
+  - 0
+  - 0.47
+  airborneFallSpeed: 2
 --- !u!1 &3680380005099149856
 GameObject:
   m_ObjectHideFlags: 0

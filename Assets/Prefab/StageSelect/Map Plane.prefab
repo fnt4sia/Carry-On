@@ -4929,6 +4929,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2434288739724222867}
   - component: {fileID: 4729335206883020391}
+  - component: {fileID: 1789166641495499774}
   m_Layer: 0
   m_Name: Map Plane
   m_TagString: Untagged
@@ -4981,6 +4982,20 @@ MonoBehaviour:
   propeller: {fileID: 6681659307068624499}
   propellerHub: {fileID: 2488657683604256580}
   propellerSpeed: 900
+--- !u!114 &1789166641495499774
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6516724753065597848}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8f22ff6078372437ba6bd3cecff3278d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LoopingSound
+  sound: Map Plane Idle
+  fade: 0.5
 --- !u!1001 &284866114129813768
 PrefabInstance:
   m_ObjectHideFlags: 0

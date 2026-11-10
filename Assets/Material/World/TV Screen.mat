@@ -75,7 +75,7 @@ Material:
     - _BaseColor: {r: 0.012, g: 0.012, b: 0.02, a: 1}
     - _Color: {r: 0.012, g: 0.012, b: 0.02, a: 1}
     - _DarkColour: {r: 0.012, g: 0.012, b: 0.02, a: 1}
-    - _ScreenColour: {r: 0.09, g: 0.35, b: 0.46, a: 1}
+    - _ScreenColour: {r: 0.101960786, g: 0.05490196, b: 0.21176471, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
 --- !u!114 &1710974548578177524

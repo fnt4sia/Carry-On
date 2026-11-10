@@ -130,7 +130,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 2b9cb573b10cd4d0b9793562ed36c2f8, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 20af48e440fc743ce8a8938a20df8995, type: 3}
   m_Type: 0
   m_PreserveAspect: 1
   m_FillCenter: 1
@@ -547,7 +547,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 2b9cb573b10cd4d0b9793562ed36c2f8, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 20af48e440fc743ce8a8938a20df8995, type: 3}
   m_Type: 0
   m_PreserveAspect: 1
   m_FillCenter: 1
@@ -1240,7 +1240,7 @@ MonoBehaviour:
   - {fileID: 7874192024819783655}
   - {fileID: 2240541809438636073}
   starFilledSprite: {fileID: 21300000, guid: aa35dd07c4c174810b4b4166d3cbc3d5, type: 3}
-  starEmptySprite: {fileID: 21300000, guid: 2b9cb573b10cd4d0b9793562ed36c2f8, type: 3}
+  starEmptySprite: {fileID: 21300000, guid: 20af48e440fc743ce8a8938a20df8995, type: 3}
   playerSlots:
   - {fileID: 587753837101684037}
   - {fileID: 345962701927529539}
@@ -1511,7 +1511,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 2b9cb573b10cd4d0b9793562ed36c2f8, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 20af48e440fc743ce8a8938a20df8995, type: 3}
   m_Type: 0
   m_PreserveAspect: 1
   m_FillCenter: 1

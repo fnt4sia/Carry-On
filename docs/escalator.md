@@ -1,6 +1,6 @@
 # Moving escalator
 
-**Prefab:** `Prefab/Decoration/Escalator.prefab` · **Shader:** `Shader/EscalatorSteps.shadergraph` ·
+**Prefab:** `Prefab/Decoration/Escalator.prefab` · **Shader:** `Shader/EscalatorSteps.shadergraph` (+ `EscalatorSteps.hlsl`) ·
 **Material:** `Material/World/EscalatorSteps.mat` · **Meshes:** `Prefab/Decoration/Escalator_Frame.asset`,
 `Prefab/Decoration/Escalator_Steps.asset`
 
@@ -38,13 +38,30 @@ Steps are the triangles that sample the dark `#2D0A22` and orange `#FD9404` pale
 
 ## The shader
 
-Every vertex moves with its step:
+Every vertex moves with its step. The graph works out `zNow`; a Custom Function node
+(`EscalatorStepPosition` in `Shader/EscalatorSteps.hlsl`) does the rest:
 
 ```text
-zNow = LoopStartZ + frac((restZ − direction·Speed·time − LoopStartZ) / LoopLength) · LoopLength
-yNow = clamp(LineY − Slope·zNow, BottomY, TopY)          // flat → incline → flat
-position += (0, yNow − restY, zNow − restZ)
+zNow   = LoopStartZ + frac((restZ − direction·Speed·time − LoopStartZ) / LoopLength) · LoopLength
+path(z) = min(clamp(LineY − Slope·z, BottomY, TopY),                 // flat → incline → flat
+              lerp(incline, CombY, smoothstep(BendZ, CombZ, z)))    // eased onto the bottom landing
+yNow   = path(zNow)
+riser  = max(0, (yNow − path(zNow + StepRun)) / StepRise)          // 1 on the incline, 0 when flat
+position = (x, yNow + (y − restY)·riser, zNow + (z − restZ))
 ```
+
+**The riser follows the path** (19 Oct 2026). Each step's height below its tread is scaled by how far
+the next step down actually sits, so the risers fold flat where the path levels out (both landings,
+like a real escalator) and stretch where it steepens, so no gap ever opens between treads.
+
+**The bottom bend** (19 Oct 2026, Fitra: the bottom was "really bad and really noticeable"). The frame
+runs its incline straight into the bottom landing plate (surface y −3.38, front edge z 7.25), so on
+the plain clamp the last steps stood up to 0.31 proud of the plate as they went under it: blocks
+popping up out of the floor. The path now eases from the incline at `BendZ` 5.5 down to `CombY`
+−3.42 (just under the plate) by the plate's edge, arriving flat. The top end never needed it: its
+flat run already lands under the top plate (surface 2.41, edge z −6.5). `StepRun`, `StepRise`,
+`CombZ`, `CombY` and `BendZ` are constants in the `.hlsl`, measured from the meshes like the
+properties below.
 
 A step wraps from one end of the loop to the other at `LoopStartZ` / `LoopStartZ + LoopLength`.
 Both points sit under a landing plate, so the jump is never visible. The fragment side samples
@@ -67,6 +84,5 @@ Everything except `Speed` is measured from the mesh: change those only together 
 - **Judge the motion in Play mode.** In edit mode the Scene view only animates with *Always Refresh*
   on, and the editor's shader time can be huge (≈ 6 × 10⁵ s when this was built), which quantises
   float time to 1/16 s — the steps stutter. In Play mode time starts at 0 and the motion is smooth.
-- **The bottom end.** The incline starts under the bottom landing plate, so a step rises up through
-  the plate's front edge instead of sliding out flat. The original model already had its first step
-  sitting above the plate, so the silhouette matches.
+- **Editing the graph.** The Custom Function node reads `EscalatorSteps.hlsl` by GUID; moving the
+  `.hlsl` inside Unity keeps it, deleting it breaks the shader.

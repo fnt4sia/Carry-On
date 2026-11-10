@@ -124,11 +124,7 @@ public class Gate : MonoBehaviour
             return;
         }
 
-        int playerIndex = luggage.GetLastGrabber() != null
-            ? luggage.GetLastGrabber().GetPlayerIndex()
-            : -1;
-
-        if (!RoundScoreContext.TryRecordDelivery(playerIndex, config.scoreCorrectDelivery))
+        if (!RoundScoreContext.TryRecordDelivery(config.scoreCorrectDelivery))
             return;
 
         line.CountDelivery();
