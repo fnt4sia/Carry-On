@@ -22,7 +22,25 @@ Joining is polled only in `MainMenu`, because one physical keyboard is shared by
 
 A keyboard scheme is free when no current player uses its scheme name; a gamepad is free when no
 player has paired that device. `LastJoinFrame` stops a join press from also submitting a menu
-button in the same frame.
+button in the same frame. That only works because `PlayerSystem` runs at execution order `-1100`,
+ahead of the `EventSystem` (`-1000`): at the old `-100` the click landed first, so the second pad's
+join press opened New Game and the third picked a save slot.
+
+**Tested with four virtual pads (10 Nov 2026), not yet with four real ones.** Four whole pads, and
+three pads with one split, each joined, flew the map, played Level1 and came back with every
+player on the device they joined with. Three things that test fixed:
+
+- the join press clicking the menu (above);
+- **Pause only answered to player 1.** Player 1's `PlayerInput` runs on the shared
+  `GameInput` asset itself and masks it to that player's scheme and devices, so `GameManager` now
+  reads `System/Pause` off its own copy of the asset;
+- **players came back from the map on the wrong pad.** A re-enabled `PlayerInput` pairs to the
+  first gamepad nobody else holds, not to the one it joined on, so the right half of a split pad
+  landed on another player's pad, and whole pads swap characters whenever join order differs from
+  plug order. `PlayerControlSchemeKeeper` now puts back the joined devices as well as the scheme.
+
+A pad that disconnects leaves its seat reading `PAD` with no number and comes back to the same
+player when it reconnects. There is still no way to leave the lobby once joined.
 
 ### Splitting one pad between two players
 
@@ -66,9 +84,6 @@ same prefab GUID; ZipZub joined September 2026), one body per player slot. Use t
 field — not the manager's own *Player Prefab*, which Unity hides while Join Behavior is *Manual*.
 The copy that actually boots is `Assets/Resources/Runtime/PlayerSystem.prefab`, a variant of the
 Manager prefab with no roster override — edit the roster on the Manager prefab.
-
-The results screen names each player after their body's prefab (`GameHUD.PlayerDisplayName`
-strips `(Clone)`), so the prefab name is the character's display name.
 
 `PlayerSystem.JoinPlayer(scheme, device)` is the single join entry point — it swaps
 `PlayerInputManager.playerPrefab` to the next roster body right before each

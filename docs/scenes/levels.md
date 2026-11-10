@@ -136,8 +136,10 @@ and five good flights; they are a first guess that wants a playtest. The order t
 (Fitra, 20 Oct 2026; it was 20 s): a pile-to-gate round trip is about 45 m each way, so a solo
 player needs ~10 s per bag. A longer timer also raises the time bonus, so re-check the stars.
 
-Stage 1 is unlocked by default and unlocks Stage 2. Stage 2's `nextLevel` is deliberately empty
-while Level3 is archived.
+Stage 1 is unlocked by default and the chain runs 1 → 2 → 3 → 4, so the map draws a route between
+every pair of islands. A stage only opens if its scene is ticked in Build Settings
+(`ProgressionService.IsUnlocked`), so the chain can name stages that have no content yet: they
+stay locked islands at the end of a route.
 
 ## Config ↔ scene mapping
 
@@ -150,15 +152,18 @@ never enough.
 | `LevelConfig_Stage1` | `Level1` | 2 | Red, Green, Yellow |
 | `LevelConfig_Stage2` | `Level2` | 3 | Red, Green, Yellow |
 
-Build Settings is `MainMenu`, `ChooseStage`, `Stages/Level1`, `Archive/Level2` — nothing else.
+Build Settings lists `MainMenu`, `ChooseStage`, `Stages/Level1`, `Archive/Level2` — nothing else.
+**Level2 is unticked since 10 Nov 2026**, for the one-level demo build: its station layout is
+broken (above), and finishing Level1 used to unlock it. Tick it again to bring Stage 2 back; no
+other change is needed. *Validate All Build Scenes* skips an unticked scene.
 Level2's file is `Assets/Scenes/Archive/Level2.unity`; it is live all the same.
 `Archive/Level1.unity` (the old pile) is also named `Level1`, and `SceneLoader` loads by name, so
 it must stay out of the build.
 
-Stage select still routes Node 1–4 at `LevelConfig_Stage1..4`. Nodes 3 and 4 point at archived
-configs and stay locked, because Stage 2 no longer unlocks Stage 3. A save that unlocked them
-before the archive still can't start them: a node whose scene isn't in Build Settings never fills
-its boarding border, and the group landing on it gets the wrong-action SFX plus an error log.
+**Build Settings decides which stages a build contains.** Stage select routes Node 1–4 at
+`LevelConfig_Stage1..4`. A node whose scene isn't ticked reads as locked whatever the save says:
+grey ring, no badge, planes fly over it. So an old save that unlocked an archived stage can't
+land on it either.
 
 The old flat stage-select scene was deleted on 30 Sep 2026; Carstenz's 3D map took its name. The
 old `Test` decoration-staging scene was deleted in `0f39a36`.

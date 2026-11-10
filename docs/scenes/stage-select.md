@@ -206,8 +206,9 @@ down to dragging a template under `Level Islands` and setting its `Level`; the p
 mode, world-space, flat on the sea, 2.6 m wide) with `Material/World/Route Dash.mat` on
 `Shader/RouteDash.shader`, laid out by `MapRoute`. **The route finds its own end**: it runs from
 its node to whichever node holds that level's `nextLevel`, so the routes always match the real
-unlock chain, and a stage with no next level (or one that isn't on the map) draws nothing — which
-is why there is no 2 → 3 route while Stage 2 doesn't unlock the archived Stage 3. It runs a cubic
+unlock chain, and a stage with no next level (or one that isn't on the map) draws nothing. The
+chain is 1 → 2 → 3 → 4, so every island is joined to the next; a route to a stage that isn't in
+the build still draws, and ends at a locked island. It runs a cubic
 curve from 7.5 m off one node to 7.5 m off the next, measured from the node pivots, bent by its
 own `bendStart` / `bendEnd`: the same sign curves it one way, opposite signs make an S. The bends
 are per-instance overrides on each island's `Route` (Level 1: 12 / 4, Level 2: −8 / 8, Level 3:

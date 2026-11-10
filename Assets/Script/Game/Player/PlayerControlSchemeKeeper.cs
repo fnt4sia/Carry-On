@@ -32,14 +32,46 @@ public class PlayerControlSchemeKeeper : MonoBehaviour
             // user.valid is the guard, not a formality: on a userless PlayerInput
             // SwitchCurrentControlScheme throws InvalidOperationException("Invalid user").
             if (joinedDevices != null
-                && playerInput.currentControlScheme != joinedScheme
-                && playerInput.user.valid)
+                && playerInput.user.valid
+                && (playerInput.currentControlScheme != joinedScheme || !HoldsJoinedDevices())
+                && JoinedDevicesConnected())
             {
                 playerInput.SwitchCurrentControlScheme(joinedScheme, joinedDevices);
             }
         }
 
         Remember();
+    }
+
+    // The scheme coming back right doesn't mean the device did. With a default scheme set,
+    // PlayerInput re-pairs to the first gamepad nobody else holds, not to the one this player
+    // joined on: after the map, the right half of a split pad landed on another player's pad,
+    // and whole pads swapped characters whenever join order differed from plug order.
+    private bool HoldsJoinedDevices()
+    {
+        if (playerInput.devices.Count != joinedDevices.Length)
+            return false;
+
+        foreach (InputDevice joined in joinedDevices)
+        {
+            bool held = false;
+            foreach (InputDevice device in playerInput.devices)
+                if (device == joined)
+                    held = true;
+            if (!held)
+                return false;
+        }
+        return true;
+    }
+
+    // A pad unplugged while its player was switched off can't be paired; leave what PlayerInput
+    // chose until the pad is back.
+    private bool JoinedDevicesConnected()
+    {
+        foreach (InputDevice joined in joinedDevices)
+            if (joined == null || !joined.added)
+                return false;
+        return true;
     }
 
     // The scheme only changes at join time, but polling avoids assuming anything about

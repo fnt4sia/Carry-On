@@ -15,8 +15,10 @@ using UnityEngine.SceneManagement;
 // automatically. Joining is polled only in the lobby.
 //
 // Runs before the EventSystem so a join press is registered before UI submit fires
-// on the same frame (see LastJoinFrame).
-[DefaultExecutionOrder(-100)]
+// on the same frame (see LastJoinFrame). The EventSystem's own script order is -1000, so
+// this has to be lower still: at -100 a second pad's join press also clicked the
+// highlighted menu row.
+[DefaultExecutionOrder(-1100)]
 [RequireComponent(typeof(PlayerInputManager))]
 public class PlayerSystem : SingletonBehaviour<PlayerSystem>
 {
