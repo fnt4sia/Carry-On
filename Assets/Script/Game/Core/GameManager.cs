@@ -18,6 +18,7 @@ public class GameManager : SingletonBehaviour<GameManager>
     [SerializeField] private InputActionAsset inputActions;
 
     private ScoreBoard scoreBoard;
+    private InputActionAsset pauseActions;
     private InputAction pauseAction;
     private float gameTimer;
     private int lastPublishedSecond = -1;
@@ -53,7 +54,11 @@ public class GameManager : SingletonBehaviour<GameManager>
 
         if (inputActions != null)
         {
-            pauseAction = inputActions.FindAction("System/Pause", throwIfNotFound: false);
+            // A private copy. Player 1's PlayerInput runs on the shared asset itself and masks it
+            // to that player's control scheme and devices, so Pause read straight off it only
+            // answered to player 1.
+            pauseActions = Instantiate(inputActions);
+            pauseAction = pauseActions.FindAction("System/Pause", throwIfNotFound: false);
             pauseAction?.Enable();
         }
     }
@@ -76,6 +81,8 @@ public class GameManager : SingletonBehaviour<GameManager>
     protected override void OnSingletonDestroyed()
     {
         pauseAction?.Disable();
+        if (pauseActions != null)
+            Destroy(pauseActions);
         if (scoreBoard != null)
         {
             scoreBoard.ScoreApplied -= OnScoreApplied;

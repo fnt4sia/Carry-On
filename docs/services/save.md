@@ -86,9 +86,9 @@ Unlocking is driven by `LevelConfig.nextLevel`, not by an index — finishing `s
 `stage-2` because Stage 1's config points at Stage 2's. Current `levelId`s are all unique
 (`design-sandbox`, `stage-1`…`stage-4`, `tutorial`), which is what keeps slots coherent.
 
-> The chain stops at `stage-2`: its `nextLevel` is empty while Level3 is archived. A save from
-> before the archive may already hold `stage-3`/`stage-4` unlocked; clicking those nodes logs
-> `Scene 'Level3' is not enabled in Build Settings.` and does nothing. See
+> `IsUnlocked` is false for any level whose scene isn't ticked in Build Settings, before it looks
+> at the save or at `unlockedByDefault`. The chain runs `stage-1` → `stage-4`, and a save can hold
+> a stage unlocked that the build doesn't contain; it still shows as a locked island. See
 > [levels](../scenes/levels.md#config--scene-mapping).
 
 Don't change a shipped `levelId` casually: the old record stops matching and the player silently

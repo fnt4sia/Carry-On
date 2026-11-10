@@ -78,6 +78,11 @@ public class ProgressionService : SingletonBehaviour<ProgressionService>
     {
         if (level == null)
             return false;
+        // A stage whose scene isn't in Build Settings has nothing to play yet, so it stays a
+        // locked island on the map whatever the save says. Build Settings is the list of what
+        // a build contains.
+        if (!Application.CanStreamedLevelBeLoaded(level.sceneName))
+            return false;
         if (level.unlockedByDefault)
             return true;
 
