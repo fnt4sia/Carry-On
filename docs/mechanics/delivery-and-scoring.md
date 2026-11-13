@@ -140,8 +140,16 @@ pivot, and held bags were skipped. Bags are 1.9 m wide with the pivot 0.66 m off
 lying against the glass sat outside the count, and the trapdoor left it behind (Fitra: "sometimes
 even when the luggage is inside the gateway it isn't detected"). `ScanBooth` recounts every
 `FixedUpdate` with an `OverlapBox`, so a bag carried back out comes off the count. Each line shows
-`InBooth/Required`. A bag no line wants (wrong colour, or wrapped — Level1 has no wrapper) isn't
-counted, but it still drops with the rest.
+`InBooth/Required`. A bag no line wants (wrong colour, or wrapped when the line is plain) isn't
+counted, but it still drops with the rest. Delivered luggage is skipped, which is also how the
+`Level1Test` refills stay out of the count ([levels](../scenes/levels.md#level1test-temporary)).
+
+**Wrapped lines are opt-in.** `wrappedLinesPerOrder` (default 0, which is Level1) marks that many of
+an order's lines as wrapped. A wrapped bag fills only a wrapped line of its colour and a plain bag
+only a plain one, the same rule as the old `Gate`. The colours are already a random draw, so the
+first lines are the wrapped ones. A scene that turns it on needs a wrapping machine, and its order
+screen's slots need their `wrapped` badge wired (below). Nothing else in the pay-out changes: a
+wrapped line pays per bag like any other.
 
 **Filled is enough.** A good flight has every line at or over its count. Spare and wrong-colour bags
 don't matter (Fitra, 20 Oct: "doesn't even matter what are inside, as long as they fulfill the
@@ -233,7 +241,11 @@ own colour. Both now go through the same post-processing, so they render alike; 
 read as black. Laid out top to bottom:
 
 - **One slot per colour** (250 × 392): the `UI/Gameplay/ListItem` bag sprite (200 × 260) over
-  `in booth/needed` (100 pt) — white until the line is filled, then green (over is fine).
+  `in booth/needed` (100 pt) — white until the line is filled, then green (over is fine). A slot's
+  optional `wrapped` object is shown while its line wants wrapped bags. The prefab leaves it empty,
+  because Level1 has no wrapped lines; `Level1Test` adds a `WrapBadge.png` sticker per slot as a
+  scene override. There is no blue bag sprite in `UI/Gameplay/ListItem`, so `blueBag` is empty on
+  the prefab too.
 - **Timer row:** a bar that empties toward the left, shading green → amber → red. On a streak,
   "COMBO x1.5" sits at its right end; the row's `HorizontalLayoutGroup` gives the bar the full
   width when the combo is hidden.

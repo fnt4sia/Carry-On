@@ -19,6 +19,8 @@ public class FlightOrderScreen : MonoBehaviour
         public Image icon;
         [Tooltip("Reads 'in booth/needed', e.g. 1/2.")]
         public TMP_Text count;
+        [Tooltip("Optional. Shown while this line wants its bags wrapped.")]
+        public GameObject wrapped;
     }
 
     [SerializeField] private DispatchGate gate;
@@ -113,6 +115,8 @@ public class FlightOrderScreen : MonoBehaviour
             DispatchGate.OrderLine line = order[i];
             if (slot.icon != null)
                 slot.icon.sprite = IconFor(line.Color);
+            if (slot.wrapped != null && slot.wrapped.activeSelf != line.Wrapped)
+                slot.wrapped.SetActive(line.Wrapped);
 
             if (slot.count != null)
             {

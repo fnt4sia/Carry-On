@@ -144,6 +144,15 @@ the washer and 0.12 on the wrapper, which is the tighter of the two and therefor
 number. The old art cleared its lip by 0.13, so this matches. And `-6` is the only band both
 behind the curtain (x −4.86) and inside the back of the arch (x −7.34).
 
+> **The shipped `WrapperStation` no longer matches this table** (checked 10 Nov 2026). Its root is
+> at scale 0.9 and `IntakePoint`/`ReleasePoint` sit at x −12, behind the arch, so a cranked bag
+> waits outside the back of the machine. At 0.9 the 2.41865 anchors also sit the bag ~0.1 m into
+> the lane floor. Its `TV` mesh floats above and beside the arch. Measured on the shell, a bag is
+> 0.99 m along the lane and 1.74 m across it (anchors are `rotY 90`), the lane inside the arch is
+> 3.06 wide, and the roof underside is at 5.6. So 0.77 is the smallest scale a 3.2 m bag still
+> passes under. The `Level1Test` copies re-derive the anchors for 0.8
+> ([levels](../scenes/levels.md#level1test-temporary)).
+
 ## Manual crank (the redesign's machine mechanic)
 
 `requiresPlayerCrank` turns a machine Overcooked-style: loading a bag does **nothing** on its own.

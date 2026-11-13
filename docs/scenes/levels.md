@@ -355,3 +355,45 @@ pressure-plate doors, numbered gates — and no longer play correctly:
 Mine them for layout, belt routing and decoration; don't expect them to run. `TutorialRoom.cs`
 (rooms that open their doors once their bags are cleared) is used only by the archived Tutorial
 and is kept for the rebuild. The last commit of the old design is `bc233e5`.
+
+## Level1Test (temporary)
+
+A design experiment (10 Nov 2026): **machines that must be stocked before they work**. All of it is
+in `Assets/_TempStationTest/`, to be deleted as one folder. Not in Build Settings; open and press
+Play (`DebugAutoJoin` joins two keyboard players). It is a copy of Level1 with:
+
+- `LevelConfig_Level1Test`: the belt spawns **red and green only**, order timer 60 s.
+- The gate asks for all four colours, with `wrappedLinesPerOrder` 1. Blue and yellow only exist
+  by painting, so an order like "2 blue, wrapped" needs both machines.
+- `Refill Test (Temp)` (scale 1, not under a 0.6 root) holds the sketch's layout. The Coloring Station
+  (yaw 0) opens toward the camera, between the box pile and the far seats. The Wrap Station (yaw 180)
+  opens away from the camera, set into the bottom edge. Its 3 m standing area ends where the
+  pile's furthest bag reached (x −57.4). Wrap Crate top right, Paint Crates by the gate, bottom.
+- The bottom planter row `Pot4.003` slid 5.1 m along +Z so it starts past the wrap machine.
+  `Chairs05`, `StandingBarrier03.004` and `Trolley03` are switched off, and the spawn points sit
+  between the island and the gate. Checked 10 Nov with oriented overlap boxes (nothing touches) and
+  a player-sized walk grid: every opening, crate, the pile and the booth are reachable, and both
+  routes round the island are 5–8 m wide.
+
+How it plays:
+
+| Piece | Script | Behaviour |
+|---|---|---|
+| Crate | `RefillCrate` | one refill sits on the lid, kinematic; grabbing takes it and the next appears 0.5 s later; at most 3 out per crate |
+| Refill (roll / can) | `RefillItem` | a `Luggage` flagged `IsDelivered`, so it is grabbed, carried, thrown and loaded like a bag, but a gate never counts it |
+| Machine | `RefillStation` | a `MachineStation`. It starts empty (`NEEDS WRAP` / `NEEDS PAINT`). Load a refill and hold Grab to stock it (the same crank as a bag), then each bag is loaded and held as usual for `usesPerRefill` (3) bags. A refill tops it back to full; a can of another colour swaps the paint |
+| Painted bag | `PaintedLuggage` | added on first paint; puts the bag's own colour and material back when the pool takes it, because pools are keyed by source prefab |
+
+The two machines are one script with `kind` = Wrap or Paint. The prefabs are copies of
+`WrapperStation` with `Wrapper` swapped for `RefillStation`. They run at **0.8, the smallest scale a
+bag fits through**: a bag stands 3.2 m on a lane floor at 1.442·s under a roof at 5.6·s (0.13 m to
+spare). Anchors are re-set so the bag sits on the lane floor (y = 1.442 + 0.979 / s = 2.666), with
+intake and release at x −6.1, inside the arch. The stock label (y 7.7) and crank bar (y 11.4) sit
+over the arch, not the opening; both copy the camera's tilt, so the bar must clear the label by
+~2.8 m. The floating `TV` is switched off.
+
+Verified in Play with a virtual pad: stock, wrap, paint, gate counts "blue, wrapped" and ignores a
+paint can, and a dropped bag returns to its pool unpainted. **Finishing a round writes a
+`level1-test` entry into the active save slot.** The only changes outside the folder are the
+opt-in, default-off `DispatchGate.wrappedLinesPerOrder` and `FlightOrderScreen`'s `wrapped` badge
+([delivery](../mechanics/delivery-and-scoring.md#dispatch-gates-level1)).

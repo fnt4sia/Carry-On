@@ -15,17 +15,19 @@ using UnityEngine.InputSystem;
 // the main menu still use it; the two never meet in one scene.
 public class DispatchGate : MonoBehaviour
 {
-    // One colour of the current order: how many it wants and how many sit in the booth right now.
-    // The booth count goes down as well as up, since a player can carry a bag back out.
+    // One colour of the current order: how many it wants, whether wrapped, and how many sit in the
+    // booth right now. The booth count goes down as well as up, since a player can carry a bag back out.
     public class OrderLine
     {
-        public OrderLine(LuggageColor color, int required)
+        public OrderLine(LuggageColor color, bool wrapped, int required)
         {
             Color = color;
+            Wrapped = wrapped;
             Required = required;
         }
 
         public LuggageColor Color { get; }
+        public bool Wrapped { get; }
         public int Required { get; }
         public int InBooth { get; set; }
         public bool IsFilled => InBooth >= Required;
@@ -47,6 +49,9 @@ public class DispatchGate : MonoBehaviour
     [SerializeField, Min(1)] private int maxBagsPerColor = 2;
     [Tooltip("Cap on the bags one order asks for in total, so a big draw still fits the timer.")]
     [SerializeField, Min(1)] private int maxBagsPerOrder = 4;
+    [Tooltip("How many of an order's colours must arrive wrapped. Needs a wrapping machine in the " +
+             "scene. 0 = never, which is Level1.")]
+    [SerializeField, Min(0)] private int wrappedLinesPerOrder;
 
     [Header("Booth")]
     [Tooltip("Centre of the booth floor. A bag whose centre is within holdRadius of it, and below " +
@@ -381,13 +386,12 @@ public class DispatchGate : MonoBehaviour
         return offset.sqrMagnitude <= holdRadius * holdRadius;
     }
 
-    // Level1 has no wrapper, so a wrapped bag fills nothing.
+    // A wrapped bag fills only a wrapped line and a plain bag only a plain one. Level1 asks for no
+    // wrapped lines, so there a wrapped bag fills nothing.
     private OrderLine LineFor(Luggage bag)
     {
-        if (bag.IsWrapped) return null;
-
         foreach (OrderLine line in order)
-            if (line.Color == bag.color)
+            if (line.Color == bag.color && line.Wrapped == bag.IsWrapped)
                 return line;
 
         return null;
@@ -420,6 +424,7 @@ public class DispatchGate : MonoBehaviour
             int colours = Mathf.Clamp(UnityEngine.Random.Range(minColorsPerOrder, maxColorsPerOrder + 1),
                                       1, Mathf.Min(paletteDraw.Count, maxBagsPerOrder));
             int budget = maxBagsPerOrder;
+            int wrappedLines = Mathf.Min(wrappedLinesPerOrder, colours);
 
             for (int i = 0; i < colours; i++)
             {
@@ -432,7 +437,9 @@ public class DispatchGate : MonoBehaviour
                 int most = Mathf.Max(1, Mathf.Min(maxBagsPerColor, budget - (colours - i - 1)));
                 int bags = Mathf.Clamp(UnityEngine.Random.Range(minBagsPerColor, maxBagsPerColor + 1), 1, most);
                 budget -= bags;
-                order.Add(new OrderLine(color, bags));
+                // The colours are already a random draw, so wrapping the first lines is as random
+                // as picking which ones.
+                order.Add(new OrderLine(color, wrapped: i < wrappedLines, bags));
             }
         }
 

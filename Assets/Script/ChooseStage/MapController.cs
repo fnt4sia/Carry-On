@@ -308,7 +308,7 @@ public class MapController : MonoBehaviour
             loading = false;
             yield break;
         }
-
+    
         RestorePlayers();
     }
 
